@@ -1,0 +1,2562 @@
+{
+  "sep_cw_emp_v2": [
+    {
+      "id": "kusu",
+      "name": "Kusu"
+    },
+    {
+      "id": "sripati",
+      "name": "Sripati"
+    },
+    {
+      "id": "naren",
+      "name": "Naren"
+    },
+    {
+      "id": "champai",
+      "name": "Champai"
+    },
+    {
+      "id": "budheswar",
+      "name": "Budheswar"
+    },
+    {
+      "id": "sai",
+      "name": "Sai",
+      "inactive": false
+    },
+    {
+      "id": "shambhu",
+      "name": "Shambhu"
+    },
+    {
+      "id": "mantu",
+      "name": "Mantu"
+    },
+    {
+      "id": "rocky",
+      "name": "Rocky"
+    },
+    {
+      "id": "birsa",
+      "name": "Birsa"
+    },
+    {
+      "id": "tuklu",
+      "name": "Tuklu"
+    },
+    {
+      "id": "extra",
+      "name": "Extra",
+      "inactive": true
+    },
+    {
+      "id": "ramu_mn5qzoha",
+      "name": "Ramu"
+    }
+  ],
+  "sep_cw_att_v2": {
+    "kusu_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "kusu_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sripati_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "sripati_2026_3_24": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "sripati_2026_3_25": {
+      "status": "OT",
+      "otHours": 6
+    },
+    "naren_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "naren_2026_3_24": {
+      "status": "A",
+      "otHours": 0
+    },
+    "naren_2026_3_25": {
+      "status": "A",
+      "otHours": 0
+    },
+    "champai_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "champai_2026_3_24": {
+      "status": "A",
+      "otHours": 0
+    },
+    "champai_2026_3_25": {
+      "status": "P",
+      "otHours": 0
+    },
+    "budheswar_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "budheswar_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "budheswar_2026_3_25": {
+      "status": "OT",
+      "otHours": 6
+    },
+    "sai_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "sai_2026_3_24": {
+      "status": "A",
+      "otHours": 0
+    },
+    "sai_2026_3_25": {
+      "status": "A",
+      "otHours": 0
+    },
+    "shambhu_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "shambhu_2026_3_24": {
+      "status": "OT",
+      "otHours": 6
+    },
+    "shambhu_2026_3_25": {
+      "status": "OT",
+      "otHours": 6
+    },
+    "mantu_2026_3_23": {
+      "status": "P",
+      "otHours": 0
+    },
+    "mantu_2026_3_24": {
+      "status": "A",
+      "otHours": 0
+    },
+    "mantu_2026_3_25": {
+      "status": "A",
+      "otHours": 0
+    },
+    "rocky_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "rocky_2026_3_24": {
+      "status": "A",
+      "otHours": 0
+    },
+    "rocky_2026_3_25": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "birsa_2026_3_25": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "birsa_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "birsa_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "tuklu_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "tuklu_2026_3_24": {
+      "status": "A",
+      "otHours": 0
+    },
+    "tuklu_2026_3_25": {
+      "status": "A",
+      "otHours": 0
+    },
+    "extra_2026_3_23": {
+      "status": "OT",
+      "otHours": 49
+    },
+    "extra_2026_3_24": {
+      "status": "OT",
+      "otHours": 33
+    },
+    "extra_2026_3_25": {
+      "status": "OT",
+      "otHours": 8
+    },
+    "kusu_2026_3_25": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "ramu_mn5qzoha_2026_3_25": {
+      "status": "P",
+      "otHours": 0
+    },
+    "ramu_mn5qzoha_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "kusu_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sripati_2026_3_26": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "birsa_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "tuklu_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "champai_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "shambhu_2026_3_26": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "naren_2026_3_26": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "budheswar_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sai_2026_3_26": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "mantu_2026_3_26": {
+      "status": "A",
+      "otHours": 0
+    },
+    "rocky_2026_3_26": {
+      "status": "A",
+      "otHours": 0
+    },
+    "ramu_mn5qzoha_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "extra_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "kusu_2026_3_27": {
+      "status": "P"
+    },
+    "sripati_2026_3_27": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "birsa_2026_3_27": {
+      "status": "P"
+    },
+    "budheswar_2026_3_27": {
+      "status": "P"
+    },
+    "tuklu_2026_3_27": {
+      "status": "P"
+    },
+    "champai_2026_3_27": {
+      "status": "P"
+    },
+    "rocky_2026_3_27": {
+      "status": "A"
+    },
+    "shambhu_2026_3_27": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "naren_2026_3_27": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "sai_2026_3_27": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "mantu_2026_3_27": {
+      "status": "A",
+      "otHours": 0
+    },
+    "ramu_mn5qzoha_2026_3_27": {
+      "status": "P",
+      "otHours": 0
+    },
+    "kusu_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sripati_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "birsa_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "budheswar_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "tuklu_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "champai_2026_3_28": {
+      "status": "A"
+    },
+    "naren_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sai_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "shambhu_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "mantu_2026_3_28": {
+      "status": "A",
+      "otHours": 0
+    },
+    "rocky_2026_3_28": {
+      "status": "A",
+      "otHours": 0
+    },
+    "ramu_mn5qzoha_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "extra_2026_3_27": {
+      "status": "OT",
+      "otHours": 23
+    },
+    "extra_2026_3_28": {
+      "status": "OT",
+      "otHours": 4
+    },
+    "kusu_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "sripati_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "naren_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "champai_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "budheswar_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "sai_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "shambhu_2026_3_30": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "mantu_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "rocky_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "birsa_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "tuklu_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "ramu_mn5qzoha_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "shambhu_2026_04_02": {
+      "status": "OT",
+      "otHours": 3,
+      "time": "12:09"
+    },
+    "kusu_2026_04_02": {
+      "status": "OT",
+      "otHours": 3,
+      "time": "12:09"
+    },
+    "sripati_2026_04_02": {
+      "status": "OT",
+      "otHours": 3,
+      "time": "12:09"
+    },
+    "tuklu_2026_04_02": {
+      "status": "OT",
+      "otHours": 3,
+      "time": "12:09"
+    },
+    "naren_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "budheswar_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "champai_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "sai_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "mantu_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "rocky_2026_04_02": {
+      "status": "A",
+      "time": "12:09",
+      "otHours": 0
+    },
+    "birsa_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "ramu_mn5qzoha_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    }
+  },
+  "sep_cw_cfg_v2": {
+    "hourRate": 41.25
+  },
+  "sep_cw_pay_v2": {},
+  "sep_pe_emp_v1": [
+    {
+      "id": "shyam_bera",
+      "name": "Shyam Bera",
+      "dailyRate": 535
+    },
+    {
+      "id": "sharat_mahato",
+      "name": "Sharat Mahato",
+      "dailyRate": 480
+    },
+    {
+      "id": "sunil_mahato",
+      "name": "Sunil Mahato",
+      "dailyRate": 470
+    },
+    {
+      "id": "rupa_bera",
+      "name": "Rupa Bera",
+      "dailyRate": 460
+    },
+    {
+      "id": "bp_sharma",
+      "name": "B P Sharma",
+      "dailyRate": 410
+    },
+    {
+      "id": "lk_das",
+      "name": "L.K. Das",
+      "dailyRate": 420
+    },
+    {
+      "id": "rounak",
+      "name": "Rounak",
+      "dailyRate": 258,
+      "inactive": true
+    },
+    {
+      "id": "uday",
+      "name": "Uday",
+      "dailyRate": 300
+    },
+    {
+      "id": "lal",
+      "name": "Lal",
+      "dailyRate": 330
+    },
+    {
+      "id": "suklal",
+      "name": "Suklal",
+      "dailyRate": 345
+    }
+  ],
+  "sep_pe_att_v1": {
+    "shyam_bera_2026_3_2": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sharat_mahato_2026_3_3": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "shyam_bera_2026_3_25": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sharat_mahato_2026_3_25": {
+      "status": "OT",
+      "otHours": 6
+    },
+    "sharat_mahato_2026_3_24": {
+      "status": "OT",
+      "otHours": 6
+    },
+    "sharat_mahato_2026_3_23": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sunil_mahato_2026_3_25": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rupa_bera_2026_3_25": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rupa_bera_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rupa_bera_2026_3_23": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sunil_mahato_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "bp_sharma_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "bp_sharma_2026_3_24": {
+      "status": "A",
+      "otHours": 0
+    },
+    "bp_sharma_2026_3_25": {
+      "status": "A",
+      "otHours": 0
+    },
+    "lk_das_2026_3_23": {
+      "status": "P",
+      "otHours": 0
+    },
+    "lk_das_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "lk_das_2026_3_25": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rounak_2026_3_23": {
+      "status": "A",
+      "otHours": 0
+    },
+    "rounak_2026_3_24": {
+      "status": "A",
+      "otHours": 0
+    },
+    "rounak_2026_3_25": {
+      "status": "A",
+      "otHours": 0
+    },
+    "uday_2026_3_23": {
+      "status": "P",
+      "otHours": 0
+    },
+    "uday_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "uday_2026_3_25": {
+      "status": "P",
+      "otHours": 0
+    },
+    "lal_2026_3_25": {
+      "status": "A",
+      "otHours": 0
+    },
+    "lal_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "lal_2026_3_23": {
+      "status": "P",
+      "otHours": 0
+    },
+    "suklal_2026_3_25": {
+      "status": "P",
+      "otHours": 0
+    },
+    "suklal_2026_3_24": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "suklal_2026_3_23": {
+      "status": "P",
+      "otHours": 0
+    },
+    "shyam_bera_2026_3_24": {
+      "status": "P",
+      "otHours": 0
+    },
+    "shyam_bera_2026_3_23": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rupa_bera_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "shyam_bera_2026_3_26": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "lal_2026_3_26": {
+      "status": "A",
+      "otHours": 0
+    },
+    "suklal_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "uday_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sharat_mahato_2026_3_26": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "bp_sharma_2026_3_26": {
+      "status": "A",
+      "otHours": 0
+    },
+    "sunil_mahato_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "lk_das_2026_3_26": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rounak_2026_3_26": {
+      "status": "A",
+      "otHours": 0
+    },
+    "lk_das_2026_3_27": {
+      "status": "P"
+    },
+    "bp_sharma_2026_3_27": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rupa_bera_2026_3_27": {
+      "status": "P"
+    },
+    "sharat_mahato_2026_3_27": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "shyam_bera_2026_3_27": {
+      "status": "OT",
+      "otHours": 2
+    },
+    "lal_2026_3_27": {
+      "status": "A"
+    },
+    "suklal_2026_3_27": {
+      "status": "P"
+    },
+    "uday_2026_3_27": {
+      "status": "P"
+    },
+    "sunil_mahato_2026_3_27": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rounak_2026_3_27": {
+      "status": "A",
+      "otHours": 0
+    },
+    "bp_sharma_2026_3_20": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rupa_bera_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "shyam_bera_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "suklal_2026_3_28": {
+      "status": "A"
+    },
+    "lal_2026_3_28": {
+      "status": "A"
+    },
+    "sharat_mahato_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sunil_mahato_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "bp_sharma_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "lk_das_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "uday_2026_3_28": {
+      "status": "P",
+      "otHours": 0
+    },
+    "shyam_bera_2026_3_30": {
+      "status": "P",
+      "otHours": 0
+    },
+    "sharat_mahato_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "sunil_mahato_2026_3_30": {
+      "status": "P",
+      "otHours": 0
+    },
+    "rupa_bera_2026_3_30": {
+      "status": "P",
+      "otHours": 0
+    },
+    "bp_sharma_2026_3_30": {
+      "status": "A",
+      "otHours": 0
+    },
+    "lk_das_2026_3_30": {
+      "status": "P",
+      "otHours": 0
+    },
+    "uday_2026_3_30": {
+      "status": "P",
+      "otHours": 0
+    },
+    "lal_2026_3_30": {
+      "status": "P",
+      "otHours": 0
+    },
+    "suklal_2026_3_30": {
+      "status": "OT",
+      "otHours": 3
+    },
+    "suklal_2026_04_02": {
+      "status": "OT",
+      "otHours": 3,
+      "time": "12:09"
+    },
+    "sharat_mahato_2026_04_02": {
+      "status": "OT",
+      "otHours": 3,
+      "time": "12:09"
+    },
+    "lk_das_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "bp_sharma_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "rupa_bera_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "sunil_mahato_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "shyam_bera_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "lal_2026_04_02": {
+      "status": "P",
+      "otHours": 0,
+      "time": "12:09"
+    },
+    "uday_2026_04_02": {
+      "status": "P",
+      "time": "12:08",
+      "otHours": 0
+    }
+  },
+  "sep_pe_pay_v1": {
+    "2026_1": {
+      "paid": true,
+      "amount": 0,
+      "date": "2026-03-30"
+    }
+  },
+  "sep_pe_adv_v1": {},
+  "sep_stock_v1": [
+    {
+      "id": "clz65m",
+      "name": "Zincalite CLZ 65 M (Growel)",
+      "category": "material",
+      "unit": "L",
+      "qty": 40,
+      "minQty": 60,
+      "unitPrice": 180,
+      "dailyUsage": 4,
+      "lastUpdated": "2026-03-27",
+      "paused": false,
+      "alertLevel": "high"
+    },
+    {
+      "id": "clz65r",
+      "name": "Zincalite CLZ 65 R (Growel)",
+      "category": "material",
+      "unit": "L",
+      "qty": 35,
+      "minQty": 30,
+      "unitPrice": 192.1,
+      "dailyUsage": 2,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "zb16",
+      "name": "Zincbrite 16 Brightener (Growel)",
+      "category": "material",
+      "unit": "L",
+      "qty": 0,
+      "minQty": 30,
+      "unitPrice": 153.9,
+      "dailyUsage": 2,
+      "lastUpdated": "2026-03-26",
+      "paused": true,
+      "alertLevel": "high"
+    },
+    {
+      "id": "zb47",
+      "name": "Zincbrite 47 Brightener (Growel)",
+      "category": "material",
+      "unit": "L",
+      "qty": 20,
+      "minQty": 30,
+      "unitPrice": 153.9,
+      "dailyUsage": 2,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "ginthoxq558",
+      "name": "Ginthox Q-558 (Growel)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 50,
+      "minQty": 112.5,
+      "unitPrice": 269.6,
+      "dailyUsage": 7.5,
+      "lastUpdated": "2026-03-25",
+      "alertLevel": "high"
+    },
+    {
+      "id": "ginthox982l",
+      "name": "Ginthox 982 L (Growel)",
+      "category": "material",
+      "unit": "L",
+      "qty": 0,
+      "minQty": 7.5,
+      "unitPrice": 300,
+      "dailyUsage": 0.5,
+      "lastUpdated": "2026-03-27",
+      "paused": true,
+      "alertLevel": "high"
+    },
+    {
+      "id": "zinc_kz",
+      "name": "Korean Zinc SHG Anode (KZ)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 50,
+      "minQty": 288.45,
+      "unitPrice": 355,
+      "dailyUsage": 19.23,
+      "lastUpdated": "2026-03-26",
+      "alertLevel": "high"
+    },
+    {
+      "id": "sodium_cyanide",
+      "name": "Sodium Cyanide (NaCN)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 40,
+      "minQty": 3,
+      "unitPrice": 310,
+      "dailyUsage": 0.2,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "zb_salt16",
+      "name": "ZincBrite Salt 16 (Growel)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 50,
+      "minQty": 30,
+      "unitPrice": 300,
+      "dailyUsage": 2,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "zb_salta",
+      "name": "ZincBrite Salt A (Growel)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 0,
+      "minQty": 60,
+      "unitPrice": 70,
+      "dailyUsage": 4,
+      "lastUpdated": "2026-03-26",
+      "alertLevel": "high"
+    },
+    {
+      "id": "salt_b",
+      "name": "Salt B (Fertiliser — Local)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 0,
+      "minQty": 15,
+      "unitPrice": 70,
+      "dailyUsage": 1,
+      "lastUpdated": "2026-03-26",
+      "alertLevel": "high"
+    },
+    {
+      "id": "boric_acid",
+      "name": "Boric Acid (H₃BO₃)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 15,
+      "minQty": 3,
+      "unitPrice": 65,
+      "dailyUsage": 0.2,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "ginthox1701c",
+      "name": "Ginthox 1701-C (Growel)",
+      "category": "material",
+      "unit": "L",
+      "qty": 0,
+      "minQty": 0,
+      "unitPrice": 300,
+      "dailyUsage": 0,
+      "lastUpdated": "2026-03-26",
+      "paused": true,
+      "alertLevel": "high"
+    },
+    {
+      "id": "zinc_oxide",
+      "name": "Zinc Oxide (ZnO)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 0,
+      "minQty": 4.95,
+      "unitPrice": 350,
+      "dailyUsage": 0.33,
+      "lastUpdated": "2026-03-26",
+      "alertLevel": "high"
+    },
+    {
+      "id": "caustic_soda",
+      "name": "Sodium Hydroxide / Caustic Soda (NaOH)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 30,
+      "minQty": 25.05,
+      "unitPrice": 50,
+      "dailyUsage": 1.67,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "hcl_acid",
+      "name": "Hydrochloric Acid (HCl)",
+      "category": "material",
+      "unit": "L",
+      "qty": 0,
+      "minQty": 375,
+      "unitPrice": 2,
+      "dailyUsage": 25,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "spray_paint",
+      "name": "Spray Paint",
+      "category": "consumable",
+      "unit": "cans",
+      "qty": 24,
+      "minQty": 45,
+      "unitPrice": 210,
+      "dailyUsage": 3,
+      "lastUpdated": "2026-03-26",
+      "alertLevel": "high"
+    },
+    {
+      "id": "nitric_acid",
+      "name": "Nitric Acid (HNO₃)",
+      "category": "material",
+      "unit": "L",
+      "qty": 60,
+      "minQty": 15,
+      "unitPrice": 2,
+      "dailyUsage": 1,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "zb_salt106",
+      "name": "ZincBrite Salt 106 (Growel)",
+      "category": "material",
+      "unit": "kg",
+      "qty": 20,
+      "minQty": 30,
+      "unitPrice": 150,
+      "dailyUsage": 2,
+      "lastUpdated": "2026-03-27",
+      "alertLevel": "high"
+    },
+    {
+      "id": "printer_toner",
+      "name": "Printer Toner",
+      "category": "consumable",
+      "unit": "pcs",
+      "qty": 1,
+      "minQty": 1,
+      "unitPrice": 900,
+      "dailyUsage": 0,
+      "alertLevel": "high",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "gloves_std",
+      "name": "Gloves (Standard)",
+      "category": "consumable",
+      "unit": "pairs",
+      "qty": 24,
+      "minQty": 50,
+      "unitPrice": 80,
+      "dailyUsage": 4,
+      "alertLevel": "high",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "gloves_dur",
+      "name": "Gloves (Durable)",
+      "category": "consumable",
+      "unit": "pairs",
+      "qty": 0,
+      "minQty": 20,
+      "unitPrice": 150,
+      "dailyUsage": 1,
+      "alertLevel": "high",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "battery_cable",
+      "name": "Battery Cable",
+      "category": "consumable",
+      "unit": "feet",
+      "qty": 50,
+      "minQty": 25,
+      "unitPrice": 220,
+      "dailyUsage": 1,
+      "alertLevel": "high",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "nf_cloth",
+      "name": "N.F. Cloth",
+      "category": "consumable",
+      "unit": "m",
+      "qty": 170,
+      "minQty": 88,
+      "unitPrice": 80,
+      "dailyUsage": 2.5,
+      "alertLevel": "amber",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_coffee",
+      "name": "Coffee",
+      "category": "office",
+      "unit": "pcs",
+      "qty": 0,
+      "minQty": 1,
+      "unitPrice": 10,
+      "dailyUsage": 3,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_water",
+      "name": "Water Bottles",
+      "category": "office",
+      "unit": "pcs",
+      "qty": 0,
+      "minQty": 1,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_pen",
+      "name": "Pen",
+      "category": "office",
+      "unit": "pcs",
+      "qty": 0,
+      "minQty": 5,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_staples",
+      "name": "Staples",
+      "category": "office",
+      "unit": "boxes",
+      "qty": 0,
+      "minQty": 1,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_a4paper",
+      "name": "A4 Print Paper Bundle",
+      "category": "office",
+      "unit": "bundles",
+      "qty": 0,
+      "minQty": 1,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_challan",
+      "name": "Delivery Challan Book",
+      "category": "office",
+      "unit": "books",
+      "qty": 0,
+      "minQty": 1,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_calculator",
+      "name": "Calculator",
+      "category": "office",
+      "unit": "pcs",
+      "qty": 0,
+      "minQty": 1,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_stamppad",
+      "name": "Stamp Pad",
+      "category": "office",
+      "unit": "pcs",
+      "qty": 0,
+      "minQty": 1,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_permmarker",
+      "name": "Permanent Marker",
+      "category": "office",
+      "unit": "pcs",
+      "qty": 0,
+      "minQty": 2,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    },
+    {
+      "id": "off_wbmarker",
+      "name": "Whiteboard Marker",
+      "category": "office",
+      "unit": "pcs",
+      "qty": 0,
+      "minQty": 2,
+      "unitPrice": 0,
+      "dailyUsage": 0,
+      "alertLevel": "low",
+      "lastUpdated": "2026-03-26"
+    }
+  ],
+  "sep_stock_log_v1": [
+    {
+      "id": "log_init_clz65m",
+      "itemId": "clz65m",
+      "type": "in",
+      "qty": 40,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_init_clz65r",
+      "itemId": "clz65r",
+      "type": "in",
+      "qty": 50,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_init_zb47",
+      "itemId": "zb47",
+      "type": "in",
+      "qty": 30,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_init_ginthoxq558",
+      "itemId": "ginthoxq558",
+      "type": "in",
+      "qty": 50,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_init_sodium_cyanide",
+      "itemId": "sodium_cyanide",
+      "type": "in",
+      "qty": 40,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_init_zb_salt16",
+      "itemId": "zb_salt16",
+      "type": "in",
+      "qty": 50,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_init_boric_acid",
+      "itemId": "boric_acid",
+      "type": "in",
+      "qty": 15,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_init_caustic_soda",
+      "itemId": "caustic_soda",
+      "type": "in",
+      "qty": 30,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_init_zb_salt106",
+      "itemId": "zb_salt106",
+      "type": "in",
+      "qty": 20,
+      "date": "2026-03-25",
+      "note": "Initial stock check"
+    },
+    {
+      "id": "log_1774517400529",
+      "itemId": "gloves_std",
+      "type": "in",
+      "qty": 24,
+      "date": "2026-03-26",
+      "note": "RBHM/10801/25-26"
+    },
+    {
+      "id": "log_1774591835856_1",
+      "itemId": "clz65r",
+      "type": "out",
+      "qty": 15,
+      "date": "2026-03-27",
+      "note": "Paste update"
+    },
+    {
+      "id": "log_1774591835856_2",
+      "itemId": "zb47",
+      "type": "out",
+      "qty": 10,
+      "date": "2026-03-27",
+      "note": "Paste update"
+    },
+    {
+      "id": "log_1774591835856_7",
+      "itemId": "nitric_acid",
+      "type": "in",
+      "qty": 15,
+      "date": "2026-03-27",
+      "note": "Paste update"
+    },
+    {
+      "id": "log_1774591835856_8",
+      "itemId": "hcl_acid",
+      "type": "out",
+      "qty": 200,
+      "date": "2026-03-27",
+      "note": "Paste update"
+    }
+  ],
+  "sep_prod_log_v1": {
+    "2026-03-28": {
+      "shiftType": "sunday_holiday",
+      "isHoliday": true,
+      "attendance": {
+        "present": [
+          "shyam_bera",
+          "sharat_mahato",
+          "sunil_mahato",
+          "rupa_bera",
+          "bp_sharma",
+          "lk_das",
+          "kusu",
+          "sripati",
+          "naren",
+          "budheswar",
+          "shambhu",
+          "birsa",
+          "tuklu",
+          "ramu_mn5qzoha",
+          "sai"
+        ],
+        "lockedAt": "10:55"
+      },
+      "periods": {
+        "morningOT": {
+          "active": false,
+          "hours": 3,
+          "areas": {
+            "vat_a1": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            }
+          },
+          "workers": [],
+          "overrides": {}
+        },
+        "standard": {
+          "active": true,
+          "hours": 8,
+          "areas": {
+            "vat_a1": {
+              "cap": 100,
+              "assigned": [
+                "naren",
+                "budheswar",
+                "shambhu"
+              ],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 100,
+              "assigned": [
+                "sharat_mahato",
+                "rupa_bera",
+                "bp_sharma",
+                "lk_das"
+              ],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 100,
+              "assigned": [
+                "shyam_bera",
+                "sunil_mahato",
+                "kusu"
+              ],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [
+                "sripati",
+                "sai",
+                "tuklu"
+              ],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [
+                "birsa",
+                "ramu_mn5qzoha"
+              ],
+              "forceOff": false
+            }
+          },
+          "workers": null,
+          "overrides": {}
+        },
+        "eveningOT": {
+          "active": false,
+          "hours": 3,
+          "areas": {
+            "vat_a1": {
+              "cap": 33,
+              "assigned": [
+                "shambhu",
+                "tuklu"
+              ],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 100,
+              "assigned": [
+                "kusu",
+                "sripati",
+                "naren",
+                "budheswar"
+              ],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [
+                "birsa",
+                "ramu_mn5qzoha"
+              ],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": true
+            }
+          },
+          "workers": [],
+          "overrides": {}
+        }
+      },
+      "totals": {
+        "extraHours": 16,
+        "extraCost": 660,
+        "snackCost": 0,
+        "snackLog": []
+      },
+      "timeline": [
+        {
+          "time": "10:38",
+          "type": "auto",
+          "text": "Shift type: Sunday/Holiday"
+        },
+        {
+          "time": "10:39",
+          "type": "system",
+          "text": "Attendance locked: 14 present. Rosters applied."
+        },
+        {
+          "time": "10:39",
+          "type": "auto",
+          "text": "VAT A2 → 75% (std)"
+        },
+        {
+          "time": "10:39",
+          "type": "auto",
+          "text": "VAT A2 → 100% (std)"
+        },
+        {
+          "time": "10:39",
+          "type": "auto",
+          "text": "VAT A1 → 66% (std)"
+        },
+        {
+          "time": "10:39",
+          "type": "auto",
+          "text": "VAT A1 → 100% (std)"
+        },
+        {
+          "time": "10:40",
+          "type": "auto",
+          "text": "Barrel → 75% (std)"
+        },
+        {
+          "time": "10:40",
+          "type": "auto",
+          "text": "Barrel → 100% (std)"
+        },
+        {
+          "time": "10:40",
+          "type": "auto",
+          "text": "VAT A2 → 50% (std)"
+        },
+        {
+          "time": "10:40",
+          "type": "auto",
+          "text": "Evening OT added (3h)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "Pickling (Barrel) manually off (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "Pickling (VAT) manually off (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "Pickling (VAT) restored (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A2 → Off (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "Barrel → Off (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → 66% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → 100% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → 33% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → 66% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → 66% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → 100% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → 66% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → 100% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → Off (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A2 → 100% (eOT)"
+        },
+        {
+          "time": "10:41",
+          "type": "auto",
+          "text": "VAT A1 → Off (std)"
+        },
+        {
+          "time": "10:42",
+          "type": "auto",
+          "text": "VAT A1 → 100% (std)"
+        },
+        {
+          "time": "10:42",
+          "type": "auto",
+          "text": "VAT A1 → 100% (eOT)"
+        },
+        {
+          "time": "10:42",
+          "type": "auto",
+          "text": "VAT A1 → Off (eOT)"
+        },
+        {
+          "time": "10:42",
+          "type": "auto",
+          "text": "VAT A2 → 75% (eOT)"
+        },
+        {
+          "time": "10:42",
+          "type": "auto",
+          "text": "VAT A2 → 100% (eOT)"
+        },
+        {
+          "time": "10:42",
+          "type": "auto",
+          "text": "VAT A2 → 75% (eOT)"
+        },
+        {
+          "time": "10:42",
+          "type": "auto",
+          "text": "VAT A2 → 100% (eOT)"
+        },
+        {
+          "time": "10:42",
+          "type": "auto",
+          "text": "VAT A2 → 75% (std)"
+        },
+        {
+          "time": "10:54",
+          "type": "auto",
+          "text": "VAT A1 → 33% (eOT)"
+        },
+        {
+          "time": "10:55",
+          "type": "system",
+          "text": "Attendance locked: 15 present. Rosters applied."
+        },
+        {
+          "time": "10:56",
+          "type": "auto",
+          "text": "VAT A2 → 100% (std)"
+        },
+        {
+          "time": "11:11",
+          "type": "auto",
+          "text": "Evening OT removed"
+        },
+        {
+          "time": "11:18",
+          "type": "auto",
+          "text": "VAT A1 → 66% (std)"
+        },
+        {
+          "time": "11:18",
+          "type": "auto",
+          "text": "VAT A1 → 100% (std)"
+        },
+        {
+          "time": "11:30",
+          "type": "system",
+          "text": "Confirmed: 13 workers → attendance. 0 with OT."
+        },
+        {
+          "time": "11:42",
+          "type": "auto",
+          "text": "VAT A1 → 66% (std)"
+        },
+        {
+          "time": "11:42",
+          "type": "auto",
+          "text": "VAT A1 → 100% (std)"
+        },
+        {
+          "time": "11:42",
+          "type": "auto",
+          "text": "VAT A1 → 66% (std)"
+        },
+        {
+          "time": "11:42",
+          "type": "auto",
+          "text": "VAT A1 → 100% (std)"
+        },
+        {
+          "time": "11:42",
+          "type": "auto",
+          "text": "VAT A1 → 66% (std)"
+        },
+        {
+          "time": "11:43",
+          "type": "auto",
+          "text": "VAT A2 → 50% (std)"
+        },
+        {
+          "time": "11:43",
+          "type": "auto",
+          "text": "VAT A2 → 100% (std)"
+        },
+        {
+          "time": "11:43",
+          "type": "auto",
+          "text": "VAT A1 → 100% (std)"
+        }
+      ],
+      "editLog": [],
+      "confirmed": true,
+      "override": 12,
+      "createdAt": "2026-03-28T05:07:07.621Z",
+      "lastModified": "2026-03-28T06:13:15.888Z"
+    },
+    "2026-03-30": {
+      "shiftType": "normal",
+      "isHoliday": false,
+      "attendance": {
+        "present": [
+          "suklal",
+          "shambhu",
+          "sunil_mahato",
+          "shyam_bera",
+          "rupa_bera",
+          "lk_das",
+          "lal"
+        ],
+        "lockedAt": "11:34"
+      },
+      "periods": {
+        "morningOT": {
+          "active": true,
+          "hours": 3,
+          "areas": {
+            "vat_a1": {
+              "cap": 66,
+              "assigned": [
+                "suklal",
+                "shambhu"
+              ],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            }
+          },
+          "workers": [
+            "shambhu",
+            "suklal"
+          ],
+          "overrides": {},
+          "_exp": true
+        },
+        "standard": {
+          "active": true,
+          "hours": 8,
+          "areas": {
+            "vat_a1": {
+              "cap": 100,
+              "assigned": [
+                "rupa_bera",
+                "lk_das"
+              ],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 100,
+              "assigned": [
+                "shyam_bera",
+                "sunil_mahato",
+                "suklal"
+              ],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [
+                "lal",
+                "shambhu"
+              ],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            }
+          },
+          "workers": null,
+          "overrides": {},
+          "_exp": false
+        },
+        "eveningOT": {
+          "active": false,
+          "hours": 3,
+          "areas": {
+            "vat_a1": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            }
+          },
+          "workers": [],
+          "overrides": {}
+        }
+      },
+      "totals": {
+        "extraHours": 46,
+        "extraCost": 1897,
+        "snackCost": 0,
+        "snackLog": []
+      },
+      "timeline": [
+        {
+          "time": "11:22",
+          "type": "auto",
+          "text": "VAT A2 → Off (std)"
+        },
+        {
+          "time": "11:34",
+          "type": "system",
+          "text": "Attendance locked: 7 present. Rosters applied."
+        },
+        {
+          "time": "11:34",
+          "type": "auto",
+          "text": "Morning OT added (3h)"
+        },
+        {
+          "time": "11:34",
+          "type": "auto",
+          "text": "Barrel → Off (mOT)"
+        },
+        {
+          "time": "11:34",
+          "type": "auto",
+          "text": "VAT A1 → 33% (mOT)"
+        },
+        {
+          "time": "11:36",
+          "type": "auto",
+          "text": "VAT A2 → 100% (std)"
+        },
+        {
+          "time": "11:36",
+          "type": "auto",
+          "text": "VAT A2 → Off (std)"
+        },
+        {
+          "time": "11:38",
+          "type": "auto",
+          "text": "Barrel → 50% (std)"
+        },
+        {
+          "time": "11:38",
+          "type": "auto",
+          "text": "Barrel → 100% (std)"
+        },
+        {
+          "time": "11:38",
+          "type": "auto",
+          "text": "VAT A1 → 66% (std)"
+        },
+        {
+          "time": "11:38",
+          "type": "auto",
+          "text": "VAT A1 → 100% (std)"
+        },
+        {
+          "time": "11:39",
+          "type": "system",
+          "text": "Confirmed: 7 workers → attendance. 2 with OT."
+        },
+        {
+          "time": "12:35",
+          "type": "auto",
+          "text": "VAT A1 → 66% (mOT)"
+        }
+      ],
+      "editLog": [],
+      "confirmed": true,
+      "override": null,
+      "createdAt": "2026-03-30T05:51:49.420Z",
+      "lastModified": "2026-03-30T07:05:22.942Z"
+    },
+    "2026-03-31": {
+      "shiftType": "normal",
+      "isHoliday": false,
+      "attendance": {
+        "present": [
+          "sharat_mahato",
+          "shyam_bera",
+          "rupa_bera",
+          "lk_das",
+          "shambhu",
+          "suklal",
+          "sunil_mahato",
+          "rocky",
+          "birsa",
+          "mantu",
+          "budheswar",
+          "sripati",
+          "ramu_mn5qzoha",
+          "tuklu",
+          "kusu",
+          "naren"
+        ],
+        "lockedAt": "11:40"
+      },
+      "periods": {
+        "morningOT": {
+          "active": true,
+          "hours": 3,
+          "areas": {
+            "vat_a1": {
+              "cap": 100,
+              "assigned": [
+                "sharat_mahato",
+                "shambhu",
+                "birsa",
+                "budheswar",
+                "tuklu"
+              ],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [
+                "naren",
+                "mantu"
+              ],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            }
+          },
+          "workers": [
+            "sharat_mahato",
+            "shambhu",
+            "budheswar",
+            "mantu",
+            "naren",
+            "birsa",
+            "tuklu"
+          ],
+          "overrides": {}
+        },
+        "standard": {
+          "active": true,
+          "hours": 8,
+          "areas": {
+            "vat_a1": {
+              "cap": 100,
+              "assigned": [
+                "shyam_bera",
+                "kusu",
+                "sripati",
+                "naren"
+              ],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 100,
+              "assigned": [
+                "sharat_mahato",
+                "shambhu",
+                "mantu"
+              ],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 100,
+              "assigned": [
+                "sunil_mahato",
+                "birsa",
+                "tuklu"
+              ],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [
+                "lk_das",
+                "suklal"
+              ],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [
+                "rupa_bera"
+              ],
+              "forceOff": false
+            }
+          },
+          "workers": null,
+          "overrides": {}
+        },
+        "eveningOT": {
+          "active": false,
+          "hours": 3,
+          "areas": {
+            "vat_a1": {
+              "cap": 100,
+              "assigned": [],
+              "forceOff": false
+            },
+            "vat_a2": {
+              "cap": 100,
+              "assigned": [],
+              "forceOff": false
+            },
+            "barrel": {
+              "cap": 100,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_vat": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": [],
+              "forceOff": false
+            }
+          },
+          "workers": [],
+          "overrides": {}
+        }
+      },
+      "totals": {
+        "extraHours": 0,
+        "extraCost": 0,
+        "snackCost": 0,
+        "snackLog": []
+      },
+      "timeline": [
+        {
+          "time": "11:40",
+          "type": "system",
+          "text": "Attendance locked: 16 present. Rosters applied."
+        },
+        {
+          "time": "11:41",
+          "type": "auto",
+          "text": "Morning OT added: 16 workers, 3h"
+        },
+        {
+          "time": "11:44",
+          "type": "auto",
+          "text": "Evening OT added: 16 workers, 3h"
+        },
+        {
+          "time": "11:44",
+          "type": "auto",
+          "text": "Morning OT removed"
+        },
+        {
+          "time": "11:44",
+          "type": "auto",
+          "text": "Evening OT removed"
+        },
+        {
+          "time": "11:44",
+          "type": "auto",
+          "text": "Evening OT added: 16 workers, 3h"
+        },
+        {
+          "time": "11:44",
+          "type": "auto",
+          "text": "Evening OT removed"
+        },
+        {
+          "time": "11:44",
+          "type": "auto",
+          "text": "Morning OT added: 16 workers, 3h"
+        },
+        {
+          "time": "11:45",
+          "type": "auto",
+          "text": "VAT A2 → Off (mOT)"
+        },
+        {
+          "time": "11:45",
+          "type": "auto",
+          "text": "Barrel → Off (mOT)"
+        }
+      ],
+      "editLog": [],
+      "confirmed": false,
+      "override": null,
+      "createdAt": "2026-03-30T06:10:16.340Z",
+      "lastModified": "2026-03-30T06:15:35.484Z"
+    },
+    "2026-04-02": {
+      "periods": {
+        "morningOT": {
+          "active": true,
+          "hours": 3,
+          "areas": {
+            "vat_a1": {
+              "cap": 0,
+              "assigned": []
+            },
+            "vat_a2": {
+              "cap": 100,
+              "assigned": [
+                "sharat_mahato",
+                "kusu",
+                "shambhu",
+                "suklal"
+              ]
+            },
+            "barrel": {
+              "cap": 0,
+              "assigned": []
+            },
+            "pickle_vat": {
+              "cap": 1,
+              "assigned": [
+                "sripati",
+                "tuklu"
+              ]
+            },
+            "pickle_barrel": {
+              "cap": 0,
+              "assigned": []
+            }
+          },
+          "workers": [],
+          "expanded": true
+        },
+        "standard": {
+          "active": true,
+          "hours": 8,
+          "areas": {
+            "vat_a1": {
+              "cap": 100,
+              "assigned": [
+                "shambhu",
+                "budheswar",
+                "naren",
+                "mantu",
+                "kusu"
+              ]
+            },
+            "vat_a2": {
+              "cap": 100,
+              "assigned": [
+                "lk_das",
+                "bp_sharma",
+                "rupa_bera",
+                "sharat_mahato"
+              ]
+            },
+            "barrel": {
+              "cap": 100,
+              "assigned": [
+                "shyam_bera",
+                "sunil_mahato",
+                "lal",
+                "suklal"
+              ]
+            },
+            "pickle_vat": {
+              "cap": 1,
+              "assigned": [
+                "sripati",
+                "sai",
+                "tuklu"
+              ]
+            },
+            "pickle_barrel": {
+              "cap": 1,
+              "assigned": [
+                "birsa",
+                "ramu_mn5qzoha"
+              ]
+            }
+          },
+          "workers": null
+        },
+        "eveningOT": {
+          "active": false,
+          "hours": 3,
+          "areas": {},
+          "workers": []
+        }
+      },
+      "totals": {
+        "pieces": 0,
+        "weight": 0,
+        "extraHours": 0,
+        "extraCost": 0,
+        "snackCost": 0
+      },
+      "confirmed": true,
+      "timeline": [
+        {
+          "time": "12:09",
+          "type": "system",
+          "text": "Attendance locked: 19 workers"
+        },
+        {
+          "time": "12:09",
+          "type": "system",
+          "text": "Morning OT enabled"
+        },
+        {
+          "time": "12:09",
+          "type": "system",
+          "text": "Attendance unlocked for editing"
+        },
+        {
+          "time": "12:09",
+          "type": "system",
+          "text": "Attendance locked: 19 workers"
+        },
+        {
+          "time": "12:14",
+          "type": "confirm",
+          "text": "Production confirmed: 19 workers, OT for 6"
+        }
+      ],
+      "attLocked": true,
+      "present": [
+        "shyam_bera",
+        "sharat_mahato",
+        "sunil_mahato",
+        "rupa_bera",
+        "bp_sharma",
+        "lk_das",
+        "lal",
+        "suklal",
+        "kusu",
+        "sripati",
+        "naren",
+        "champai",
+        "budheswar",
+        "sai",
+        "shambhu",
+        "mantu",
+        "birsa",
+        "tuklu",
+        "ramu_mn5qzoha"
+      ],
+      "lockedAt": "12:09",
+      "confirmedAt": "12:14"
+    }
+  },
+  "sep_prod_areas_v1": [
+    {
+      "id": "vat_a1",
+      "name": "VAT A1",
+      "group": "vat",
+      "dep": false,
+      "depOn": [],
+      "caps": [
+        {
+          "l": 0,
+          "lb": "Off",
+          "r": 0
+        },
+        {
+          "l": 33,
+          "lb": "33%",
+          "r": 2
+        },
+        {
+          "l": 66,
+          "lb": "66%",
+          "r": 3
+        },
+        {
+          "l": 100,
+          "lb": "100%",
+          "r": 5
+        }
+      ],
+      "roster": [
+        "shyam_bera",
+        "kusu",
+        "sripati",
+        "naren",
+        "champai"
+      ]
+    },
+    {
+      "id": "vat_a2",
+      "name": "VAT A2",
+      "group": "vat",
+      "dep": false,
+      "depOn": [],
+      "caps": [
+        {
+          "l": 0,
+          "lb": "Off",
+          "r": 0
+        },
+        {
+          "l": 25,
+          "lb": "25%",
+          "r": 2
+        },
+        {
+          "l": 50,
+          "lb": "50%",
+          "r": 3
+        },
+        {
+          "l": 75,
+          "lb": "75%",
+          "r": 4
+        },
+        {
+          "l": 100,
+          "lb": "100%",
+          "r": 4
+        }
+      ],
+      "roster": [
+        "sharat_mahato",
+        "sai",
+        "shambhu",
+        "mantu"
+      ]
+    },
+    {
+      "id": "barrel",
+      "name": "Barrel",
+      "group": "barrel",
+      "dep": false,
+      "depOn": [],
+      "caps": [
+        {
+          "l": 0,
+          "lb": "Off",
+          "r": 0
+        },
+        {
+          "l": 25,
+          "lb": "25%",
+          "r": 2
+        },
+        {
+          "l": 50,
+          "lb": "50%",
+          "r": 2
+        },
+        {
+          "l": 75,
+          "lb": "75%",
+          "r": 3
+        },
+        {
+          "l": 100,
+          "lb": "100%",
+          "r": 3
+        }
+      ],
+      "roster": [
+        "sunil_mahato",
+        "birsa",
+        "tuklu"
+      ]
+    },
+    {
+      "id": "pickle_vat",
+      "name": "Pickling (VAT)",
+      "group": "vat",
+      "dep": true,
+      "depOn": [
+        "vat_a1",
+        "vat_a2"
+      ],
+      "caps": [],
+      "roster": [
+        "lk_das",
+        "lal",
+        "suklal"
+      ]
+    },
+    {
+      "id": "pickle_barrel",
+      "name": "Pickling (Barrel)",
+      "group": "barrel",
+      "dep": true,
+      "depOn": [
+        "barrel"
+      ],
+      "caps": [],
+      "roster": [
+        "rupa_bera",
+        "bp_sharma"
+      ]
+    }
+  ],
+  "sep_prod_cfg_v1": {
+    "hourRate": 41.25,
+    "snackRate": 20,
+    "guardIds": [
+      "uday"
+    ],
+    "excludedIds": [
+      "rounak"
+    ],
+    "version": 1
+  },
+  "sep_perm_snack_log_v1": [],
+  "sep_data_version": 9,
+  "sep_inv_cfg_v1": {
+    "companyName": "Soma Electro Products",
+    "gstin": "",
+    "stateCode": "20",
+    "sac": "998871",
+    "gstRate": 18,
+    "seriesPrefix": "SEP",
+    "nextNumber": 1,
+    "bankName": "",
+    "bankAccount": "",
+    "bankIFSC": ""
+  }
+}
