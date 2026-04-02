@@ -1,0 +1,4531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>SEP Dashboard</title>
+<meta name="theme-color" content="#b45a37">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SEP DASHBOARD v1.5 — Design Push + Functional Polish
+   Session 6: Balance, Hierarchy(mono), Emphasis, Proportion,
+              Advance Entry, Sunday OT Suppression
+   ============================================================ */
+
+/* === RESET === */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{font-family:var(--ff-body);background:var(--bg);color:var(--text);line-height:1.5;
+  min-height:100vh;min-height:100dvh;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font:inherit;color:inherit}
+
+/* === DESIGN TOKENS === */
+:root {
+  /* --- Typography Scale (9-step, ~1.2× ratio) --- */
+  --fs-2xs: 0.56rem;   /* 9px  — micro labels, timestamps, badges */
+  --fs-xs:  0.69rem;    /* 11px — secondary labels, metadata */
+  --fs-sm:  0.81rem;    /* 13px — body text, form labels, card descriptions */
+  --fs-md:  0.94rem;    /* 15px — card titles, section content */
+  --fs-lg:  1.13rem;    /* 18px — section headers, page titles */
+  --fs-xl:  1.31rem;    /* 21px — key metrics, hero sub-values */
+  --fs-2xl: 1.56rem;    /* 25px — hero numbers, KPI values */
+  --fs-3xl: 2.00rem;    /* 32px — focal point numbers */
+
+  /* --- Font Families --- */
+  --ff-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ff-display: 'Fraunces', Georgia, serif;
+  --ff-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* --- Font Weights --- */
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semi:    600;
+  --fw-bold:    700;
+
+  /* --- Letter Spacing --- */
+  --ls-tight:  -0.025em;
+  --ls-normal: -0.01em;
+  --ls-wide:    0.06em;
+
+  /* --- Spacing Scale --- */
+  --sp-2:  2px;
+  --sp-4:  4px;
+  --sp-6:  6px;
+  --sp-8:  8px;
+  --sp-10: 10px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-20: 20px;
+  --sp-24: 24px;
+  --sp-32: 32px;
+
+  /* --- Semantic Spacing --- */
+  --section-gap-hero: var(--sp-24);
+  --section-gap-zone: var(--sp-20);
+  --card-gap-base:    var(--sp-12);
+  --card-gap-paired:  var(--sp-8);
+  --card-padding:     var(--sp-16);
+  --card-padding-sm:  var(--sp-12);
+
+  /* --- Border Radius --- */
+  --r-sm:   6px;
+  --r-md:   8px;
+  --r-lg:   10px;
+  --r-xl:   12px;
+  --r-full: 9999px;
+
+  /* --- Surfaces --- */
+  --bg:         #faf9f5;
+  --surface:    #fff;
+  --surface-2:  #f5f4ed;
+  --surface-3:  #f7f6f1;
+  --border:     rgba(31,30,29,.12);
+  --border-strong: rgba(31,30,29,.2);
+
+  /* --- Text Colors --- */
+  --text:          #141413;
+  --text-secondary:#73726c;
+  --text-muted:    #706e68;
+  --text-heading:  #1f1e1d;
+  --text-inverse:  #fff;
+
+  /* --- Semantic Colors (Domain-mapped) --- */
+  /* Attendance — Green */
+  --attend:      #177a36;
+  --attend-bg:   rgba(23,122,54,.12);
+  --attend-text: #177a36;
+
+  /* Cost/Finance — Orange/Terracotta */
+  --cost:        #b5583a;
+  --cost-bg:     rgba(181,88,58,.08);
+  --cost-text:   #b5583a;
+  --accent:      #b45a37;
+  --accent-dark: #a24e2f;
+
+  /* Production — Blue */
+  --prod:        #2e75b6;
+  --prod-bg:     rgba(46,117,182,.1);
+  --prod-text:   #2e75b6;
+
+  /* Alert/Danger — Red */
+  --danger:      #c13e34;
+  --danger-bg:   rgba(193,62,52,.12);
+  --danger-text: #c13e34;
+
+  /* Warning — Yellow/Amber */
+  --warning:      #8a6b08;
+  --warning-bg:   rgba(138,107,8,.12);
+  --warning-text: #8a6b08;
+
+  /* Neutral/Stock — Brown */
+  --neutral:      #8b6c4a;
+  --neutral-bg:   rgba(139,108,74,.12);
+  --neutral-text: #8b6c4a;
+
+  /* CW domain — Green */
+  --cw:    #1a8a3e;
+  --cw-bg: rgba(26,138,62,.1);
+
+  /* Perm domain — Blue */
+  --perm:    #2e75b6;
+  --perm-bg: rgba(46,117,182,.1);
+
+  /* --- Shadows --- */
+  --shadow-sm: 0 1px 3px rgba(31,30,29,.04);
+  --shadow-md: 0 2px 8px rgba(31,30,29,.08);
+  --shadow-lg: 0 4px 16px rgba(31,30,29,.12);
+
+  /* --- Layout --- */
+  --tab-h: 52px;
+  --header-h: 48px;
+  --max-w: 520px;
+}
+
+/* === DARK MODE TOKENS (ready, not active by default) === */
+.dark {
+  --bg: #1a1918;
+  --surface: #242320;
+  --surface-2: #2a2928;
+  --surface-3: #1f1e1d;
+  --border: rgba(255,255,255,.1);
+  --border-strong: rgba(255,255,255,.15);
+  --text: #e8e6e1;
+  --text-secondary: #9a9590;
+  --text-muted: #948f89;
+  --text-heading: #f5f3f0;
+  --text-inverse: #1a1918;
+  --attend: #2aaa55;
+  --attend-bg: rgba(42,170,85,.15);
+  --attend-text: #2aaa55;
+  --cost: #e07a5a;
+  --cost-bg: rgba(224,122,90,.12);
+  --cost-text: #e07a5a;
+  --prod: #4a90cc;
+  --prod-bg: rgba(74,144,204,.12);
+  --prod-text: #4a90cc;
+  --danger: #e66058;
+  --danger-bg: rgba(230,96,88,.15);
+  --danger-text: #e66058;
+  --warning: #c8a020;
+  --warning-bg: rgba(200,160,32,.15);
+  --warning-text: #c8a020;
+  --accent: #d98060;
+  --accent-dark: #c46a45;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.3);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,.4);
+}
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+
+.app-header {
+  position: sticky; top: 0; z-index: 100;
+  height: var(--header-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--sp-16);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.app-title {
+  font-family: var(--ff-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-tight);
+  color: var(--text-heading);
+}
+.app-date {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+.header-actions {
+  display: flex; gap: var(--sp-8); align-items: center;
+}
+.header-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-md);
+  color: var(--text-secondary);
+  transition: background .15s, color .15s;
+}
+.header-btn:hover { background: var(--surface-2); color: var(--text); }
+.header-btn svg { width: 18px; height: 18px; }
+
+/* Tab bar */
+.tab-bar {
+  position: sticky; top: var(--header-h); z-index: 99;
+  display: flex; gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-8);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  flex: 0 0 auto;
+  padding: var(--sp-6) var(--sp-12);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-radius: var(--r-full);
+  white-space: nowrap;
+  transition: all .2s;
+}
+.tab-btn:hover { color: var(--text-secondary); background: var(--surface-2); }
+.tab-btn.active {
+  color: var(--text-inverse);
+  background: var(--accent);
+}
+
+/* Tab content area */
+.tab-content {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: var(--sp-16) var(--sp-12) calc(var(--sp-32) + var(--sp-24));
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ============================================================
+   SECTION LABELS — 3 tiers from Ziva lesson
+   ============================================================ */
+
+.section-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-10);
+}
+.section-label-md {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-10);
+}
+.section-label-lg {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-heading);
+  margin-bottom: var(--sp-12);
+}
+
+.section-zone {
+  margin-bottom: var(--section-gap-zone);
+}
+.section-zone-hero {
+  margin-bottom: var(--section-gap-hero);
+}
+
+/* ============================================================
+   CARD TIER SYSTEM — 5 tiers
+   ============================================================ */
+
+/* --- Tier 1: HERO --- */
+.card-hero {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-3) 60%, var(--hero-tint, var(--surface-3)) 100%);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--hero-accent, var(--accent));
+  border-radius: var(--r-xl);
+  padding: var(--sp-20) var(--card-padding);
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+/* Per-tab hero tints */
+#tab-home .card-hero        { --hero-accent: var(--accent); --hero-tint: rgba(181,88,58,.04); }
+#tab-attendance .card-hero   { --hero-accent: var(--attend); --hero-tint: rgba(23,122,54,.04); }
+#tab-production .card-hero   { --hero-accent: var(--prod); --hero-tint: rgba(46,117,182,.04); }
+#tab-finance .card-hero      { --hero-accent: var(--cost); --hero-tint: rgba(181,88,58,.05); }
+#tab-stock .card-hero        { --hero-accent: var(--neutral); --hero-tint: rgba(139,108,74,.04); }
+#tab-invoice .card-hero      { --hero-accent: var(--cost); --hero-tint: rgba(181,88,58,.05); }
+#tab-history .card-hero      { --hero-accent: var(--accent); --hero-tint: rgba(181,88,58,.04); }
+
+/* --- Tier 2: ACTION --- */
+.card-action {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-md);
+}
+
+/* --- Tier 3: BASE --- */
+.card-base {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- Tier 4: DAILY --- */
+.card-daily {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--card-padding-sm);
+}
+
+/* --- Tier 5: INFO --- */
+.card-info {
+  background: var(--surface-2);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: var(--card-padding-sm);
+}
+
+/* ============================================================
+   INTRA-CARD HIERARCHY
+   ============================================================ */
+
+.card-title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semi);
+  color: var(--text-heading);
+  letter-spacing: var(--ls-normal);
+  line-height: 1.3;
+}
+.card-value {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semi);
+  font-family: var(--ff-mono);
+  color: var(--text-heading);
+  letter-spacing: var(--ls-tight);
+  line-height: 1.1;
+}
+.card-value-xl {
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-bold);
+  font-family: var(--ff-display);
+  color: var(--text-heading);
+  letter-spacing: var(--ls-tight);
+  line-height: 1.0;
+}
+.card-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  letter-spacing: var(--ls-normal);
+}
+.card-meta {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   COMPONENT PATTERNS
+   ============================================================ */
+
+/* --- Badge --- */
+.badge {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-8);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  border-radius: var(--r-full);
+  line-height: 1.4;
+}
+.badge-attend  { background: var(--attend-bg); color: var(--attend-text); }
+.badge-absent  { background: var(--danger-bg); color: var(--danger-text); }
+.badge-cost    { background: var(--cost-bg); color: var(--cost-text); }
+.badge-prod    { background: var(--prod-bg); color: var(--prod-text); }
+.badge-warning { background: var(--warning-bg); color: var(--warning-text); }
+.badge-neutral { background: var(--neutral-bg); color: var(--neutral-text); }
+.badge-perm    { background: var(--perm-bg); color: var(--perm-text, var(--perm)); }
+.badge-cw      { background: var(--cw-bg); color: var(--cw); }
+
+/* --- Buttons --- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--sp-6);
+  padding: var(--sp-8) var(--sp-16);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  border-radius: var(--r-md);
+  transition: all .15s;
+  border: none;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+  font-weight: var(--fw-semi);
+}
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--surface-3); border-color: var(--border-strong); }
+.btn-attend {
+  background: var(--attend);
+  color: var(--text-inverse);
+  font-weight: var(--fw-semi);
+}
+.btn-danger {
+  background: var(--danger);
+  color: var(--text-inverse);
+}
+.btn-full { width: 100%; }
+.btn-sm {
+  padding: var(--sp-4) var(--sp-10);
+  font-size: var(--fs-xs);
+  border-radius: var(--r-sm);
+}
+
+/* --- Nav Buttons (from v9.6 .nb pattern) --- */
+.nb {
+  padding: var(--sp-6) var(--sp-12);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  transition: all .15s;
+}
+.nb:hover { background: var(--surface-3); color: var(--text); }
+.nb.active { background: var(--accent); color: var(--text-inverse); font-weight: var(--fw-semi); }
+
+/* --- Stat Pill (secondary read on Home) --- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--card-gap-paired);
+}
+.stat-pill {
+  display: flex; flex-direction: column;
+  padding: var(--sp-10) var(--sp-12);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.stat-pill-value {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semi);
+  font-family: var(--ff-mono);
+  letter-spacing: var(--ls-tight);
+  line-height: 1.2;
+}
+.stat-pill-label {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wide);
+}
+
+/* --- Toggle --- */
+.toggle-track {
+  width: 40px; height: 22px;
+  background: var(--border-strong);
+  border-radius: var(--r-full);
+  position: relative;
+  cursor: pointer;
+  transition: background .2s;
+}
+.toggle-track.on { background: var(--attend); }
+.toggle-knob {
+  width: 18px; height: 18px;
+  background: var(--surface);
+  border-radius: 50%;
+  position: absolute;
+  top: 2px; left: 2px;
+  transition: transform .2s;
+  box-shadow: var(--shadow-sm);
+}
+.toggle-track.on .toggle-knob { transform: translateX(18px); }
+
+/* --- Input --- */
+.input {
+  width: 100%;
+  padding: var(--sp-8) var(--sp-12);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  transition: border-color .15s;
+}
+.input:focus { outline: none; border-color: var(--accent); }
+
+/* --- Worker Row (attendance entry pattern) --- */
+.worker-row {
+  display: flex; align-items: center; gap: var(--sp-10);
+  padding: var(--sp-10) var(--sp-12);
+  border-bottom: 1px solid var(--border);
+}
+.worker-row:last-child { border-bottom: none; }
+.worker-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.worker-info { flex: 1; min-width: 0; }
+.worker-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  line-height: 1.3;
+}
+.worker-detail {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+.worker-status {
+  display: flex; gap: var(--sp-4);
+}
+.mark-btn {
+  width: 32px; height: 32px;
+  border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  transition: all .15s;
+}
+.mark-btn.present { background: var(--attend-bg); color: var(--attend); }
+.mark-btn.present.active { background: var(--attend); color: var(--text-inverse); }
+.mark-btn.absent { background: var(--danger-bg); color: var(--danger); }
+.mark-btn.absent.active { background: var(--danger); color: var(--text-inverse); }
+
+/* --- Card Groups (flex column with gap) --- */
+.card-group {
+  display: flex; flex-direction: column;
+  gap: var(--card-gap-base);
+}
+
+/* --- Paired columns --- */
+.col-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--card-gap-base);
+}
+
+/* --- Alert Banner --- */
+.alert-banner {
+  display: flex; align-items: center; gap: var(--sp-10);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+}
+.alert-danger  { background: var(--danger-bg); color: var(--danger-text); }
+.alert-warning { background: var(--warning-bg); color: var(--warning-text); }
+.alert-info    { background: var(--prod-bg); color: var(--prod-text); }
+
+/* ============================================================
+   RESPONSIVE — Desktop enhancement (not base)
+   ============================================================ */
+
+/* Small phone fixes (375px) */
+@media (max-width: 400px) {
+  .tab-content { padding-left: var(--sp-8); padding-right: var(--sp-8); }
+  .card-hero { padding: var(--sp-16) var(--sp-12); }
+  .stat-grid { gap: var(--sp-6); }
+  .stat-pill { padding: var(--sp-8) var(--sp-10); }
+  .stat-pill-value { font-size: var(--fs-lg); }
+  .picker-sheet { max-height: 70vh; }
+  .worker-row { padding: var(--sp-8) var(--sp-8); gap: var(--sp-8); }
+  .confirm-dialog { padding: var(--sp-16); max-width: 300px; }
+  #prodEntryRow { flex-wrap: wrap; }
+  #prodEntryRow .input { width: 100% !important; }
+  #prodEntryRow .btn { width: 100%; }
+}
+
+@media (min-width: 700px) {
+  .tab-content { max-width: 680px; padding: var(--sp-20) var(--sp-16) var(--sp-32); }
+  .stat-grid { grid-template-columns: repeat(4, 1fr); }
+  .col-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================================
+   SAVE INDICATOR
+   ============================================================ */
+
+.save-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--attend);
+  opacity: 0;
+  transition: opacity .3s;
+}
+.save-dot.show { opacity: 1; }
+.save-dot.unsaved { background: var(--warning); }
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+
+.empty-state {
+  text-align: center;
+  padding: var(--sp-32) var(--sp-16);
+  color: var(--text-muted);
+}
+.empty-state-icon {
+  font-size: var(--fs-3xl);
+  margin-bottom: var(--sp-12);
+  opacity: 0.4;
+}
+.empty-state-text {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  margin-bottom: var(--sp-4);
+}
+.empty-state-sub {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+}
+
+/* Utility */
+.text-attend { color: var(--attend-text); }
+.text-cost   { color: var(--cost-text); }
+.text-prod   { color: var(--prod-text); }
+.text-danger { color: var(--danger-text); }
+.text-warn   { color: var(--warning-text); }
+.text-neutral{ color: var(--neutral-text); }
+.text-muted  { color: var(--text-muted); }
+.text-right  { text-align: right; }
+.ff-mono     { font-family: var(--ff-mono); letter-spacing: var(--ls-tight); }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-center  { display: flex; align-items: center; }
+.flex-wrap    { display: flex; flex-wrap: wrap; }
+.inline       { display: inline; }
+.gap-4  { gap: var(--sp-4); }
+.gap-8  { gap: var(--sp-8); }
+.gap-12 { gap: var(--sp-12); }
+.mt-4   { margin-top: var(--sp-4); }
+.mt-8   { margin-top: var(--sp-8); }
+.mt-12  { margin-top: var(--sp-12); }
+.mt-16  { margin-top: var(--sp-16); }
+.mb-8   { margin-bottom: var(--sp-8); }
+.mb-10  { margin-bottom: var(--sp-10); }
+.mb-12  { margin-bottom: var(--sp-12); }
+.d-none { display: none; }
+
+/* Worker count indicator (replaces inline font-size+weight) */
+.area-count {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.area-count-sm {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+
+/* Chip row (replaces inline flex+gap+wrap) */
+.chip-row {
+  display: flex; flex-wrap: wrap; gap: var(--sp-4);
+}
+
+/* Period card margins */
+.period-area-card {
+  margin-bottom: var(--sp-8);
+}
+
+/* ============================================================
+   SETTINGS SIDEBAR
+   ============================================================ */
+
+.settings-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.4);
+  display: flex; justify-content: flex-end;
+}
+.settings-panel {
+  width: min(360px, 90vw);
+  background: var(--bg);
+  height: 100%; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.settings-body {
+  padding: var(--sp-16);
+}
+.settings-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--sp-8) 0;
+  border-bottom: 1px solid var(--border);
+  gap: var(--sp-8);
+}
+.settings-row:last-child { border-bottom: none; }
+
+/* ============================================================
+   FAB (Floating Action Button)
+   ============================================================ */
+
+.fab-container {
+  position: fixed;
+  bottom: var(--sp-20);
+  right: var(--sp-16);
+  z-index: 150;
+  display: flex; flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: var(--sp-8);
+}
+.fab-btn {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text-inverse);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-lg);
+  transition: transform .2s, background .15s;
+  border: none;
+}
+.fab-btn:hover { background: var(--accent-dark); }
+.fab-btn.open { transform: rotate(45deg); }
+.fab-menu {
+  display: flex; flex-direction: column-reverse;
+  gap: var(--sp-6);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(var(--sp-8));
+  transition: opacity .2s, transform .2s;
+}
+.fab-menu.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.fab-item {
+  display: flex; align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+  transition: background .15s;
+}
+.fab-item:hover { background: var(--surface-2); }
+.fab-item-icon {
+  font-size: var(--fs-sm);
+  width: 24px; text-align: center;
+}
+.fab-item-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+}
+
+/* ============================================================
+   WORKER PICKER OVERLAY
+   ============================================================ */
+
+.picker-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.4);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.picker-sheet {
+  width: 100%; max-width: var(--max-w);
+  max-height: 75vh;
+  background: var(--bg);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+.picker-header {
+  padding: var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+.picker-body {
+  flex: 1; overflow-y: auto;
+  padding: var(--sp-8) var(--sp-16) var(--sp-16);
+  -webkit-overflow-scrolling: touch;
+}
+.picker-section-label {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: var(--sp-10) 0 var(--sp-4);
+}
+.picker-worker {
+  display: flex; align-items: center; gap: var(--sp-10);
+  padding: var(--sp-8) var(--sp-4);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background .1s;
+}
+.picker-worker:hover { background: var(--surface-2); }
+.picker-worker.disabled { opacity: 0.4; pointer-events: none; }
+.picker-check {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+  font-size: var(--fs-2xs);
+  color: transparent;
+}
+.picker-worker.checked .picker-check {
+  background: var(--attend);
+  border-color: var(--attend);
+  color: var(--text-inverse);
+}
+.picker-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  flex: 1;
+}
+.picker-where {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   CONFIRM DIALOG
+   ============================================================ */
+
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 210;
+  background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-16);
+}
+.confirm-dialog {
+  background: var(--surface);
+  border-radius: var(--r-xl);
+  padding: var(--sp-24);
+  max-width: 340px; width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.confirm-icon {
+  font-size: var(--fs-3xl);
+  margin-bottom: var(--sp-12);
+}
+.confirm-title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semi);
+  color: var(--text-heading);
+  margin-bottom: var(--sp-8);
+}
+.confirm-desc {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-16);
+}
+.confirm-breakdown {
+  display: flex; justify-content: center;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-16);
+}
+.confirm-btns {
+  display: flex; gap: var(--sp-8);
+}
+.confirm-btns .btn { flex: 1; }
+
+/* ============================================================
+   PRODUCTION PERIOD CARDS
+   ============================================================ */
+
+.period-card {
+  margin-bottom: var(--section-gap-zone);
+}
+.period-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--sp-8) 0;
+  cursor: pointer;
+}
+.period-toggle-icon {
+  transition: transform .2s;
+  color: var(--text-muted);
+}
+.period-toggle-icon.expanded { transform: rotate(180deg); }
+.period-body {
+  display: none;
+}
+.period-body.expanded { display: block; }
+
+/* === INVOICE MODAL === */
+.inv-modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1100;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.inv-modal {
+  background:var(--surface); border-radius:var(--r-xl) var(--r-xl) 0 0;
+  width:100%; max-width:500px; max-height:92vh; overflow-y:auto;
+  padding:var(--sp-20); animation:slideUp .25s ease;
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+@media(min-width:700px) {
+  .inv-modal-overlay { align-items:center; }
+  .inv-modal { border-radius:var(--r-xl); max-height:85vh; }
+}
+.inv-modal .form-group { margin-bottom:var(--sp-16); }
+.inv-modal label {
+  display:block; font-size:var(--fs-xs); font-weight:var(--fw-semi);
+  color:var(--text-secondary); margin-bottom:var(--sp-4);
+  letter-spacing:var(--ls-wide); text-transform:uppercase;
+}
+.inv-modal select, .inv-modal input {
+  width:100%; padding:var(--sp-10) var(--sp-12);
+  border:1px solid var(--border); border-radius:var(--r-md);
+  background:var(--bg); font-size:var(--fs-md);
+}
+.inv-modal select:focus, .inv-modal input:focus {
+  outline:none; border-color:var(--accent);
+  box-shadow:0 0 0 2px rgba(180,90,55,.15);
+}
+.inv-line-item {
+  background:var(--bg); border-radius:var(--r-md);
+  padding:var(--sp-12); margin-bottom:var(--sp-8);
+  border:1px solid var(--border);
+}
+.inv-line-item .line-row { display:flex; gap:var(--sp-8); margin-bottom:var(--sp-8); }
+.inv-line-item .line-row:last-child { margin-bottom:0; }
+.inv-line-item input, .inv-line-item select { font-size:var(--fs-sm); }
+.inv-line-remove {
+  color:var(--danger); font-size:var(--fs-xs);
+  cursor:pointer; text-align:right; margin-top:var(--sp-4);
+}
+.inv-tax-preview {
+  background:var(--bg); border-radius:var(--r-md);
+  padding:var(--sp-12); margin-top:var(--sp-16);
+  border:1px solid var(--border);
+}
+
+/* === MONTH LOCK BADGE === */
+.lock-badge {
+  display:inline-flex; align-items:center; gap:var(--sp-4);
+  font-size:var(--fs-xs); font-weight:var(--fw-semi);
+  color:var(--warning); background:rgba(138,107,8,.08);
+  padding:var(--sp-2) var(--sp-8); border-radius:var(--r-sm);
+}
+
+/* === PRINT STYLES === */
+@media print {
+  body { background:#fff !important; color:#000 !important; font-size:12pt; }
+  .app-header, .tab-bar, .fab-container, .settings-overlay,
+  .inv-modal-overlay, .btn, .nb, .badge, button,
+  [onclick], .alert-banner { display:none !important; }
+  .tab-content, .tab-panel, .tab-panel.active { display:block !important; }
+  .tab-panel { display:none !important; }
+  .tab-panel.print-target { display:block !important; }
+  .card-hero, .card-action, .card-base, .card-daily {
+    break-inside:avoid; border:1px solid #ccc; margin-bottom:8pt;
+  }
+  .print-header {
+    display:block !important; text-align:center;
+    border-bottom:2px solid #000; padding-bottom:8pt; margin-bottom:12pt;
+  }
+  .print-header h2 { font-size:16pt; margin:0; }
+  .print-header p { font-size:10pt; margin:4pt 0 0; color:#333; }
+  .print-footer {
+    display:block !important; margin-top:24pt;
+    border-top:1px solid #999; padding-top:8pt;
+  }
+  .print-sig { display:flex; justify-content:space-between; margin-top:32pt; }
+  .print-sig div { border-top:1px solid #000; padding-top:4pt; width:35%; text-align:center; font-size:9pt; }
+  .section-zone-hero, .stat-grid, .section-label, .section-label-md { display:none !important; }
+  .ff-mono { font-family:monospace; }
+}
+.print-header, .print-footer { display:none; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     APP SHELL
+     ============================================================ -->
+
+<header class="app-header">
+  <div class="flex-center gap-12">
+    <span class="app-title">SEP</span>
+    <span class="app-date" id="headerDate"></span>
+  </div>
+  <div class="header-actions">
+    <div class="save-dot" id="saveDot"></div>
+    <button class="header-btn" onclick="toggleDarkMode()" title="Toggle theme">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+    </button>
+    <button class="header-btn" onclick="openSettings()" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<nav class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-tab="home">Home</button>
+  <button class="tab-btn" data-tab="attendance">Attendance</button>
+  <button class="tab-btn" data-tab="production">Production</button>
+  <button class="tab-btn" data-tab="finance">Finance</button>
+  <button class="tab-btn" data-tab="invoice">Invoice</button>
+  <button class="tab-btn" data-tab="stock">Stock</button>
+  <button class="tab-btn" data-tab="history">History</button>
+</nav>
+
+<!-- ============================================================
+     TAB PANELS
+     ============================================================ -->
+
+<main class="tab-content">
+
+  <!-- ======== HOME TAB ======== -->
+  <div class="tab-panel active" id="tab-home">
+
+    <!-- HERO: Today's Status (focal point) -->
+    <div class="section-zone-hero">
+      <div class="card-hero">
+        <div class="flex-between">
+          <div>
+            <div class="card-label">Today's Workforce</div>
+            <div class="card-value-xl text-attend" id="homePresent">—</div>
+            <div class="card-meta mt-8" id="homePresentDetail">of — workers present</div>
+          </div>
+          <div class="text-right">
+            <div class="card-label">Production</div>
+            <div class="card-value text-prod" id="homeProd">—</div>
+            <div class="card-meta mt-8">pieces processed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECONDARY READ: Stat Pills -->
+    <div class="section-zone">
+      <div class="section-label">Quick Snapshot</div>
+      <div class="stat-grid">
+        <div class="stat-pill">
+          <span class="stat-pill-value text-attend" id="homePerm">—</span>
+          <span class="stat-pill-label">Perm</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill-value text-attend" id="homeCW">—</span>
+          <span class="stat-pill-label">Contract</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill-value text-cost" id="homeCost">—</span>
+          <span class="stat-pill-label">Today Cost</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill-value text-neutral" id="homeAreas">—</span>
+          <span class="stat-pill-label">Areas Active</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- THIRD READ: Alerts & Status -->
+    <div class="section-zone">
+      <div class="section-label">Alerts</div>
+      <div class="card-group" id="homeAlerts">
+        <div class="card-info">
+          <div class="empty-state">
+            <div class="empty-state-icon">✓</div>
+            <div class="empty-state-text">All clear</div>
+            <div class="empty-state-sub">No alerts for today</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== ATTENDANCE TAB ======== -->
+  <div class="tab-panel" id="tab-attendance">
+
+    <div class="section-zone">
+      <div class="flex-between mb-12">
+        <div class="section-label-lg">Attendance</div>
+        <div class="flex-center gap-4">
+          <button class="nb active" data-filter="all">All</button>
+          <button class="nb" data-filter="perm">Perm</button>
+          <button class="nb" data-filter="cw">CW</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hero: Attendance summary -->
+    <div class="section-zone-hero">
+      <div class="card-hero">
+        <div class="flex-between">
+          <div>
+            <div class="card-label">Present Today</div>
+            <div class="card-value-xl text-attend" id="attPresent">—</div>
+          </div>
+          <div class="flex-center gap-8">
+            <div class="badge badge-attend" id="attPermBadge">Perm: —</div>
+            <div class="badge badge-cw" id="attCWBadge">CW: —</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action: Mark attendance -->
+    <div class="section-zone">
+      <div class="section-label-md">Mark Attendance</div>
+      <div class="card-action">
+        <div id="workerList">
+          <div class="empty-state">
+            <div class="empty-state-icon">👷</div>
+            <div class="empty-state-text">No workers configured</div>
+            <div class="empty-state-sub">Add workers in Settings to begin</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== PRODUCTION TAB ======== -->
+  <div class="tab-panel" id="tab-production">
+
+    <!-- Hero: Total production + Extra/Snack cost -->
+    <div class="section-zone-hero">
+      <div class="card-hero">
+        <div class="flex-between">
+          <div>
+            <div class="card-label">Today's Output</div>
+            <div class="card-value-xl text-prod" id="prodTotal">—</div>
+            <div class="card-meta mt-8">total pieces</div>
+          </div>
+          <div class="text-right">
+            <div class="card-label">Extra + Snack</div>
+            <div class="card-value text-cost" id="prodExtraCost">₹0</div>
+            <div class="card-meta mt-8" id="prodExtraDetail">no shortfall</div>
+          </div>
+        </div>
+        <div class="mt-12 flex-center gap-8" id="prodEntryRow">
+          <input class="input" type="number" id="prodPiecesInput" placeholder="Pieces" min="0" style="width:45%">
+          <input class="input" type="number" id="prodWeightInput" placeholder="Kg" min="0" step="0.1" style="width:35%">
+          <button class="btn btn-primary btn-sm" onclick="logProdEntry()">Log</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sunday/Holiday badge -->
+    <div id="prodShiftBanner"></div>
+
+    <!-- Attendance lock -->
+    <div class="section-zone">
+      <div class="flex-between">
+        <div class="section-label-md">Production Attendance</div>
+        <span class="badge" id="prodLockBadge">Unlocked</span>
+      </div>
+      <div class="card-action" id="prodAttSection">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Periods (dynamically rendered) -->
+    <div id="prodPeriodsContainer"></div>
+
+    <!-- Confirm button -->
+    <div class="section-zone" id="prodConfirmSection" class="d-none">
+      <button class="btn btn-primary btn-full" onclick="showProdConfirm()">Confirm & Write Attendance</button>
+    </div>
+
+    <!-- Daily log -->
+    <div class="section-zone">
+      <div class="section-label">Timeline</div>
+      <div class="card-group" id="prodLog">
+        <div class="card-info">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-text">No entries yet</div>
+            <div class="empty-state-sub">Production entries appear here</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== FINANCE TAB ======== -->
+  <div class="tab-panel" id="tab-finance">
+
+    <!-- Hero: Cost snapshot -->
+    <div class="section-zone-hero">
+      <div class="card-hero">
+        <div class="flex-between">
+          <div>
+            <div class="card-label">Today's Cost</div>
+            <div class="card-value-xl text-cost" id="finCost">₹—</div>
+          </div>
+          <div class="text-right">
+            <div class="card-label">Month Total</div>
+            <div class="card-value text-cost" id="finMonth">₹—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat pills: breakdown -->
+    <div class="section-zone">
+      <div class="section-label-md">Cost Breakdown</div>
+      <div class="stat-grid">
+        <div class="stat-pill">
+          <span class="stat-pill-value text-cost" id="finWage">₹—</span>
+          <span class="stat-pill-label">Wages</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill-value text-neutral" id="finExtra">₹—</span>
+          <span class="stat-pill-label">Extra</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill-value text-prod" id="finSnack">₹—</span>
+          <span class="stat-pill-label">Snack</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-pill-value text-warn" id="finOT">₹—</span>
+          <span class="stat-pill-label">OT Cost</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CW Weekly Pay Card -->
+    <div class="section-zone">
+      <div class="flex-between mb-10">
+        <div class="section-label-md" style="margin-bottom:0">CW Weekly Pay</div>
+        <span class="badge badge-cw" id="finCWWeek">—</span>
+      </div>
+      <div class="card-action" id="finCWCard">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Perm Monthly Pay Card -->
+    <div class="section-zone">
+      <div class="flex-between mb-10">
+        <div class="section-label-md" style="margin-bottom:0">Perm Monthly Pay</div>
+        <span class="badge badge-perm" id="finPermMonth">—</span>
+      </div>
+      <div class="card-action" id="finPermCard">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Month Lock Section -->
+    <div class="section-zone" id="finMonthLock"></div>
+  </div>
+
+  <!-- ======== INVOICE TAB ======== -->
+  <div class="tab-panel" id="tab-invoice">
+
+    <!-- Hero: Invoice summary -->
+    <div class="section-zone-hero">
+      <div class="card-hero">
+        <div class="flex-between">
+          <div>
+            <div class="card-label">Month Invoiced</div>
+            <div class="card-value-xl text-cost" id="invMonthTotal">₹—</div>
+            <div class="card-meta mt-8" id="invMonthCount">0 invoices</div>
+          </div>
+          <div class="text-right">
+            <div class="card-label">Receivables</div>
+            <div class="card-value text-danger" id="invReceivables">₹—</div>
+            <div class="card-meta mt-8" id="invReceivableCount">0 unpaid</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-navigation: Invoices / Clients / GST Register -->
+    <div class="section-zone">
+      <div class="flex-center gap-4">
+        <button class="nb active" data-invtab="list">Invoices</button>
+        <button class="nb" data-invtab="clients">Clients</button>
+        <button class="nb" data-invtab="gst">GST Register</button>
+      </div>
+    </div>
+
+    <!-- Sub-panels rendered dynamically -->
+    <div id="invSubPanel"></div>
+
+    <!-- Create invoice button -->
+    <div class="section-zone mt-16">
+      <button class="btn btn-primary btn-full" onclick="openInvoiceModal()">+ New Invoice</button>
+    </div>
+  </div>
+
+  <!-- ======== STOCK TAB ======== -->
+  <div class="tab-panel" id="tab-stock">
+
+    <!-- Hero: Chemical stock level -->
+    <div class="section-zone-hero">
+      <div class="card-hero">
+        <div>
+          <div class="card-label">Chemical Stock Status</div>
+          <div class="card-value-xl text-neutral" id="stockStatus">—</div>
+          <div class="card-meta mt-8" id="stockDetail">Items below threshold will alert</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stock items -->
+    <div class="section-zone">
+      <div class="section-label-md">Inventory</div>
+      <div class="card-group" id="stockList">
+        <div class="card-base">
+          <div class="flex-between">
+            <div>
+              <div class="card-title">Zinc Anodes</div>
+              <div class="card-meta mt-4">Last updated: —</div>
+            </div>
+            <div class="text-right">
+              <div class="card-value text-attend">—</div>
+              <div class="card-label">kg</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-base">
+          <div class="flex-between">
+            <div>
+              <div class="card-title">Growel 1728</div>
+              <div class="card-meta mt-4">Last updated: —</div>
+            </div>
+            <div class="text-right">
+              <div class="card-value text-warning">—</div>
+              <div class="card-label">liters</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-base">
+          <div class="flex-between">
+            <div>
+              <div class="card-title">Sodium Cyanide</div>
+              <div class="card-meta mt-4">Last updated: —</div>
+            </div>
+            <div class="text-right">
+              <div class="card-value text-danger">—</div>
+              <div class="card-label">kg</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== HISTORY TAB ======== -->
+  <div class="tab-panel" id="tab-history">
+
+    <!-- Hero: Trend summary -->
+    <div class="section-zone-hero">
+      <div class="card-hero">
+        <div>
+          <div class="card-label">This Week</div>
+          <div class="card-value-xl" id="histSummary">—</div>
+          <div class="card-meta mt-8">average daily output</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date navigation -->
+    <div class="section-zone">
+      <div class="section-label-md">Browse by Date</div>
+      <div class="card-action">
+        <div class="flex-between">
+          <button class="btn btn-secondary btn-sm" id="histPrev">← Prev</button>
+          <span class="card-title" id="histDate">—</span>
+          <button class="btn btn-secondary btn-sm" id="histNext">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historical data display -->
+    <div class="section-zone">
+      <div class="section-label">Daily Record</div>
+      <div class="card-group" id="histData">
+        <div class="card-info">
+          <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <div class="empty-state-text">Select a date to view</div>
+            <div class="empty-state-sub">Historical data will appear here</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ======== FAB ======== -->
+<div class="fab-container" id="fabContainer">
+  <div class="fab-menu" id="fabMenu">
+    <button class="fab-item" onclick="fabAction('markAllPresent')">
+      <span class="fab-item-icon">✓✓</span>
+      <span class="fab-item-label">Mark All Present</span>
+    </button>
+    <button class="fab-item" onclick="fabAction('goAttendance')">
+      <span class="fab-item-icon">👷</span>
+      <span class="fab-item-label">Attendance</span>
+    </button>
+    <button class="fab-item" onclick="fabAction('goProduction')">
+      <span class="fab-item-icon">🏭</span>
+      <span class="fab-item-label">Production</span>
+    </button>
+    <button class="fab-item" onclick="fabAction('addNote')">
+      <span class="fab-item-icon">📝</span>
+      <span class="fab-item-label">Add Note</span>
+    </button>
+    <button class="fab-item" onclick="fabAction('toggleHoliday')">
+      <span class="fab-item-icon">📅</span>
+      <span class="fab-item-label">Toggle Holiday</span>
+    </button>
+  </div>
+  <button class="fab-btn" id="fabBtn" onclick="toggleFab()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+</div>
+
+<script>
+/* ============================================================
+   SEP DASHBOARD v1.1 — Full Data & Logic Migration
+   Session 2: Workers, Attendance, Production, Finance, Settings
+   Ported from v9.6 architecture with new design token system
+   ============================================================ */
+
+// ============================================================
+// UTILITIES (battle-tested from v7–v9.6)
+// ============================================================
+
+function sepRound(n) { return Math.floor(Number(n) || 0); }
+
+function localDateStr(d) {
+  const dt = d ? new Date(d) : new Date();
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+}
+
+function formatDateShort(dateStr) {
+  return new Date(dateStr+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+}
+
+function formatCurrency(n) { return '₹'+sepRound(n).toLocaleString('en-IN'); }
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function tnow() { return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false}); }
+
+function isSunday(dateStr) { return new Date(dateStr+'T00:00:00').getDay()===0; }
+
+function getWeekEnd(dateStr) {
+  // Saturday of the week containing dateStr
+  const d = new Date(dateStr+'T00:00:00');
+  const day = d.getDay();
+  const diff = day===0 ? 6 : 6-day;
+  d.setDate(d.getDate()+diff);
+  return localDateStr(d);
+}
+
+// ============================================================
+// STORAGE KEYS (from v9.6 — proven stable)
+// ============================================================
+
+const K = {
+  // CW keys
+  cwEmp:    'sep_cw_emp_v2',
+  cwAtt:    'sep_cw_att_v2',
+  cwCfg:    'sep_cw_cfg_v2',
+  cwPay:    'sep_cw_pay_v2',
+  cwAdv:    'sep_cw_adv_v1',
+  // Perm keys
+  peEmp:    'sep_pe_emp_v1',
+  peAtt:    'sep_pe_att_v1',
+  pePay:    'sep_pe_pay_v1',
+  peAdv:    'sep_pe_adv_v1',
+  // Stock keys
+  stock:    'sep_stock_v1',
+  stockLog: 'sep_stock_log_v1',
+  // Production keys
+  prodLog:  'sep_prod_log_v1',
+  prodAreas:'sep_prod_areas_v1',
+  prodCfg:  'sep_prod_cfg_v1',
+  permSnack:'sep_perm_snack_log_v1',
+  // System
+  settings: 'sep_settings_v1',
+  version:  'sep_data_version',
+  // Month lock
+  monthLock: 'sep_month_lock_v1',
+  // Invoice
+  clients:  'sep_clients_v1',
+  rates:    'sep_rates_v1',
+  invoices: 'sep_inv_v1',
+  invCfg:   'sep_inv_cfg_v1',
+};
+
+// ============================================================
+// DEFAULT DATA
+// ============================================================
+
+const DEF_PERM = [
+  {id:'shyam_bera', name:'Shyam', role:'Production Supervisor', dailyRate:576, inactive:false},
+  {id:'sharat_mahato', name:'Sharat', role:'VAT A1 Lead', dailyRate:496, inactive:false},
+  {id:'sunil_mahato', name:'Sunil', role:'Barrel Lead', dailyRate:496, inactive:false},
+  {id:'rupa_bera', name:'Rupa', role:'VAT A2 Lead', dailyRate:496, inactive:false},
+  {id:'bp_sharma', name:'Bhanu', role:'Worker', dailyRate:496, inactive:false},
+  {id:'lk_das', name:'Lucky', role:'Worker', dailyRate:496, inactive:false},
+  {id:'lal', name:'Lal', role:'Worker', dailyRate:496, inactive:false},
+  {id:'suklal', name:'Suklal', role:'Pickling Lead', dailyRate:440, inactive:false},
+  {id:'uday', name:'Uday', role:'Guard', dailyRate:360, inactive:false},
+  {id:'rounak', name:'Rounak', role:'Data Admin', dailyRate:0, inactive:true},
+];
+
+const DEF_CW = [
+  {id:'kusu', name:'Kusu', inactive:false},
+  {id:'sripati', name:'Sripati', inactive:false},
+  {id:'naren', name:'Naren', inactive:false},
+  {id:'champai', name:'Champai', inactive:false},
+  {id:'budheswar', name:'Budheswar', inactive:false},
+  {id:'sai', name:'Sai', inactive:false},
+  {id:'shambhu', name:'Shambhu', inactive:false},
+  {id:'mantu', name:'Mantu', inactive:false},
+  {id:'rocky', name:'Rocky', inactive:false},
+  {id:'birsa', name:'Birsa', inactive:false},
+  {id:'tuklu', name:'Tuklu', inactive:false},
+];
+
+const DEF_AREAS = [
+  {id:'vat_a1', name:'VAT A1', group:'vat', dep:false, depOn:[],
+   caps:[{l:0,lb:'Off',r:0},{l:33,lb:'33%',r:3},{l:66,lb:'66%',r:4},{l:100,lb:'100%',r:5}],
+   roster:['sharat_mahato','bp_sharma','lk_das','lal','suklal']},
+  {id:'vat_a2', name:'VAT A2', group:'vat', dep:false, depOn:[],
+   caps:[{l:0,lb:'Off',r:0},{l:25,lb:'25%',r:2},{l:50,lb:'50%',r:3},{l:75,lb:'75%',r:4},{l:100,lb:'100%',r:4}],
+   roster:['sharat_mahato','sai','shambhu','mantu']},
+  {id:'barrel', name:'Barrel', group:'barrel', dep:false, depOn:[],
+   caps:[{l:0,lb:'Off',r:0},{l:25,lb:'25%',r:2},{l:50,lb:'50%',r:2},{l:75,lb:'75%',r:3},{l:100,lb:'100%',r:3}],
+   roster:['sunil_mahato','birsa','tuklu']},
+  {id:'pickle_vat', name:'Pickling (VAT)', group:'vat', dep:true, depOn:['vat_a1','vat_a2'],
+   caps:[], roster:['lk_das','lal','suklal']},
+  {id:'pickle_barrel', name:'Pickling (Barrel)', group:'barrel', dep:true, depOn:['barrel'],
+   caps:[], roster:['rupa_bera','bp_sharma']},
+];
+
+const DEF_CFG = {
+  hourRate: 41.25,
+  snackRate: 20,
+  permOtMultiplier: 1.1,
+  permOtBaseRate: 496,    // all perm OT pro-rated on ₹496/day
+  guardIds: ['uday'],
+  excludedIds: ['rounak'],
+  standardShift: {start:'08:30', end:'17:00', hours:8},
+  sundayHolidayShift: {start:'06:00', end:'14:00', hours:8},
+  morningOT: {start:'06:00', end:'08:30', hours:3},
+  eveningOT: {start:'17:00', end:'20:00', hours:3},
+};
+
+const DEF_STOCK = [
+  {id:'zinc_anodes', name:'Zinc Anodes', unit:'kg', qty:0, threshold:50, category:'chemical'},
+  {id:'growel_1728', name:'Growel 1728', unit:'L', qty:0, threshold:10, category:'chemical'},
+  {id:'sodium_cyanide', name:'Sodium Cyanide', unit:'kg', qty:0, threshold:20, maxQty:100, category:'chemical'},
+  {id:'sodium_hydroxide', name:'Sodium Hydroxide', unit:'kg', qty:0, threshold:30, category:'chemical'},
+  {id:'brightener', name:'Brightener', unit:'L', qty:0, threshold:5, category:'chemical'},
+  {id:'hcl', name:'HCl', unit:'L', qty:0, threshold:20, category:'chemical'},
+];
+
+const DEF_INV_CFG = {
+  companyName: 'Soma Electro Products',
+  gstin: '',
+  stateCode: '20',  // Jharkhand
+  sac: '998871',     // Job work — electroplating
+  gstRate: 18,       // 18% total (9+9 CGST+SGST or 18 IGST)
+  seriesPrefix: 'SEP',
+  nextNumber: 1,
+  bankName: '',
+  bankAccount: '',
+  bankIFSC: '',
+};
+
+// ============================================================
+// DATA ACCESS LAYER
+// ============================================================
+
+function loadJSON(key, fallback) {
+  try { const v=localStorage.getItem(key); return v?JSON.parse(v):fallback; }
+  catch{ return fallback; }
+}
+
+function saveJSON(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    showSaveDot();
+  } catch(e) { console.error('Save error:', e); }
+}
+
+// Workers
+function getPermWorkers() { return loadJSON(K.peEmp, DEF_PERM); }
+function getCWWorkers() { return loadJSON(K.cwEmp, DEF_CW); }
+function getActivePermProd() { return getPermWorkers().filter(w=>!w.inactive&&!DEF_CFG.guardIds.includes(w.id)&&!DEF_CFG.excludedIds.includes(w.id)); }
+function getActiveCW() { return getCWWorkers().filter(w=>!w.inactive); }
+function getAllProdWorkers() {
+  const perm = getActivePermProd().map(w=>({...w, type:'perm'}));
+  const cw = getActiveCW().map(w=>({...w, type:'cw'}));
+  return [...perm, ...cw];
+}
+function findWorker(id) {
+  return [...getPermWorkers().map(w=>({...w,type:'perm'})), ...getCWWorkers().map(w=>({...w,type:'cw'}))].find(w=>w.id===id) || {id,name:id,type:'cw'};
+}
+
+// Attendance
+function getAttKey(type,id,date) { return `${id}_${date.replace(/-/g,'_')}`; }
+function getAttendance(type, date) { return loadJSON(type==='perm'?K.peAtt:K.cwAtt, {}); }
+function setAttendance(type, key, val) {
+  const k = type==='perm'?K.peAtt:K.cwAtt;
+  const data = loadJSON(k, {});
+  data[key] = val;
+  saveJSON(k, data);
+}
+
+// Production
+function getAreas() { return loadJSON(K.prodAreas, DEF_AREAS); }
+function getCfg() {
+  const saved = loadJSON(K.prodCfg, {});
+  return {
+    ...DEF_CFG,
+    ...saved,
+    standardShift: {...DEF_CFG.standardShift, ...(saved.standardShift||{})},
+    sundayHolidayShift: {...DEF_CFG.sundayHolidayShift, ...(saved.sundayHolidayShift||{})},
+    morningOT: {...DEF_CFG.morningOT, ...(saved.morningOT||{})},
+    eveningOT: {...DEF_CFG.eveningOT, ...(saved.eveningOT||{})},
+  };
+}
+function getProdLogs() { return loadJSON(K.prodLog, {}); }
+function getProdDay(date) { const logs=getProdLogs(); return logs[date]||null; }
+function saveProdDay(date, dayData) {
+  const logs=getProdLogs();
+  logs[date]=dayData;
+  saveJSON(K.prodLog, logs);
+}
+
+// Stock
+function getStock() { return loadJSON(K.stock, DEF_STOCK); }
+function getStockLog() { return loadJSON(K.stockLog, []); }
+
+// Settings
+function getSettings() { return loadJSON(K.settings, {darkMode:false, swipeTabs:true}); }
+
+// ============================================================
+// APP STATE
+// ============================================================
+
+const STATE = {
+  currentTab: 'home',
+  today: localDateStr(),
+  histDate: localDateStr(),
+  attFilter: 'all', // all | perm | cw
+  darkMode: false,
+  settingsOpen: false,
+};
+
+// ============================================================
+// SAVE INDICATOR
+// ============================================================
+
+let saveDotTimer = null;
+function showSaveDot() {
+  const dot = document.getElementById('saveDot');
+  if(!dot) return;
+  dot.classList.add('show');
+  dot.classList.remove('unsaved');
+  clearTimeout(saveDotTimer);
+  saveDotTimer = setTimeout(()=>dot.classList.remove('show'), 2000);
+}
+
+// ============================================================
+// DARK MODE
+// ============================================================
+
+function toggleDarkMode() {
+  STATE.darkMode = !STATE.darkMode;
+  document.documentElement.classList.toggle('dark', STATE.darkMode);
+  const s = getSettings(); s.darkMode = STATE.darkMode; saveJSON(K.settings, s);
+}
+
+function initDarkMode() {
+  STATE.darkMode = getSettings().darkMode || false;
+  document.documentElement.classList.toggle('dark', STATE.darkMode);
+}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+
+const TAB_ORDER = ['home','attendance','production','finance','invoice','stock','history'];
+
+function switchTab(tabId) {
+  STATE.currentTab = tabId;
+  document.querySelectorAll('.tab-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.tab===tabId));
+  document.querySelectorAll('.tab-panel').forEach(p =>
+    p.classList.toggle('active', p.id===`tab-${tabId}`));
+  // Auto-scroll active tab into view
+  const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+  if(activeBtn) activeBtn.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+  renderTab(tabId);
+}
+
+document.getElementById('tabBar').addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if(btn) switchTab(btn.dataset.tab);
+});
+
+// Swipe navigation
+let swipeX=0, swipeY=0, swipeT=0;
+document.querySelector('.tab-content')?.addEventListener('touchstart', e=>{
+  swipeX=e.changedTouches[0].screenX; swipeY=e.changedTouches[0].screenY; swipeT=Date.now();
+},{passive:true});
+document.querySelector('.tab-content')?.addEventListener('touchend', e=>{
+  const dx=e.changedTouches[0].screenX-swipeX;
+  const dy=e.changedTouches[0].screenY-swipeY;
+  if(Date.now()-swipeT>400||Math.abs(dx)<80||Math.abs(dy)>Math.abs(dx)*0.7) return;
+  const idx=TAB_ORDER.indexOf(STATE.currentTab);
+  if(dx<-80 && idx<TAB_ORDER.length-1) switchTab(TAB_ORDER[idx+1]);
+  else if(dx>80 && idx>0) switchTab(TAB_ORDER[idx-1]);
+},{passive:true});
+
+// ============================================================
+// RENDER DISPATCH
+// ============================================================
+
+function renderTab(tabId) {
+  switch(tabId) {
+    case 'home': renderHome(); break;
+    case 'attendance': renderAttendance(); break;
+    case 'production': renderProduction(); break;
+    case 'finance': renderFinance(); break;
+    case 'invoice': renderInvoice(); break;
+    case 'stock': renderStock(); break;
+    case 'history': renderHistory(); break;
+  }
+}
+
+// ============================================================
+// HOME TAB
+// ============================================================
+
+function renderHome() {
+  const date = STATE.today;
+  const allW = getAllProdWorkers();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+
+  // Count present
+  let permP=0, cwP=0;
+  getActivePermProd().forEach(w => {
+    const k = getAttKey('perm', w.id, date);
+    if(peAtt[k] && (peAtt[k].status==='P'||peAtt[k].status==='OT')) permP++;
+  });
+  getActiveCW().forEach(w => {
+    const k = getAttKey('cw', w.id, date);
+    if(cwAtt[k] && (cwAtt[k].status==='P'||cwAtt[k].status==='OT')) cwP++;
+  });
+  const totalP = permP + cwP;
+
+  // Production data
+  const prod = getProdDay(date);
+  const totalPieces = prod?.totals?.pieces || 0;
+  const areasActive = prod ? Object.values(prod.periods?.standard?.areas||{}).filter(a=>a.cap>0).length : 0;
+
+  // Cost data
+  const wageCost = calcDayWages(date);
+
+  // Update DOM
+  document.getElementById('homePresent').textContent = totalP;
+  document.getElementById('homePresentDetail').textContent = `of ${allW.length} workers present`;
+  document.getElementById('homeProd').textContent = totalPieces || '—';
+  document.getElementById('homePerm').textContent = permP;
+  document.getElementById('homeCW').textContent = cwP;
+  document.getElementById('homeCost').textContent = formatCurrency(wageCost);
+  document.getElementById('homeAreas').textContent = areasActive;
+
+  // Alerts
+  renderHomeAlerts(date, totalP, allW.length);
+}
+
+function renderHomeAlerts(date, present, total) {
+  const el = document.getElementById('homeAlerts');
+  const alerts = [];
+
+  // Low attendance alert
+  if(present>0 && present < total * 0.7) {
+    alerts.push(`<div class="alert-banner alert-warning">⚠ Low attendance: ${present}/${total} workers present</div>`);
+  }
+
+  // A3: CW Pay due-date alerts
+  alerts.push(...getCWPayDueAlerts());
+
+  // B2: Attendance pattern alerts
+  alerts.push(...getAttendancePatternAlerts());
+
+  // Stock alerts
+  const stock = getStock();
+  const lowStock = stock.filter(s => s.qty > 0 && s.qty <= s.threshold);
+  if(lowStock.length) {
+    alerts.push(`<div class="alert-banner alert-danger">📦 Low stock: ${lowStock.map(s=>s.name).join(', ')}</div>`);
+  }
+
+  // Month lock status
+  const d = new Date(date+'T00:00:00');
+  const month = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  if(isMonthLocked(month)) {
+    alerts.push(`<div class="alert-banner alert-info">🔒 ${month} is locked — records are read-only</div>`);
+  }
+
+  // Sunday
+  if(isSunday(date)) {
+    alerts.push(`<div class="alert-banner alert-info">📅 Sunday — Holiday shift pattern active</div>`);
+  }
+
+  if(alerts.length === 0) {
+    el.innerHTML = `<div class="card-info"><div class="empty-state">
+      <div class="empty-state-icon">✓</div>
+      <div class="empty-state-text">All clear</div>
+      <div class="empty-state-sub">No alerts for today</div>
+    </div></div>`;
+  } else {
+    el.innerHTML = alerts.join('');
+  }
+}
+
+// ============================================================
+// ATTENDANCE TAB
+// ============================================================
+
+function renderAttendance() {
+  const date = STATE.today;
+  const perm = getActivePermProd();
+  const cw = getActiveCW();
+  const guard = getPermWorkers().filter(w=>DEF_CFG.guardIds.includes(w.id)&&!w.inactive);
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+  const list = document.getElementById('workerList');
+
+  // Filter
+  let workers = [];
+  if(STATE.attFilter==='all'||STATE.attFilter==='perm') {
+    workers.push(...perm.map(w=>({...w,type:'perm'})));
+    workers.push(...guard.map(w=>({...w,type:'perm'})));
+  }
+  if(STATE.attFilter==='all'||STATE.attFilter==='cw') {
+    workers.push(...cw.map(w=>({...w,type:'cw'})));
+  }
+
+  if(workers.length===0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">👷</div>
+      <div class="empty-state-text">No workers to show</div>
+      <div class="empty-state-sub">Check filter or add workers in Settings</div>
+    </div>`;
+  } else {
+    list.innerHTML = workers.map(w => {
+      const attStore = w.type==='perm' ? peAtt : cwAtt;
+      const k = getAttKey(w.type, w.id, date);
+      const rec = attStore[k];
+      const status = rec?.status || '';
+      const otHours = rec?.otHours || 0;
+      const typeCls = w.type==='perm' ? 'badge-perm' : 'badge-cw';
+      const typeLabel = w.type==='perm' ? 'P' : 'C';
+
+      let otBadge = '';
+      if(otHours > 0) otBadge = `<span class="badge badge-warning">OT ${otHours}h</span>`;
+
+      return `<div class="worker-row">
+        <div class="worker-avatar">${w.name.charAt(0)}</div>
+        <div class="worker-info">
+          <div class="worker-name">${esc(w.name)} <span class="badge ${typeCls}">${typeLabel}</span> ${otBadge}</div>
+          <div class="worker-detail">${w.role||'Contract Worker'}</div>
+        </div>
+        <div class="worker-status">
+          <button class="mark-btn present ${status==='P'||status==='OT'?'active':''}"
+                  onclick="markAtt('${w.id}','${w.type}','P')">✓</button>
+          <button class="mark-btn absent ${status==='A'?'active':''}"
+                  onclick="markAtt('${w.id}','${w.type}','A')">✗</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Summary
+  let permP=0, cwP=0;
+  perm.forEach(w=>{ const k=getAttKey('perm',w.id,date); if(peAtt[k]&&(peAtt[k].status==='P'||peAtt[k].status==='OT')) permP++; });
+  guard.forEach(w=>{ const k=getAttKey('perm',w.id,date); if(peAtt[k]&&(peAtt[k].status==='P'||peAtt[k].status==='OT')) permP++; });
+  cw.forEach(w=>{ const k=getAttKey('cw',w.id,date); if(cwAtt[k]&&(cwAtt[k].status==='P'||cwAtt[k].status==='OT')) cwP++; });
+
+  document.getElementById('attPresent').textContent = permP+cwP;
+  document.getElementById('attPermBadge').textContent = `Perm: ${permP}`;
+  document.getElementById('attCWBadge').textContent = `CW: ${cwP}`;
+}
+
+function markAtt(workerId, type, status) {
+  const date = STATE.today;
+  const storeKey = type==='perm' ? K.peAtt : K.cwAtt;
+  const att = loadJSON(storeKey, {});
+  const k = getAttKey(type, workerId, date);
+
+  if(att[k] && att[k].status===status) {
+    // Toggle off
+    delete att[k];
+  } else {
+    att[k] = { status, time:tnow(), otHours:0 };
+  }
+  saveJSON(storeKey, att);
+  renderAttendance();
+  if(STATE.currentTab==='home') renderHome();
+}
+
+// Attendance filter buttons
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-filter]');
+  if(!btn || !btn.closest('#tab-attendance')) return;
+  STATE.attFilter = btn.dataset.filter;
+  btn.closest('.flex-center').querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAttendance();
+});
+
+// ============================================================
+// PRODUCTION TAB — Full 3-Period Flow (from v9.6 F-01 Spec v5)
+// ============================================================
+
+function renderProduction() {
+  const date = STATE.today;
+  let prod = getProdDay(date);
+  if(!prod) { prod = initProdDay(); saveProdDay(date, prod); }
+  const areas = getAreas();
+  const cfg = getCfg();
+
+  // Hero
+  document.getElementById('prodTotal').textContent = prod.totals?.pieces || '—';
+  const extraTotal = (prod.totals?.extraCost||0) + (prod.totals?.snackCost||0);
+  document.getElementById('prodExtraCost').textContent = formatCurrency(extraTotal);
+  const shortfall = prod.totals?.extraHours || 0;
+  document.getElementById('prodExtraDetail').textContent = shortfall > 0
+    ? `${shortfall}h shortfall + ${prod.totals?.snackCost?'snack':'no snack'}`
+    : 'no shortfall';
+
+  // Sunday/Holiday shift banner
+  renderShiftBanner(date);
+
+  // Attendance section
+  renderProdAttendance(date, prod);
+
+  // Periods
+  renderProdPeriods(date, prod, areas, cfg);
+
+  // Confirm button visibility
+  const confirmEl = document.getElementById('prodConfirmSection');
+  confirmEl.style.display = prod.attLocked && !prod.confirmed ? 'block' : 'none';
+
+  // Lock badge
+  const lockBadge = document.getElementById('prodLockBadge');
+  if(prod.confirmed) { lockBadge.textContent = 'Confirmed'; lockBadge.className = 'badge badge-attend'; }
+  else if(prod.attLocked) { lockBadge.textContent = 'Locked'; lockBadge.className = 'badge badge-warning'; }
+  else { lockBadge.textContent = 'Unlocked'; lockBadge.className = 'badge badge-neutral'; }
+
+  // Timeline
+  renderProdLog(date, prod);
+}
+
+// --- Production Attendance ---
+function renderProdAttendance(date, prod) {
+  const el = document.getElementById('prodAttSection');
+  const allW = getAllProdWorkers();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+
+  if(prod.attLocked) {
+    // Show locked summary
+    const present = prod.present || [];
+    const perm = present.filter(id => findWorker(id).type==='perm');
+    const cw = present.filter(id => findWorker(id).type==='cw');
+    el.innerHTML = `
+      <div class="flex-between">
+        <div>
+          <div class="card-value text-attend">${present.length}</div>
+          <div class="card-label">workers locked in</div>
+        </div>
+        <div class="flex-center gap-4">
+          <span class="badge badge-perm">P: ${perm.length}</span>
+          <span class="badge badge-cw">C: ${cw.length}</span>
+        </div>
+      </div>
+      ${!prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-12" onclick="unlockProdAtt()">Unlock to Edit</button>` : ''}
+    `;
+    return;
+  }
+
+  // Unlocked — show check/uncheck list + lock button
+  let html = '<div class="period-area-card">';
+
+  // Count present from attendance stores
+  let presentIds = [];
+  allW.forEach(w => {
+    const attStore = w.type==='perm' ? peAtt : cwAtt;
+    const k = getAttKey(w.type, w.id, date);
+    if(attStore[k] && attStore[k].status !== 'A') presentIds.push(w.id);
+  });
+
+  html += allW.map(w => {
+    const isPresent = presentIds.includes(w.id);
+    const typeCls = w.type==='perm' ? 'badge-perm' : 'badge-cw';
+    return `<div class="worker-row">
+      <div class="worker-avatar">${w.name.charAt(0)}</div>
+      <div class="worker-info">
+        <div class="worker-name">${esc(w.name)} <span class="badge ${typeCls}">${w.type==='perm'?'P':'C'}</span></div>
+      </div>
+      <div class="worker-status">
+        <button class="mark-btn present ${isPresent?'active':''}" onclick="markAtt('${w.id}','${w.type}','P');renderProduction()">✓</button>
+        <button class="mark-btn absent ${!isPresent&&presentIds.length>0?'active':''}" onclick="markAtt('${w.id}','${w.type}','A');renderProduction()">✗</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  html += `</div>
+    <button class="btn btn-primary btn-full mt-8" onclick="lockProdAtt()">Lock Attendance (${presentIds.length} present)</button>`;
+  el.innerHTML = html;
+}
+
+function lockProdAtt() {
+  const date = STATE.today;
+  let prod = getProdDay(date) || initProdDay();
+  const allW = getAllProdWorkers();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+
+  const present = [];
+  allW.forEach(w => {
+    const attStore = w.type==='perm' ? peAtt : cwAtt;
+    const k = getAttKey(w.type, w.id, date);
+    if(attStore[k] && attStore[k].status !== 'A') present.push(w.id);
+  });
+
+  if(present.length === 0) { alert('Mark at least one worker present.'); return; }
+
+  prod.attLocked = true;
+  prod.present = present;
+  prod.lockedAt = tnow();
+
+  // Auto-assign default rosters to standard period
+  autoAssignRosters(prod, 'standard', present);
+
+  // Add timeline entry
+  prod.timeline = prod.timeline || [];
+  prod.timeline.push({time:tnow(), type:'system', text:`Attendance locked: ${present.length} workers`});
+
+  // Recalculate
+  recalcExtra(prod);
+
+  saveProdDay(date, prod);
+  renderProduction();
+}
+
+function unlockProdAtt() {
+  const date = STATE.today;
+  let prod = getProdDay(date);
+  if(!prod) return;
+  prod.attLocked = false;
+  prod.confirmed = false;
+  prod.timeline.push({time:tnow(), type:'system', text:'Attendance unlocked for editing'});
+  saveProdDay(date, prod);
+  renderProduction();
+}
+
+function autoAssignRosters(prod, periodKey, present) {
+  const areas = getAreas();
+  const period = prod.periods[periodKey];
+  if(!period.areas) period.areas = {};
+
+  areas.forEach(area => {
+    if(!period.areas[area.id]) period.areas[area.id] = {cap: periodKey==='standard' ? (area.dep ? 0 : (area.caps[area.caps.length-1]?.l||0)) : 0, assigned:[]};
+    const pa = period.areas[area.id];
+    if(pa.cap === 0 && !area.dep) return;
+
+    // Auto-assign from default roster, only those who are present
+    const rosterPresent = area.roster.filter(id => present.includes(id));
+    pa.assigned = rosterPresent;
+  });
+
+  // Auto-manage pickling
+  autoPickling(prod, periodKey);
+}
+
+function autoPickling(prod, periodKey) {
+  const areas = getAreas();
+  const period = prod.periods[periodKey];
+
+  areas.filter(a=>a.dep).forEach(pa => {
+    if(!period.areas[pa.id]) period.areas[pa.id] = {cap:0, assigned:[]};
+    const depCaps = pa.depOn.map(did => period.areas[did]?.cap || 0);
+    if(depCaps.every(c=>c===0)) {
+      period.areas[pa.id].cap = 0;
+      period.areas[pa.id].assigned = [];
+    } else {
+      // Auto-activate with present roster workers
+      const present = prod.present || [];
+      period.areas[pa.id].cap = 1; // "on"
+      period.areas[pa.id].assigned = pa.roster.filter(id => present.includes(id));
+    }
+  });
+}
+
+// --- Requirement calculation ---
+function getReq(areaId, periodKey, prod) {
+  const areas = getAreas();
+  const a = areas.find(x=>x.id===areaId);
+  if(!a) return 0;
+  const pa = prod.periods[periodKey]?.areas?.[areaId];
+  if(!pa) return 0;
+
+  if(!a.dep) {
+    if(pa.cap===0) return 0;
+    const cl = a.caps.find(c=>c.l===pa.cap);
+    return cl ? cl.r : 0;
+  }
+  // Pickling VAT
+  if(areaId==='pickle_vat') {
+    const a1c = prod.periods[periodKey].areas.vat_a1?.cap||0;
+    const a2c = prod.periods[periodKey].areas.vat_a2?.cap||0;
+    if(a1c===0&&a2c===0) return 0;
+    if(a1c===100&&a2c===100) return 3;
+    return 2;
+  }
+  // Pickling Barrel
+  if(areaId==='pickle_barrel') {
+    const bc = prod.periods[periodKey].areas.barrel?.cap||0;
+    if(bc===0) return 0;
+    if(bc<=50) return 1;
+    return 2;
+  }
+  return 0;
+}
+
+// --- Extra/Snack Calculations ---
+function recalcExtra(prod) {
+  const cfg = getCfg();
+  let totalExtraH = 0, totalExtraCost = 0;
+
+  ['morningOT','standard','eveningOT'].forEach(pk => {
+    const period = prod.periods[pk];
+    if(!period || (pk!=='standard' && !period.active)) return;
+    const hours = period.hours || (pk==='standard' ? 8 : 3);
+    let shortfall = 0;
+    const areas = getAreas();
+    areas.forEach(area => {
+      const pa = period.areas?.[area.id];
+      if(!pa) return;
+      const req = getReq(area.id, pk, prod);
+      const assigned = pa.assigned?.length || 0;
+      if(req > assigned) shortfall += (req - assigned);
+    });
+    const periodExtra = sepRound(shortfall * hours * cfg.hourRate);
+    totalExtraH += shortfall * hours;
+    totalExtraCost += periodExtra;
+  });
+
+  // Snack: evening OT workers × snackRate
+  let snackCost = 0;
+  const eveningOT = prod.periods.eveningOT;
+  if(eveningOT?.active) {
+    const snackWorkers = eveningOT.workers?.length || 0;
+    snackCost = snackWorkers * cfg.snackRate;
+  }
+
+  prod.totals = prod.totals || {};
+  prod.totals.extraHours = totalExtraH;
+  prod.totals.extraCost = totalExtraCost;
+  prod.totals.snackCost = snackCost;
+}
+
+// --- Period Rendering ---
+function renderProdPeriods(date, prod, areas, cfg) {
+  const container = document.getElementById('prodPeriodsContainer');
+  if(!prod.attLocked) {
+    container.innerHTML = '<div class="card-info section-zone"><div class="empty-state"><div class="empty-state-text">Lock attendance to configure production</div></div></div>';
+    return;
+  }
+
+  const periods = [
+    {key:'morningOT', label:'Morning OT', time: `${cfg.morningOT.start}–${cfg.morningOT.end}`, hours:cfg.morningOT.hours, isOT:true},
+    {key:'standard', label:'Standard Shift', time: `${cfg.standardShift.start}–${cfg.standardShift.end}`, hours:cfg.standardShift.hours, isOT:false},
+    {key:'eveningOT', label:'Evening OT', time: `${cfg.eveningOT.start}–${cfg.eveningOT.end}`, hours:cfg.eveningOT.hours, isOT:true},
+  ];
+
+  const isHolidayShift = isShiftSunday(date);
+
+  container.innerHTML = periods.map(p => {
+    const period = prod.periods[p.key];
+    const isActive = p.key==='standard' || period?.active;
+    const isExpanded = p.key==='standard' || period?.expanded;
+
+    if(!isActive && p.isOT) {
+      // On Sunday/Holiday: suppress OT enable buttons, show subtle link
+      if(isHolidayShift) {
+        return `<div class="period-card">
+          <div class="card-info" style="padding:var(--sp-10) var(--sp-12)">
+            <div class="flex-between">
+              <div>
+                <span class="card-label">${p.label}</span>
+                <span class="card-meta"> ${p.time}</span>
+              </div>
+              <button class="btn btn-sm" style="color:var(--text-muted);font-size:var(--fs-2xs)" onclick="togglePeriod('${p.key}',true)">Add OT anyway</button>
+            </div>
+          </div>
+        </div>`;
+      }
+      return `<div class="period-card">
+        <div class="card-info" style="padding:var(--sp-10) var(--sp-12)">
+          <div class="flex-between">
+            <div>
+              <span class="card-label">${p.label}</span>
+              <span class="card-meta"> ${p.time}</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="togglePeriod('${p.key}',true)">+ Enable</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // Active period — render areas
+    let areaHtml = '';
+    areas.filter(a=>!a.dep).forEach(area => {
+      const pa = period?.areas?.[area.id] || {cap:0, assigned:[]};
+      const cap = pa.cap;
+      const assigned = pa.assigned || [];
+      const req = getReq(area.id, p.key, prod);
+      const statusColor = cap===0 ? 'text-muted' : assigned.length>=req ? 'text-attend' : 'text-danger';
+
+      const capBtns = area.caps.map(c =>
+        `<button class="nb ${cap===c.l?'active':''}" onclick="setProdCap2('${p.key}','${area.id}',${c.l})">${c.lb}</button>`
+      ).join('');
+
+      const workerChips = assigned.map(wid => {
+        const w = findWorker(wid);
+        const cls = w.type==='perm' ? 'badge-perm' : 'badge-cw';
+        return `<span class="badge ${cls}">${esc(w.name)}</span>`;
+      }).join(' ');
+
+      areaHtml += `<div class="card-base period-area-card">
+        <div class="flex-between">
+          <div class="card-title">${esc(area.name)}</div>
+          <span class="${statusColor} area-count ff-mono">${assigned.length}/${req}</span>
+        </div>
+        <div class="mt-8 chip-row">${capBtns}</div>
+        <div class="mt-8 chip-row">${workerChips || '<span class="card-meta">No workers assigned</span>'}</div>
+        ${cap>0 && !prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-8" onclick="openPicker('${p.key}','${area.id}')">Edit Workers</button>` : ''}
+      </div>`;
+    });
+
+    // Dependent areas (pickling)
+    areas.filter(a=>a.dep).forEach(area => {
+      const pa = period?.areas?.[area.id] || {cap:0, assigned:[]};
+      const req = getReq(area.id, p.key, prod);
+      if(req===0) return;
+      const assigned = pa.assigned || [];
+      const statusColor = assigned.length>=req ? 'text-attend' : 'text-danger';
+      const workerChips = assigned.map(wid => {
+        const w = findWorker(wid);
+        return `<span class="badge ${w.type==='perm'?'badge-perm':'badge-cw'}">${esc(w.name)}</span>`;
+      }).join(' ');
+
+      areaHtml += `<div class="card-daily period-area-card">
+        <div class="flex-between">
+          <div class="card-label">${esc(area.name)}</div>
+          <span class="${statusColor} area-count-sm ff-mono">${assigned.length}/${req}</span>
+        </div>
+        <div class="mt-4 chip-row">${workerChips || '<span class="card-meta">Auto-assigned</span>'}</div>
+        ${!prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-4" onclick="openPicker('${p.key}','${area.id}')">Edit</button>` : ''}
+      </div>`;
+    });
+
+    return `<div class="period-card">
+      <div class="section-zone">
+        <div class="flex-between mb-10">
+          <div>
+            <span class="section-label-md" style="margin-bottom:0;display:inline">${p.label}</span>
+            <span class="card-meta"> ${p.time} (${p.hours}h)</span>
+          </div>
+          ${p.isOT ? `<button class="btn btn-sm" style="color:var(--danger)" onclick="togglePeriod('${p.key}',false)">Disable</button>` : ''}
+        </div>
+        ${areaHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePeriod(periodKey, enable) {
+  const date = STATE.today;
+  let prod = getProdDay(date) || initProdDay();
+  prod.periods[periodKey].active = enable;
+  if(enable) {
+    prod.periods[periodKey].expanded = true;
+    // Auto-assign rosters
+    if(prod.present) autoAssignRosters(prod, periodKey, prod.present);
+    prod.timeline.push({time:tnow(), type:'system', text:`${periodKey==='morningOT'?'Morning':'Evening'} OT enabled`});
+  } else {
+    prod.periods[periodKey].expanded = false;
+    prod.timeline.push({time:tnow(), type:'system', text:`${periodKey==='morningOT'?'Morning':'Evening'} OT disabled`});
+  }
+  recalcExtra(prod);
+  saveProdDay(date, prod);
+  renderProduction();
+}
+
+function setProdCap2(periodKey, areaId, level) {
+  const date = STATE.today;
+  let prod = getProdDay(date) || initProdDay();
+  const period = prod.periods[periodKey];
+  if(!period.areas) period.areas = {};
+  if(!period.areas[areaId]) period.areas[areaId] = {cap:0, assigned:[]};
+  period.areas[areaId].cap = level;
+
+  autoPickling(prod, periodKey);
+  recalcExtra(prod);
+  saveProdDay(date, prod);
+  renderProduction();
+}
+
+// --- Worker Picker ---
+function openPicker(periodKey, areaId) {
+  if(document.querySelector('.picker-overlay')) return;
+  history.pushState({popup:'picker'}, '');
+  STATE.pickerPeriod = periodKey;
+  STATE.pickerArea = areaId;
+
+  const date = STATE.today;
+  const prod = getProdDay(date);
+  const areas = getAreas();
+  const area = areas.find(a=>a.id===areaId);
+  const period = prod.periods[periodKey];
+  const pa = period.areas[areaId] || {assigned:[]};
+  const present = prod.present || [];
+
+  // Separate perm and CW
+  const perm = present.map(id=>findWorker(id)).filter(w=>w.type==='perm');
+  const cw = present.map(id=>findWorker(id)).filter(w=>w.type==='cw');
+
+  function workerRow(w) {
+    const isAssigned = pa.assigned.includes(w.id);
+    // Check if assigned to another area in this period
+    let otherAreaName = '';
+    if(!isAssigned) {
+      for(const [aid, aData] of Object.entries(period.areas||{})) {
+        if(aid !== areaId && aData.assigned?.includes(w.id)) {
+          otherAreaName = areas.find(a=>a.id===aid)?.name || aid;
+          break;
+        }
+      }
+    }
+    const disabled = otherAreaName ? 'disabled' : '';
+    const checked = isAssigned ? 'checked' : '';
+    return `<div class="picker-worker ${checked} ${disabled}" onclick="togglePickerWorker('${w.id}')">
+      <div class="picker-check">✓</div>
+      <span class="picker-name">${esc(w.name)}</span>
+      ${otherAreaName ? `<span class="picker-where">→ ${esc(otherAreaName)}</span>` : ''}
+    </div>`;
+  }
+
+  const html = `<div class="picker-overlay" onclick="closePicker()">
+    <div class="picker-sheet" onclick="event.stopPropagation()">
+      <div class="picker-header">
+        <span class="card-title">${esc(area?.name||areaId)} — Workers</span>
+        <button class="header-btn" onclick="closePicker()">✕</button>
+      </div>
+      <div class="picker-body" id="pickerBody">
+        <div class="picker-section-label">Permanent Staff</div>
+        ${perm.map(w=>workerRow(w)).join('')}
+        <div class="picker-section-label">Contract Workers</div>
+        ${cw.map(w=>workerRow(w)).join('')}
+      </div>
+    </div>
+  </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function togglePickerWorker(workerId) {
+  const date = STATE.today;
+  let prod = getProdDay(date);
+  const period = prod.periods[STATE.pickerPeriod];
+  const pa = period.areas[STATE.pickerArea];
+  if(!pa) return;
+
+  const idx = pa.assigned.indexOf(workerId);
+  if(idx>=0) pa.assigned.splice(idx,1);
+  else pa.assigned.push(workerId);
+
+  recalcExtra(prod);
+  saveProdDay(date, prod);
+
+  // Re-render picker in place
+  closePicker();
+  openPicker(STATE.pickerPeriod, STATE.pickerArea);
+  renderProduction();
+}
+
+function closePicker() {
+  const el = document.querySelector('.picker-overlay');
+  if(el) el.remove();
+}
+
+// --- Confirm Flow ---
+function showProdConfirm() {
+  const date = STATE.today;
+  const prod = getProdDay(date);
+  const present = prod.present || [];
+  const perm = present.filter(id=>findWorker(id).type==='perm');
+  const cw = present.filter(id=>findWorker(id).type==='cw');
+  const extraCost = (prod.totals?.extraCost||0) + (prod.totals?.snackCost||0);
+
+  // Calculate OT per worker
+  const otMap = {};
+  ['morningOT','eveningOT'].forEach(pk => {
+    const period = prod.periods[pk];
+    if(!period?.active) return;
+    const hours = period.hours || 3;
+    // Workers in any active area for this period
+    const workerSet = new Set();
+    Object.values(period.areas||{}).forEach(pa => {
+      (pa.assigned||[]).forEach(id => workerSet.add(id));
+    });
+    workerSet.forEach(id => {
+      otMap[id] = (otMap[id]||0) + hours;
+    });
+  });
+
+  const html = `<div class="confirm-overlay" onclick="cancelConfirm()">
+    <div class="confirm-dialog" onclick="event.stopPropagation()">
+      <div class="confirm-icon">✓</div>
+      <div class="confirm-title">Confirm ${present.length} Workers?</div>
+      <div class="confirm-desc">Attendance + OT will be written to records. Extra cost: ${formatCurrency(extraCost)}</div>
+      <div class="confirm-breakdown">
+        <span class="badge badge-perm">${perm.length} Perm → peAtt</span>
+        <span class="badge badge-cw">${cw.length} CW → cwAtt</span>
+      </div>
+      ${Object.keys(otMap).length > 0 ? `<div class="card-meta mb-12">OT: ${Object.entries(otMap).map(([id,h])=>`${findWorker(id).name} ${h}h`).join(', ')}</div>` : ''}
+      <div class="confirm-btns">
+        <button class="btn btn-secondary" onclick="cancelConfirm()">Cancel</button>
+        <button class="btn btn-attend" onclick="confirmProduction()">Confirm</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function cancelConfirm() {
+  const el = document.querySelector('.confirm-overlay');
+  if(el) el.remove();
+}
+
+function confirmProduction() {
+  const date = STATE.today;
+  let prod = getProdDay(date);
+  const cfg = getCfg();
+
+  // Calculate OT per worker
+  const otMap = {};
+  ['morningOT','eveningOT'].forEach(pk => {
+    const period = prod.periods[pk];
+    if(!period?.active) return;
+    const hours = period.hours || 3;
+    Object.values(period.areas||{}).forEach(pa => {
+      (pa.assigned||[]).forEach(id => {
+        otMap[id] = (otMap[id]||0) + hours;
+      });
+    });
+  });
+
+  // Write to attendance stores
+  const present = prod.present || [];
+  present.forEach(id => {
+    const w = findWorker(id);
+    const storeKey = w.type==='perm' ? K.peAtt : K.cwAtt;
+    const att = loadJSON(storeKey, {});
+    const k = getAttKey(w.type, id, date);
+    att[k] = {
+      status: otMap[id] ? 'OT' : 'P',
+      otHours: otMap[id] || 0,
+      time: prod.lockedAt || tnow(),
+    };
+    saveJSON(storeKey, att);
+  });
+
+  // Snack log for evening OT perm workers
+  if(prod.periods.eveningOT?.active) {
+    const snackLog = loadJSON(K.permSnack, []);
+    const evWorkers = new Set();
+    Object.values(prod.periods.eveningOT.areas||{}).forEach(pa => {
+      (pa.assigned||[]).forEach(id => evWorkers.add(id));
+    });
+    // Save evening OT workers list for snack calculation
+    prod.periods.eveningOT.workers = [...evWorkers];
+    evWorkers.forEach(id => {
+      const w = findWorker(id);
+      if(w.type==='perm') {
+        snackLog.push({empId:id, date, otHours:prod.periods.eveningOT.hours, snack:cfg.snackRate, week:getWeekEnd(date)});
+      }
+    });
+    saveJSON(K.permSnack, snackLog);
+  }
+
+  // Finalize
+  prod.confirmed = true;
+  prod.confirmedAt = tnow();
+  recalcExtra(prod);
+  prod.timeline.push({time:tnow(), type:'confirm', text:`Production confirmed: ${present.length} workers, OT for ${Object.keys(otMap).length}`});
+
+  saveProdDay(date, prod);
+  cancelConfirm();
+  renderProduction();
+  if(STATE.currentTab==='home') renderHome();
+}
+
+function initProdDay() {
+  return {
+    periods: {
+      morningOT: {active:false, hours:3, areas:{}, workers:[]},
+      standard:  {active:true, hours:8, areas:{}, workers:null},
+      eveningOT: {active:false, hours:3, areas:{}, workers:[]},
+    },
+    totals: { pieces:0, weight:0, extraHours:0, extraCost:0, snackCost:0 },
+    confirmed: false,
+    timeline: [],
+  };
+}
+
+function renderProdLog(date, prod) {
+  const el = document.getElementById('prodLog');
+  if(!prod || !prod.timeline || prod.timeline.length===0) {
+    el.innerHTML = `<div class="card-info"><div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      <div class="empty-state-text">No entries yet</div>
+      <div class="empty-state-sub">Production entries appear as you work</div>
+    </div></div>`;
+    return;
+  }
+  el.innerHTML = prod.timeline.map(entry =>
+    `<div class="card-daily">
+      <div class="flex-between">
+        <span class="card-label">${entry.time||''}</span>
+        <span class="card-meta">${entry.type||'note'}</span>
+      </div>
+      <div class="card-title mt-4">${esc(entry.text||'')}</div>
+    </div>`
+  ).join('');
+}
+
+// ============================================================
+// PIECE / WEIGHT ENTRY
+// ============================================================
+
+function logProdEntry() {
+  const pieces = parseInt(document.getElementById('prodPiecesInput')?.value) || 0;
+  const weight = parseFloat(document.getElementById('prodWeightInput')?.value) || 0;
+  if(pieces===0 && weight===0) return;
+
+  const date = STATE.today;
+  let prod = getProdDay(date) || initProdDay();
+  prod.totals = prod.totals || {pieces:0, weight:0};
+  prod.totals.pieces = (prod.totals.pieces||0) + pieces;
+  prod.totals.weight = Math.round(((prod.totals.weight||0) + weight)*10)/10;
+
+  prod.timeline = prod.timeline || [];
+  const parts = [];
+  if(pieces) parts.push(`${pieces} pcs`);
+  if(weight) parts.push(`${weight} kg`);
+  prod.timeline.push({time:tnow(), type:'production', text:`Logged: ${parts.join(' / ')} → Total: ${prod.totals.pieces} pcs / ${prod.totals.weight} kg`});
+
+  saveProdDay(date, prod);
+
+  // Clear inputs
+  const pInput = document.getElementById('prodPiecesInput');
+  const wInput = document.getElementById('prodWeightInput');
+  if(pInput) pInput.value = '';
+  if(wInput) wInput.value = '';
+
+  renderProduction();
+}
+
+// ============================================================
+// SUNDAY / HOLIDAY SHIFT
+// ============================================================
+
+function isTodayHoliday() {
+  const prod = getProdDay(STATE.today);
+  return prod?.isHoliday || false;
+}
+
+function isShiftSunday(date) {
+  return isSunday(date) || (getProdDay(date)?.isHoliday || false);
+}
+
+function toggleHoliday() {
+  const date = STATE.today;
+  let prod = getProdDay(date) || initProdDay();
+  prod.isHoliday = !prod.isHoliday;
+  prod.timeline = prod.timeline || [];
+  prod.timeline.push({time:tnow(), type:'system', text: prod.isHoliday ? 'Marked as Holiday shift' : 'Holiday shift removed'});
+  saveProdDay(date, prod);
+  renderProduction();
+}
+
+function renderShiftBanner(date) {
+  const el = document.getElementById('prodShiftBanner');
+  if(!el) return;
+  const cfg = getCfg();
+  const sunday = isSunday(date);
+  const prod = getProdDay(date);
+  const holiday = prod?.isHoliday || false;
+  const isSpecial = sunday || holiday;
+
+  if(!isSpecial) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const shift = cfg.sundayHolidayShift;
+  el.innerHTML = `<div class="alert-banner alert-info mb-12">
+    📅 ${sunday ? 'Sunday' : 'Holiday'} shift: ${shift.start}–${shift.end} (${shift.hours}h, no lunch)
+    ${!sunday ? `<button class="btn btn-sm" style="margin-left:auto;color:var(--danger)" onclick="toggleHoliday()">Remove</button>` : ''}
+  </div>`;
+}
+
+// ============================================================
+// FINANCE TAB — Pay Cards
+// ============================================================
+
+function calcDayWages(date) {
+  const cfg = getCfg();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+  let total = 0;
+
+  getActiveCW().forEach(w => {
+    const k = getAttKey('cw', w.id, date);
+    const rec = cwAtt[k];
+    if(!rec || rec.status==='A') return;
+    let hours = cfg.standardShift.hours;
+    if(rec.otHours) hours += rec.otHours;
+    total += sepRound(hours * cfg.hourRate);
+  });
+
+  getActivePermProd().forEach(w => {
+    const k = getAttKey('perm', w.id, date);
+    const rec = peAtt[k];
+    if(!rec || rec.status==='A') return;
+    total += w.dailyRate;
+    if(rec.otHours && rec.otHours > 0) {
+      const otRate = sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier);
+      total += sepRound(rec.otHours * otRate);
+    }
+  });
+
+  const guards = getPermWorkers().filter(w=>DEF_CFG.guardIds.includes(w.id)&&!w.inactive);
+  guards.forEach(w => {
+    const k = getAttKey('perm', w.id, date);
+    const rec = peAtt[k];
+    if(rec && rec.status!=='A') total += w.dailyRate;
+  });
+
+  return total;
+}
+
+function calcMonthWages(date) {
+  const d = new Date(date+'T00:00:00');
+  const y = d.getFullYear(), m = d.getMonth();
+  const today = new Date(STATE.today+'T00:00:00').getDate();
+  let total = 0;
+  // Only sum up to today (not future days)
+  for(let i=1; i<=today; i++) {
+    const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+    total += calcDayWages(ds);
+  }
+  return total;
+}
+
+// --- CW Weekly Pay ---
+function calcCWWeeklyPay(satDate) {
+  const cfg = getCfg();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const cw = getActiveCW();
+  const sat = new Date(satDate+'T00:00:00');
+
+  // Week is Mon-Sat
+  const mon = new Date(sat);
+  mon.setDate(mon.getDate() - 5);
+
+  const workers = cw.map(w => {
+    let days=0, hours=0, otH=0, wage=0;
+    for(let d=new Date(mon); d<=sat; d.setDate(d.getDate()+1)) {
+      const ds = localDateStr(d);
+      const k = getAttKey('cw', w.id, ds);
+      const rec = cwAtt[k];
+      if(!rec || rec.status==='A') continue;
+      days++;
+      const dayH = cfg.standardShift.hours + (rec.otHours||0);
+      hours += dayH;
+      otH += rec.otHours||0;
+      wage += sepRound(dayH * cfg.hourRate);
+    }
+    // CW advance deduction for this week
+    const cwAdv = loadJSON(K.cwAdv, {});
+    const advKey = `${w.id}_${satDate}`;
+    const advance = cwAdv[advKey] || 0;
+    return {id:w.id, name:w.name, days, hours, otH, wage, advance, net: wage - advance};
+  });
+
+  // Extra cost for the week
+  let extraTotal = 0, snackTotal = 0;
+  for(let d=new Date(mon); d<=sat; d.setDate(d.getDate()+1)) {
+    const ds = localDateStr(d);
+    const prod = getProdDay(ds);
+    extraTotal += prod?.totals?.extraCost || 0;
+    snackTotal += prod?.totals?.snackCost || 0;
+  }
+
+  // Perm snacks for this week
+  const permSnacks = loadJSON(K.permSnack, []);
+  const weekKey = `${sat.getFullYear()}_${sat.getMonth()}_${sat.getDate()}`;
+  // Use satDate string for matching
+  const weekSnacks = permSnacks.filter(s => s.week === satDate);
+  const permSnackTotal = weekSnacks.reduce((sum,s) => sum + (s.snack||0), 0);
+
+  const cwWageTotal = workers.reduce((s,w)=>s+w.wage, 0);
+  const cwAdvTotal = workers.reduce((s,w)=>s+w.advance, 0);
+  const grandTotal = cwWageTotal - cwAdvTotal + extraTotal + snackTotal + permSnackTotal;
+
+  return {workers, cwWageTotal, cwAdvTotal, extraTotal, snackTotal, permSnackTotal, grandTotal, satDate, monDate:localDateStr(mon)};
+}
+
+// --- Perm Monthly Pay ---
+function calcPermMonthlyPay(date) {
+  const cfg = getCfg();
+  const d = new Date(date+'T00:00:00');
+  const y = d.getFullYear(), m = d.getMonth();
+  const peAtt = loadJSON(K.peAtt, {});
+  const peAdv = loadJSON(K.peAdv, {});
+  const today = new Date(STATE.today+'T00:00:00').getDate();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+
+  const perm = getActivePermProd();
+  const guard = getPermWorkers().filter(w=>DEF_CFG.guardIds.includes(w.id)&&!w.inactive);
+  const all = [...perm, ...guard];
+
+  const workers = all.map(w => {
+    let days=0, otH=0, basePay=0, otPay=0;
+    for(let i=1; i<=Math.min(today, daysInMonth); i++) {
+      const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+      const k = getAttKey('perm', w.id, ds);
+      const rec = peAtt[k];
+      if(!rec || rec.status==='A') continue;
+      days++;
+      basePay += w.dailyRate;
+      if(rec.otHours && rec.otHours > 0 && !DEF_CFG.guardIds.includes(w.id)) {
+        const rate = sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier);
+        otPay += sepRound(rec.otHours * rate);
+        otH += rec.otHours;
+      }
+    }
+    const advKey = `${w.id}_${y}_${m+1}`;
+    const advance = peAdv[advKey] || 0;
+    return {id:w.id, name:w.name, role:w.role, days, otH, basePay, otPay, advance, total: basePay+otPay-advance};
+  });
+
+  const grandTotal = workers.reduce((s,w) => s+w.total, 0);
+  return {workers, grandTotal, month:`${y}-${String(m+1).padStart(2,'0')}`, daysInMonth};
+}
+
+function renderFinance() {
+  const date = STATE.today;
+  const dayWage = calcDayWages(date);
+  const prod = getProdDay(date);
+  const extraCost = prod?.totals?.extraCost || 0;
+  const snackCost = prod?.totals?.snackCost || 0;
+
+  // Hero
+  document.getElementById('finCost').textContent = formatCurrency(dayWage + extraCost + snackCost);
+  document.getElementById('finMonth').textContent = formatCurrency(calcMonthWages(date));
+
+  // Stat pills
+  document.getElementById('finWage').textContent = formatCurrency(dayWage);
+  document.getElementById('finExtra').textContent = formatCurrency(extraCost);
+  document.getElementById('finSnack').textContent = formatCurrency(snackCost);
+
+  // Calculate OT cost for today
+  const cfg = getCfg();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+  let otCost = 0;
+  getActiveCW().forEach(w => {
+    const k = getAttKey('cw', w.id, date);
+    const rec = cwAtt[k];
+    if(rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+  });
+  getActivePermProd().forEach(w => {
+    const k = getAttKey('perm', w.id, date);
+    const rec = peAtt[k];
+    if(rec?.otHours) otCost += sepRound(rec.otHours * sepRound((cfg.permOtBaseRate/8)*cfg.permOtMultiplier));
+  });
+  document.getElementById('finOT').textContent = formatCurrency(otCost);
+
+  // CW Weekly Pay Card
+  renderCWPayCard();
+
+  // Perm Monthly Pay Card
+  renderPermPayCard();
+
+  // Month lock
+  renderMonthLock();
+}
+
+function renderCWPayCard() {
+  const satDate = getWeekEnd(STATE.today);
+  const data = calcCWWeeklyPay(satDate);
+  const el = document.getElementById('finCWCard');
+  const paid = loadJSON(K.cwPay, {});
+  const paidKey = satDate;
+  const isPaid = paid[paidKey]?.paid || false;
+
+  document.getElementById('finCWWeek').textContent = `${formatDateShort(data.monDate)}–${formatDateShort(data.satDate)}`;
+
+  let html = `<div class="card-meta mb-8">Week: ${formatDateShort(data.monDate)} – ${formatDateShort(data.satDate)}</div>`;
+
+  // Worker rows
+  data.workers.filter(w=>w.days>0).forEach(w => {
+    html += `<div class="worker-row">
+      <span class="worker-name">${esc(w.name)}</span>
+      <div class="text-right">
+        <div class="card-label">${w.days}d ${w.otH?'+ '+w.otH+'h OT':''}${w.advance?' | Adv: '+formatCurrency(w.advance):''}</div>
+        <div class="card-title ff-mono">${formatCurrency(w.net)}</div>
+      </div>
+    </div>`;
+  });
+
+  // CW advance total for this week
+  const cwAdvTotal = data.workers.reduce((s,w)=>s+w.advance, 0);
+
+  // Totals
+  html += `<div class="mt-8" style="border-top:1px solid var(--border);padding-top:var(--sp-8)">
+    <div class="flex-between"><span class="card-label">CW Wages</span><span class="card-title ff-mono">${formatCurrency(data.cwWageTotal)}</span></div>
+    ${cwAdvTotal ? `<div class="flex-between mt-4"><span class="card-label">CW Advances</span><span class="card-title ff-mono text-danger">−${formatCurrency(cwAdvTotal)}</span></div>` : ''}
+    ${data.extraTotal ? `<div class="flex-between mt-4"><span class="card-label">Extra (shortfall)</span><span class="card-title ff-mono text-cost">${formatCurrency(data.extraTotal)}</span></div>` : ''}
+    ${data.snackTotal ? `<div class="flex-between mt-4"><span class="card-label">Snack (CW)</span><span class="card-title ff-mono">${formatCurrency(data.snackTotal)}</span></div>` : ''}
+    ${data.permSnackTotal ? `<div class="flex-between mt-4"><span class="card-label">Snack (Perm)</span><span class="card-title ff-mono">${formatCurrency(data.permSnackTotal)}</span></div>` : ''}
+    <div class="flex-between mt-8"><span class="card-title">Total</span><span class="card-value text-cost">${formatCurrency(data.grandTotal)}</span></div>
+  </div>`;
+
+  // Pay + Advance + Print buttons
+  html += `<div class="flex-center gap-8 mt-12">`;
+  if(!isPaid) {
+    html += `<button class="btn btn-secondary" onclick="recordCWAdvance('${satDate}')">Record Advance</button>
+      <button class="btn btn-primary" style="flex:1" onclick="markCWPaid('${satDate}',${data.grandTotal})">Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
+  } else {
+    html += `<span class="badge badge-attend">Paid on ${paid[paidKey].date}</span>`;
+  }
+  html += `<button class="btn btn-secondary" onclick="printCWPay()">Print</button></div>`;
+
+  el.innerHTML = html;
+}
+
+function recordCWAdvance(satDate) {
+  const cw = getActiveCW();
+  const names = cw.map((w,i) => `${i+1}. ${w.name}`).join('\n');
+  const choice = prompt('Select CW worker number:\n' + names);
+  if(!choice) return;
+  const idx = parseInt(choice) - 1;
+  if(isNaN(idx) || idx<0 || idx>=cw.length) { alert('Invalid selection.'); return; }
+  const worker = cw[idx];
+  const amt = prompt(`Enter advance amount for ${worker.name} (₹):`);
+  if(!amt) return;
+  const amount = parseInt(amt);
+  if(isNaN(amount) || amount<=0) { alert('Invalid amount.'); return; }
+
+  const cwAdv = loadJSON(K.cwAdv, {});
+  const advKey = `${worker.id}_${satDate}`;
+  cwAdv[advKey] = (cwAdv[advKey] || 0) + amount;
+  saveJSON(K.cwAdv, cwAdv);
+
+  // Log to production timeline
+  let prod = getProdDay(STATE.today) || initProdDay();
+  prod.timeline = prod.timeline || [];
+  prod.timeline.push({time:tnow(), type:'advance', text:`CW Advance ₹${amount} for ${worker.name} (week ${formatDateShort(satDate)})`});
+  saveProdDay(STATE.today, prod);
+
+  renderFinance();
+}
+
+function markCWPaid(satDate, amount) {
+  const paid = loadJSON(K.cwPay, {});
+  paid[satDate] = {paid:true, amount:sepRound(amount), date:formatDateShort(STATE.today)};
+  saveJSON(K.cwPay, paid);
+  renderFinance();
+}
+
+function renderPermPayCard() {
+  const data = calcPermMonthlyPay(STATE.today);
+  const el = document.getElementById('finPermCard');
+  const paid = loadJSON(K.pePay, {});
+  const isPaid = paid[data.month]?.paid || false;
+
+  const monthLabel = new Date(data.month+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  document.getElementById('finPermMonth').textContent = monthLabel;
+
+  let html = `<div class="card-meta mb-8">${monthLabel} (up to today)</div>`;
+
+  data.workers.filter(w=>w.days>0).forEach(w => {
+    html += `<div class="worker-row">
+      <div class="worker-info">
+        <span class="worker-name">${esc(w.name)}</span>
+        <span class="worker-detail">${w.role||''} — ${w.days}d${w.otH?' +'+w.otH+'h OT':''}</span>
+      </div>
+      <div class="text-right">
+        <div class="card-label">${w.advance?'Adv: '+formatCurrency(w.advance):''}</div>
+        <div class="card-title ff-mono">${formatCurrency(w.total)}</div>
+      </div>
+    </div>`;
+  });
+
+  html += `<div class="mt-8" style="border-top:1px solid var(--border);padding-top:var(--sp-8)">
+    <div class="flex-between"><span class="card-title">Total</span><span class="card-value text-cost">${formatCurrency(data.grandTotal)}</span></div>
+  </div>`;
+
+  html += `<div class="flex-center gap-8 mt-12">`;
+  if(!isPaid) {
+    html += `<button class="btn btn-secondary" onclick="recordAdvance()">Record Advance</button>
+      <button class="btn btn-primary" style="flex:1" onclick="markPermPaid('${data.month}',${data.grandTotal})">Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
+  } else {
+    html += `<span class="badge badge-attend">Paid on ${paid[data.month].date}</span>`;
+  }
+  html += `<button class="btn btn-secondary" onclick="printPermPay()">Print</button></div>`;
+
+  el.innerHTML = html;
+}
+
+function recordAdvance() {
+  const perm = getActivePermProd();
+  const guard = getPermWorkers().filter(w=>DEF_CFG.guardIds.includes(w.id)&&!w.inactive);
+  const all = [...perm, ...guard];
+  const names = all.map((w,i) => `${i+1}. ${w.name}`).join('\n');
+  const choice = prompt('Select worker number:\n' + names);
+  if(!choice) return;
+  const idx = parseInt(choice) - 1;
+  if(isNaN(idx) || idx < 0 || idx >= all.length) { alert('Invalid selection.'); return; }
+  const worker = all[idx];
+
+  const amt = prompt(`Enter advance amount for ${worker.name} (₹):`);
+  if(!amt) return;
+  const amount = parseInt(amt);
+  if(isNaN(amount) || amount <= 0) { alert('Invalid amount.'); return; }
+
+  const d = new Date(STATE.today+'T00:00:00');
+  const advKey = `${worker.id}_${d.getFullYear()}_${d.getMonth()+1}`;
+  const advances = loadJSON(K.peAdv, {});
+  advances[advKey] = (advances[advKey] || 0) + amount;
+  saveJSON(K.peAdv, advances);
+
+  // Log to production timeline
+  let prod = getProdDay(STATE.today) || initProdDay();
+  prod.timeline = prod.timeline || [];
+  prod.timeline.push({time:tnow(), type:'advance', text:`Advance ₹${amount} recorded for ${worker.name} (total: ₹${advances[advKey]})`});
+  saveProdDay(STATE.today, prod);
+
+  renderFinance();
+}
+
+function markPermPaid(month, amount) {
+  const paid = loadJSON(K.pePay, {});
+  paid[month] = {paid:true, amount:sepRound(amount), date:formatDateShort(STATE.today)};
+  saveJSON(K.pePay, paid);
+  renderFinance();
+}
+
+// ============================================================
+// STOCK TAB
+// ============================================================
+
+function renderStock() {
+  const stock = getStock();
+  const listEl = document.getElementById('stockList');
+
+  // Hero
+  const lowCount = stock.filter(s=>s.qty>0 && s.qty<=s.threshold).length;
+  const outCount = stock.filter(s=>s.qty<=0).length;
+  const overCount = stock.filter(s=>s.maxQty && s.qty>s.maxQty).length;
+  const statusEl = document.getElementById('stockStatus');
+  const detailEl = document.getElementById('stockDetail');
+  const alertCount = lowCount + outCount + overCount;
+
+  if(alertCount > 0) {
+    statusEl.textContent = `${alertCount} item${alertCount!==1?'s':''} need attention`;
+    statusEl.className = 'card-value-xl text-danger';
+    const parts = [];
+    if(lowCount) parts.push(`${lowCount} low`);
+    if(outCount) parts.push(`${outCount} out`);
+    if(overCount) parts.push(`${overCount} over limit`);
+    detailEl.textContent = parts.join(', ');
+  } else {
+    statusEl.textContent = 'All OK';
+    statusEl.className = 'card-value-xl text-attend';
+    detailEl.textContent = `${stock.length} items tracked`;
+  }
+
+  // Stock items
+  listEl.innerHTML = stock.map(item => {
+    const pct = item.threshold > 0 ? (item.qty / item.threshold) : 1;
+    const isOverLimit = item.maxQty && item.qty > item.maxQty;
+    const color = isOverLimit ? 'text-danger' : item.qty <= 0 ? 'text-danger' : pct <= 1 ? 'text-warn' : 'text-attend';
+    const limitInfo = item.maxQty ? ` | Max: ${item.maxQty} ${item.unit}` : '';
+    return `<div class="card-base">
+      <div class="flex-between">
+        <div>
+          <div class="card-title">${esc(item.name)}</div>
+          <div class="card-meta mt-4">Min: ${item.threshold} ${item.unit}${limitInfo}</div>
+          ${isOverLimit ? `<div class="card-meta text-danger mt-4">⚠ Over regulatory limit</div>` : ''}
+        </div>
+        <div class="text-right">
+          <div class="card-value ff-mono ${color}">${item.qty}</div>
+          <div class="card-label">${item.unit}</div>
+        </div>
+      </div>
+      <div class="mt-8 flex-center gap-4">
+        <button class="btn btn-secondary btn-sm" onclick="updateStock('${item.id}',-1)">−</button>
+        <button class="btn btn-secondary btn-sm" onclick="updateStock('${item.id}',1)">+</button>
+        <button class="btn btn-secondary btn-sm" onclick="editStockQty('${item.id}')">Set</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateStock(itemId, delta) {
+  const stock = getStock();
+  const item = stock.find(s=>s.id===itemId);
+  if(!item) return;
+  item.qty = Math.max(0, item.qty + delta);
+  saveJSON(K.stock, stock);
+
+  // Log
+  const log = getStockLog();
+  log.push({id:itemId, name:item.name, delta, newQty:item.qty, date:STATE.today, time:tnow()});
+  saveJSON(K.stockLog, log);
+
+  renderStock();
+  if(STATE.currentTab==='home') renderHome();
+}
+
+function editStockQty(itemId) {
+  const stock = getStock();
+  const item = stock.find(s=>s.id===itemId);
+  if(!item) return;
+  const val = prompt(`Set ${item.name} quantity (${item.unit}):`, item.qty);
+  if(val===null) return;
+  const n = parseFloat(val);
+  if(isNaN(n) || n<0) return;
+  const oldQty = item.qty;
+  item.qty = n;
+  saveJSON(K.stock, stock);
+
+  const log = getStockLog();
+  log.push({id:itemId, name:item.name, delta:n-oldQty, newQty:n, date:STATE.today, time:tnow()});
+  saveJSON(K.stockLog, log);
+
+  renderStock();
+}
+
+// ============================================================
+// HISTORY TAB
+// ============================================================
+
+function renderHistory() {
+  const date = STATE.histDate;
+  document.getElementById('histDate').textContent = formatDate(date);
+
+  // Load data for this date
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+  const prod = getProdDay(date);
+  const dayWage = calcDayWages(date);
+
+  // Summary
+  let present = 0;
+  getAllProdWorkers().forEach(w => {
+    const attStore = w.type==='perm' ? peAtt : cwAtt;
+    const k = getAttKey(w.type, w.id, date);
+    if(attStore[k] && attStore[k].status!=='A') present++;
+  });
+  document.getElementById('histSummary').textContent = present > 0 ? `${present} workers` : '—';
+
+  // Detail
+  const el = document.getElementById('histData');
+  if(present===0 && !prod) {
+    el.innerHTML = `<div class="card-info"><div class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <div class="empty-state-text">No data for this date</div>
+      <div class="empty-state-sub">Navigate to a date with recorded data</div>
+    </div></div>`;
+    return;
+  }
+
+  let html = '';
+
+  // Attendance summary card
+  html += `<div class="card-base">
+    <div class="card-title">Attendance</div>
+    <div class="mt-8 stat-grid">
+      <div class="stat-pill"><span class="stat-pill-value text-attend">${present}</span><span class="stat-pill-label">Present</span></div>
+      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost</span></div>
+    </div>
+  </div>`;
+
+  // Production summary
+  if(prod) {
+    html += `<div class="card-base mt-12">
+      <div class="card-title">Production</div>
+      <div class="card-label mt-8">Pieces: ${prod.totals?.pieces||0} | Weight: ${prod.totals?.weight||0} kg</div>
+      <div class="card-meta mt-4">Extra: ${formatCurrency(prod.totals?.extraCost||0)} | Snack: ${formatCurrency(prod.totals?.snackCost||0)}</div>
+    </div>`;
+  }
+
+  // Individual attendance
+  html += `<div class="card-daily mt-12">
+    <div class="card-title">Worker Details</div>`;
+  getAllProdWorkers().forEach(w => {
+    const attStore = w.type==='perm' ? peAtt : cwAtt;
+    const k = getAttKey(w.type, w.id, date);
+    const rec = attStore[k];
+    if(!rec) return;
+    const typeCls = w.type==='perm' ? 'badge-perm' : 'badge-cw';
+    const statusCls = rec.status==='A' ? 'text-danger' : 'text-attend';
+    html += `<div class="worker-row">
+      <span class="worker-name">${esc(w.name)} <span class="badge ${typeCls}">${w.type==='perm'?'P':'C'}</span></span>
+      <span class="${statusCls}" style="margin-left:auto">${rec.status}${rec.otHours?' +'+rec.otHours+'h OT':''}</span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  el.innerHTML = html;
+}
+
+// History navigation
+document.getElementById('histPrev')?.addEventListener('click', ()=>{
+  const d=new Date(STATE.histDate+'T00:00:00'); d.setDate(d.getDate()-1);
+  STATE.histDate=localDateStr(d); renderHistory();
+});
+document.getElementById('histNext')?.addEventListener('click', ()=>{
+  const d=new Date(STATE.histDate+'T00:00:00'); d.setDate(d.getDate()+1);
+  STATE.histDate=localDateStr(d); renderHistory();
+});
+
+// ============================================================
+// SETTINGS SIDEBAR
+// ============================================================
+
+function openSettings() {
+  if(document.querySelector('.settings-overlay')) return;
+  history.pushState({popup:'settings'}, '');
+
+  const perm = getPermWorkers();
+  const cw = getCWWorkers();
+  const settings = getSettings();
+  const cfg = getCfg();
+  const invCfg = getInvCfg();
+
+  const html = `<div class="settings-overlay" onclick="closeSettings()">
+    <div class="settings-panel" onclick="event.stopPropagation()">
+      <div class="flex-between" style="padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--border)">
+        <span class="card-title">Settings</span>
+        <button class="header-btn" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-body">
+
+        <!-- General -->
+        <div class="section-zone">
+          <div class="section-label-md">General</div>
+          <div class="card-info">
+            <div class="settings-row"><span class="card-label">Version</span><span class="card-meta">v${APP_VERSION}</span></div>
+            <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">₹${cfg.hourRate}/hr</span></div>
+            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">₹${cfg.snackRate}/day</span></div>
+            <div class="settings-row"><span class="card-label">Perm OT Base</span><span class="card-meta">₹${cfg.permOtBaseRate}/day → ₹${sepRound(cfg.permOtBaseRate/8*cfg.permOtMultiplier)}/hr</span></div>
+          </div>
+        </div>
+
+        <!-- Perm Workers -->
+        <div class="section-zone">
+          <div class="section-label-md">Permanent Staff (${perm.length})</div>
+          <div class="card-info">
+            ${perm.map(w=>`<div class="settings-row">
+              <div>
+                <span class="card-label">${esc(w.name)}</span>
+                <span class="card-meta"> — ${w.role||'Worker'}${w.inactive?' (inactive)':''}</span>
+              </div>
+              <span class="card-meta">₹${w.dailyRate}/day</span>
+            </div>`).join('')}
+          </div>
+          <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>
+        </div>
+
+        <!-- CW Workers -->
+        <div class="section-zone">
+          <div class="section-label-md">Contract Workers (${cw.filter(w=>!w.inactive).length} active)</div>
+          <div class="card-info">
+            ${cw.filter(w=>!w.inactive).map(w=>`<div class="settings-row">
+              <span class="card-label">${esc(w.name)}</span>
+              <button class="btn btn-sm" style="color:var(--danger)" onclick="toggleWorkerActive('cw','${w.id}')">Deactivate</button>
+            </div>`).join('')}
+            ${cw.filter(w=>w.inactive).length ? `<div class="card-meta mt-8">Inactive: ${cw.filter(w=>w.inactive).map(w=>
+              `${w.name}${w.deactivatedOn?' ('+formatDateShort(w.deactivatedOn)+')':''}`
+            ).join(', ')}</div>
+            <div class="mt-4">${cw.filter(w=>w.inactive).map(w=>
+              `<button class="btn btn-sm btn-secondary mt-4" onclick="toggleWorkerActive('cw','${w.id}')">Reactivate ${esc(w.name)}</button>`
+            ).join(' ')}</div>` : ''}
+          </div>
+          <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('cw')">+ Add CW Worker</button>
+        </div>
+
+        <!-- Invoice Config -->
+        <div class="section-zone">
+          <div class="section-label-md">Invoice Settings</div>
+          <div class="card-info">
+            <div class="settings-row"><span class="card-label">Company</span><span class="card-meta">${esc(invCfg.companyName)}</span></div>
+            <div class="settings-row"><span class="card-label">GSTIN</span><span class="card-meta">${esc(invCfg.gstin||'Not set')}</span></div>
+            <div class="settings-row"><span class="card-label">State Code</span><span class="card-meta">${invCfg.stateCode}</span></div>
+            <div class="settings-row"><span class="card-label">SAC</span><span class="card-meta">${invCfg.sac}</span></div>
+            <div class="settings-row"><span class="card-label">GST Rate</span><span class="card-meta">${invCfg.gstRate}%</span></div>
+            <div class="settings-row"><span class="card-label">Next Invoice #</span><span class="card-meta">${invCfg.seriesPrefix}/.../\u200B${String(invCfg.nextNumber).padStart(4,'0')}</span></div>
+          </div>
+          <button class="btn btn-secondary btn-sm mt-8" onclick="editInvConfig()">Edit Invoice Config</button>
+        </div>
+
+        <!-- Data -->
+        <div class="section-zone">
+          <div class="section-label-md">Data Management</div>
+          <div class="card-info">
+            <div class="settings-row">
+              <span class="card-label">Storage Used</span>
+              <span class="card-meta">${getStorageUsed()}</span>
+            </div>
+          </div>
+          <div class="flex-center gap-8 mt-8">
+            <button class="btn btn-secondary btn-sm" onclick="exportData()">Export JSON</button>
+            <button class="btn btn-secondary btn-sm" onclick="importData()">Import JSON</button>
+          </div>
+          <button class="btn btn-danger btn-sm mt-8 btn-full" onclick="if(confirm('Reset ALL data? This cannot be undone.')){localStorage.clear();location.reload();}">Reset All Data</button>
+        </div>
+
+      </div>
+    </div>
+  </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeSettings() {
+  const el = document.querySelector('.settings-overlay');
+  if(el) el.remove();
+}
+
+// Back button closes settings
+window.addEventListener('popstate', ()=>{
+  closeSettings();
+});
+
+function addWorkerPrompt(type) {
+  const name = prompt(`Enter ${type==='perm'?'permanent':'contract'} worker name:`);
+  if(!name||!name.trim()) return;
+  const id = name.trim().toLowerCase().replace(/[^a-z0-9]/g,'_') + '_' + Date.now().toString(36).slice(-4);
+
+  if(type==='perm') {
+    const rate = prompt('Daily rate (₹):', '496');
+    const dailyRate = parseInt(rate)||496;
+    const role = prompt('Role:', 'Worker');
+    const workers = getPermWorkers();
+    workers.push({id, name:name.trim(), role:role||'Worker', dailyRate, inactive:false});
+    saveJSON(K.peEmp, workers);
+  } else {
+    const workers = getCWWorkers();
+    workers.push({id, name:name.trim(), inactive:false});
+    saveJSON(K.cwEmp, workers);
+  }
+  closeSettings();
+  openSettings();
+}
+
+function toggleWorkerActive(type, id) {
+  const key = type==='perm' ? K.peEmp : K.cwEmp;
+  const workers = loadJSON(key, []);
+  const w = workers.find(x=>x.id===id);
+  if(!w) return;
+  if(!w.inactive) {
+    // Deactivating
+    const reason = prompt('Reason for deactivation (optional):','') || '';
+    if(!confirm(`Deactivate ${w.name}?`)) return;
+    w.inactive = true;
+    w.deactivatedOn = STATE.today;
+    w.deactivateReason = reason;
+  } else {
+    // Reactivating
+    if(!confirm(`Reactivate ${w.name}?`)) return;
+    w.inactive = false;
+    w.reactivatedOn = STATE.today;
+  }
+  saveJSON(key, workers);
+  closeSettings();
+  openSettings();
+}
+
+function getStorageUsed() {
+  let total = 0;
+  Object.values(K).forEach(key => {
+    if(typeof key==='function') return;
+    const v = localStorage.getItem(key);
+    if(v) total += key.length + v.length;
+  });
+  return (total * 2 / 1024).toFixed(1) + ' KB';
+}
+
+function exportData() {
+  const data = {};
+  Object.entries(K).forEach(([label, key])=>{
+    if(typeof key==='function') return;
+    const v = localStorage.getItem(key);
+    if(v) data[key] = JSON.parse(v);
+  });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `SEP_Backup_${localDateStr()}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = async (e) => {
+    try {
+      const text = await e.target.files[0].text();
+      const data = JSON.parse(text);
+      Object.entries(data).forEach(([key, val])=>{
+        localStorage.setItem(key, JSON.stringify(val));
+      });
+      alert('Import successful. Reloading...');
+      location.reload();
+    } catch(err) {
+      alert('Import failed: ' + err.message);
+    }
+  };
+  input.click();
+}
+
+// ============================================================
+// FAB (Floating Action Button)
+// ============================================================
+
+let fabOpen = false;
+function toggleFab() {
+  fabOpen = !fabOpen;
+  document.getElementById('fabBtn').classList.toggle('open', fabOpen);
+  document.getElementById('fabMenu').classList.toggle('open', fabOpen);
+}
+
+function closeFab() {
+  fabOpen = false;
+  document.getElementById('fabBtn')?.classList.remove('open');
+  document.getElementById('fabMenu')?.classList.remove('open');
+}
+
+function fabAction(action) {
+  closeFab();
+  switch(action) {
+    case 'markAllPresent':
+      markAllPresent();
+      break;
+    case 'goAttendance':
+      switchTab('attendance');
+      break;
+    case 'goProduction':
+      switchTab('production');
+      break;
+    case 'addNote':
+      addProdNote();
+      break;
+    case 'toggleHoliday':
+      toggleHoliday();
+      break;
+  }
+}
+
+function markAllPresent() {
+  const date = STATE.today;
+  const allW = getAllProdWorkers();
+  const guard = getPermWorkers().filter(w=>DEF_CFG.guardIds.includes(w.id)&&!w.inactive);
+
+  // Mark all production workers present
+  allW.forEach(w => {
+    const storeKey = w.type==='perm' ? K.peAtt : K.cwAtt;
+    const att = loadJSON(storeKey, {});
+    const k = getAttKey(w.type, w.id, date);
+    if(!att[k] || att[k].status==='A') {
+      att[k] = {status:'P', time:tnow(), otHours:0};
+      saveJSON(storeKey, att);
+    }
+  });
+  // Also mark guard present
+  guard.forEach(w => {
+    const att = loadJSON(K.peAtt, {});
+    const k = getAttKey('perm', w.id, date);
+    if(!att[k]) {
+      att[k] = {status:'P', time:tnow(), otHours:0};
+      saveJSON(K.peAtt, att);
+    }
+  });
+
+  renderTab(STATE.currentTab);
+}
+
+function addProdNote() {
+  const note = prompt('Add production note:');
+  if(!note || !note.trim()) return;
+  const date = STATE.today;
+  let prod = getProdDay(date) || initProdDay();
+  prod.timeline = prod.timeline || [];
+  prod.timeline.push({time:tnow(), type:'note', text:note.trim()});
+  saveProdDay(date, prod);
+  if(STATE.currentTab==='production') renderProduction();
+}
+
+// Close FAB when clicking outside
+document.addEventListener('click', e => {
+  if(fabOpen && !e.target.closest('.fab-container')) closeFab();
+});
+
+// ============================================================
+// INVOICE MODULE — Client Master, Rate Cards, Invoicing, GST
+// ============================================================
+
+// --- Invoice State ---
+STATE.invTab = 'list';   // list | clients | gst
+STATE.invMonth = (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+
+// --- Invoice Data Access ---
+function getClients() { return loadJSON(K.clients, []); }
+function getRates() { return loadJSON(K.rates, []); }
+function getInvoices() { return loadJSON(K.invoices, []); }
+function getInvCfg() { return {...DEF_INV_CFG, ...loadJSON(K.invCfg, {})}; }
+
+function getFY(dateStr) {
+  const d = new Date(dateStr+'T00:00:00');
+  const y = d.getFullYear(), m = d.getMonth();
+  const fy1 = m >= 3 ? y : y-1;
+  return `${fy1}-${String(fy1+1).slice(-2)}`;
+}
+
+function genInvNumber() {
+  const cfg = getInvCfg();
+  const fy = getFY(STATE.today);
+  const num = String(cfg.nextNumber).padStart(4,'0');
+  return `${cfg.seriesPrefix}/${fy}/${num}`;
+}
+
+function getClientRates(clientId) {
+  return getRates().filter(r => r.clientId === clientId);
+}
+
+// --- Invoice Sub-tab Navigation ---
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-invtab]');
+  if(!btn || !btn.closest('#tab-invoice')) return;
+  STATE.invTab = btn.dataset.invtab;
+  btn.closest('.flex-center').querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInvoice();
+});
+
+// --- Main Render ---
+function renderInvoice() {
+  const invoices = getInvoices();
+  const clients = getClients();
+
+  // Hero
+  const monthInvs = invoices.filter(inv => inv.date.startsWith(STATE.invMonth));
+  const monthTotal = monthInvs.reduce((s,inv) => s + (inv.total||0), 0);
+  const unpaid = invoices.filter(inv => inv.payStatus === 'unpaid');
+  const unpaidTotal = unpaid.reduce((s,inv) => s + (inv.total||0), 0);
+
+  document.getElementById('invMonthTotal').textContent = formatCurrency(monthTotal);
+  document.getElementById('invMonthCount').textContent = `${monthInvs.length} invoices`;
+  document.getElementById('invReceivables').textContent = formatCurrency(unpaidTotal);
+  document.getElementById('invReceivableCount').textContent = `${unpaid.length} unpaid`;
+
+  // Sub-panel
+  const panel = document.getElementById('invSubPanel');
+  switch(STATE.invTab) {
+    case 'list': renderInvList(panel, invoices, clients); break;
+    case 'clients': renderClientList(panel, clients); break;
+    case 'gst': renderGSTRegister(panel, invoices, clients); break;
+  }
+}
+
+// --- Invoice List ---
+function renderInvList(el, invoices, clients) {
+  if(invoices.length === 0) {
+    el.innerHTML = `<div class="section-zone">
+      <div class="card-info"><div class="empty-state">
+        <div class="empty-state-icon">📄</div>
+        <div class="empty-state-text">No invoices yet</div>
+        <div class="empty-state-sub">Tap "+ New Invoice" to create one</div>
+      </div></div>
+    </div>`;
+    return;
+  }
+
+  // Sort newest first
+  const sorted = [...invoices].sort((a,b) => b.date.localeCompare(a.date) || b.invNo.localeCompare(a.invNo));
+
+  let html = '<div class="section-zone"><div class="section-label-md">Recent Invoices</div><div class="card-group">';
+  sorted.slice(0,20).forEach(inv => {
+    const client = clients.find(c=>c.id===inv.clientId);
+    const payClass = inv.payStatus==='paid' ? 'badge-attend' : inv.payStatus==='partial' ? 'badge-warning' : 'badge-absent';
+    const payLabel = inv.payStatus==='paid' ? 'Paid' : inv.payStatus==='partial' ? 'Partial' : 'Unpaid';
+    html += `<div class="card-daily" onclick="viewInvoice('${inv.id}')">
+      <div class="flex-between">
+        <div>
+          <div class="card-title">${esc(inv.invNo)}</div>
+          <div class="card-meta mt-4">${esc(client?.name||'Unknown')} — ${formatDateShort(inv.date)}</div>
+        </div>
+        <div class="text-right">
+          <div class="card-title ff-mono">${formatCurrency(inv.total)}</div>
+          <span class="badge ${payClass} mt-4">${payLabel}</span>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+// --- Client List ---
+function renderClientList(el, clients) {
+  let html = '<div class="section-zone"><div class="flex-between"><div class="section-label-md" style="margin-bottom:0">Clients</div>';
+  html += '<button class="btn btn-secondary btn-sm" onclick="addClient()">+ Add Client</button></div></div>';
+
+  if(clients.length === 0) {
+    html += `<div class="section-zone"><div class="card-info"><div class="empty-state">
+      <div class="empty-state-icon">🏢</div>
+      <div class="empty-state-text">No clients yet</div>
+      <div class="empty-state-sub">Add clients to start invoicing</div>
+    </div></div></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  html += '<div class="section-zone"><div class="card-group">';
+  clients.forEach(c => {
+    const rates = getClientRates(c.id);
+    const supplyType = c.stateCode === getInvCfg().stateCode ? 'Intra-state' : 'Inter-state';
+    html += `<div class="card-base">
+      <div class="flex-between">
+        <div>
+          <div class="card-title">${esc(c.name)}</div>
+          <div class="card-meta mt-4">GSTIN: ${esc(c.gstin||'—')} | ${supplyType}</div>
+          <div class="card-meta">${c.billingPref||'Per dispatch'} | ${rates.length} rate${rates.length!==1?'s':''}</div>
+        </div>
+        <div class="flex-center gap-4">
+          <button class="btn btn-secondary btn-sm" onclick="editClientRates('${c.id}')">Rates</button>
+          <button class="btn btn-secondary btn-sm" onclick="editClient('${c.id}')">Edit</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+// --- GST Register ---
+function renderGSTRegister(el, invoices, clients) {
+  // Month selector
+  let html = `<div class="section-zone">
+    <div class="flex-between">
+      <div class="section-label-md" style="margin-bottom:0">GST Register</div>
+      <div class="flex-center gap-4">
+        <button class="btn btn-secondary btn-sm" onclick="shiftGSTMonth(-1)">← Prev</button>
+        <span class="card-label ff-mono">${STATE.invMonth}</span>
+        <button class="btn btn-secondary btn-sm" onclick="shiftGSTMonth(1)">Next →</button>
+      </div>
+    </div>
+  </div>`;
+
+  const monthInvs = invoices.filter(inv => inv.date.startsWith(STATE.invMonth))
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  if(monthInvs.length === 0) {
+    html += `<div class="section-zone"><div class="card-info"><div class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <div class="empty-state-text">No invoices for ${STATE.invMonth}</div>
+    </div></div></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  // Summary row
+  const totTaxable = monthInvs.reduce((s,inv) => s+(inv.taxableValue||0), 0);
+  const totCgst = monthInvs.reduce((s,inv) => s+(inv.cgst||0), 0);
+  const totSgst = monthInvs.reduce((s,inv) => s+(inv.sgst||0), 0);
+  const totIgst = monthInvs.reduce((s,inv) => s+(inv.igst||0), 0);
+  const totTotal = monthInvs.reduce((s,inv) => s+(inv.total||0), 0);
+
+  html += `<div class="section-zone"><div class="stat-grid">
+    <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(totTaxable)}</span><span class="stat-pill-label">Taxable</span></div>
+    <div class="stat-pill"><span class="stat-pill-value text-attend">${formatCurrency(totCgst)}</span><span class="stat-pill-label">CGST</span></div>
+    <div class="stat-pill"><span class="stat-pill-value text-attend">${formatCurrency(totSgst)}</span><span class="stat-pill-label">SGST</span></div>
+    <div class="stat-pill"><span class="stat-pill-value text-prod">${formatCurrency(totTotal)}</span><span class="stat-pill-label">Total</span></div>
+  </div></div>`;
+
+  // Register rows
+  html += '<div class="section-zone"><div class="card-group">';
+  monthInvs.forEach(inv => {
+    const client = clients.find(c=>c.id===inv.clientId);
+    const supplyType = inv.igst > 0 ? 'Inter' : 'Intra';
+    html += `<div class="card-daily">
+      <div class="flex-between">
+        <div>
+          <div class="card-label">${esc(inv.invNo)}</div>
+          <div class="card-meta">${formatDateShort(inv.date)} | ${esc(client?.name||'—')} | ${supplyType}</div>
+        </div>
+        <div class="text-right">
+          <div class="card-title ff-mono">${formatCurrency(inv.total)}</div>
+          <div class="card-meta">Tax: ${formatCurrency((inv.cgst||0)+(inv.sgst||0)+(inv.igst||0))}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div></div>';
+
+  // Export button
+  html += `<div class="section-zone"><button class="btn btn-secondary btn-full" onclick="exportGSTRegister()">Export GST Register (CSV)</button></div>`;
+
+  el.innerHTML = html;
+}
+
+function shiftGSTMonth(delta) {
+  const [y,m] = STATE.invMonth.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  STATE.invMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  renderInvoice();
+}
+
+// --- Client CRUD ---
+function addClient() {
+  const name = prompt('Client name:');
+  if(!name || !name.trim()) return;
+  const gstin = prompt('GSTIN (15 chars, leave blank if unknown):', '') || '';
+  const stateCode = prompt('State code (20=Jharkhand, 27=Maharashtra, etc):', '20') || '20';
+  const billingPref = prompt('Billing preference (per dispatch / weekly / monthly):', 'per dispatch') || 'per dispatch';
+
+  const clients = getClients();
+  const id = name.trim().toLowerCase().replace(/[^a-z0-9]/g,'_') + '_' + Date.now().toString(36).slice(-4);
+  clients.push({id, name:name.trim(), gstin:gstin.trim().toUpperCase(), stateCode, billingPref, inactive:false});
+  saveJSON(K.clients, clients);
+  renderInvoice();
+}
+
+function editClient(clientId) {
+  const clients = getClients();
+  const c = clients.find(x=>x.id===clientId);
+  if(!c) return;
+  const name = prompt('Client name:', c.name);
+  if(!name) return;
+  c.name = name.trim();
+  c.gstin = (prompt('GSTIN:', c.gstin) || '').trim().toUpperCase();
+  c.stateCode = prompt('State code:', c.stateCode) || c.stateCode;
+  c.billingPref = prompt('Billing preference:', c.billingPref) || c.billingPref;
+  saveJSON(K.clients, clients);
+  renderInvoice();
+}
+
+// --- Rate Card CRUD ---
+function editClientRates(clientId) {
+  const clients = getClients();
+  const client = clients.find(c=>c.id===clientId);
+  if(!client) return;
+  const rates = getRates();
+  const clientRates = rates.filter(r=>r.clientId===clientId);
+
+  let rateListText = clientRates.length
+    ? clientRates.map((r,i) => `${i+1}. ${r.material} — ₹${r.rate}/${r.unit}`).join('\n')
+    : '(none)';
+
+  const action = prompt(`Rates for ${client.name}:\n${rateListText}\n\nType:\n  "add" to add a rate\n  "del N" to delete rate N\n  or cancel`);
+  if(!action) return;
+
+  if(action.trim().toLowerCase() === 'add') {
+    const material = prompt('Material type (e.g. "Hex bolts", "MS parts"):');
+    if(!material) return;
+    const unit = prompt('Unit (kg or pc):', 'kg') || 'kg';
+    const rate = parseFloat(prompt('Rate per '+unit+' (₹):', '10'));
+    if(isNaN(rate) || rate<=0) { alert('Invalid rate.'); return; }
+    const rateId = `${clientId}_${Date.now().toString(36).slice(-4)}`;
+    rates.push({id:rateId, clientId, material:material.trim(), unit, rate, effectiveFrom:STATE.today});
+    saveJSON(K.rates, rates);
+  } else if(action.trim().toLowerCase().startsWith('del')) {
+    const idx = parseInt(action.trim().slice(3)) - 1;
+    if(isNaN(idx) || idx<0 || idx>=clientRates.length) { alert('Invalid number.'); return; }
+    const delId = clientRates[idx].id;
+    const filtered = rates.filter(r=>r.id!==delId);
+    saveJSON(K.rates, filtered);
+  }
+  renderInvoice();
+}
+
+// --- Invoice Config Edit ---
+function editInvConfig() {
+  const cfg = getInvCfg();
+  const companyName = prompt('Company name:', cfg.companyName);
+  if(!companyName) return;
+  cfg.companyName = companyName.trim();
+  cfg.gstin = (prompt('GSTIN (15 chars):', cfg.gstin) || '').trim().toUpperCase();
+  cfg.stateCode = prompt('State code (20=Jharkhand):', cfg.stateCode) || cfg.stateCode;
+  cfg.sac = prompt('SAC code:', cfg.sac) || cfg.sac;
+  const gstRate = parseInt(prompt('GST rate %:', cfg.gstRate));
+  if(!isNaN(gstRate) && gstRate>0) cfg.gstRate = gstRate;
+  cfg.seriesPrefix = prompt('Invoice series prefix:', cfg.seriesPrefix) || cfg.seriesPrefix;
+  const nextNum = parseInt(prompt('Next invoice number:', cfg.nextNumber));
+  if(!isNaN(nextNum) && nextNum>0) cfg.nextNumber = nextNum;
+  cfg.bankName = prompt('Bank name:', cfg.bankName||'') || '';
+  cfg.bankAccount = prompt('Bank account no:', cfg.bankAccount||'') || '';
+  cfg.bankIFSC = prompt('IFSC code:', cfg.bankIFSC||'') || '';
+  saveJSON(K.invCfg, cfg);
+  closeSettings();
+  openSettings();
+}
+
+// --- Invoice Creation ---
+function startNewInvoice() {
+  const clients = getClients();
+  if(clients.length === 0) {
+    alert('Add a client first (go to Clients tab).');
+    return;
+  }
+
+  // Select client
+  const clientList = clients.filter(c=>!c.inactive).map((c,i) => `${i+1}. ${c.name}`).join('\n');
+  const choice = prompt('Select client:\n' + clientList);
+  if(!choice) return;
+  const idx = parseInt(choice) - 1;
+  if(isNaN(idx) || idx<0 || idx>=clients.length) { alert('Invalid selection.'); return; }
+  const client = clients.filter(c=>!c.inactive)[idx];
+
+  // Get rates for this client
+  const clientRates = getClientRates(client.id);
+
+  // Collect line items
+  const lineItems = [];
+  let addMore = true;
+  while(addMore) {
+    let ratePrompt = '';
+    if(clientRates.length > 0) {
+      ratePrompt = '\nSaved rates:\n' + clientRates.map((r,i) => `${i+1}. ${r.material} — ₹${r.rate}/${r.unit}`).join('\n');
+      ratePrompt += '\n\nEnter rate number, or type description for custom item:';
+    } else {
+      ratePrompt = 'Item description (e.g. "Zinc plating — hex bolts"):';
+    }
+
+    const itemInput = prompt(`Line item ${lineItems.length+1}${ratePrompt}`);
+    if(!itemInput) { if(lineItems.length>0) break; else return; }
+
+    let desc, unit, rate;
+    const rateIdx = parseInt(itemInput) - 1;
+    if(!isNaN(rateIdx) && rateIdx>=0 && rateIdx<clientRates.length) {
+      desc = clientRates[rateIdx].material;
+      unit = clientRates[rateIdx].unit;
+      rate = clientRates[rateIdx].rate;
+    } else {
+      desc = itemInput.trim();
+      unit = prompt('Unit (kg or pc):', 'kg') || 'kg';
+      rate = parseFloat(prompt('Rate per '+unit+' (₹):'));
+      if(isNaN(rate) || rate<=0) { alert('Invalid rate.'); continue; }
+    }
+
+    const qty = parseFloat(prompt(`Quantity (${unit}):`));
+    if(isNaN(qty) || qty<=0) { alert('Invalid quantity.'); continue; }
+
+    lineItems.push({desc, unit, rate, qty, amount: sepRound(qty * rate)});
+
+    const more = prompt('Add another line item? (y/n)', 'n');
+    addMore = more && more.trim().toLowerCase() === 'y';
+  }
+
+  if(lineItems.length === 0) return;
+
+  // Calculate tax
+  const cfg = getInvCfg();
+  const taxableValue = lineItems.reduce((s,li) => s + li.amount, 0);
+  const isInterState = client.stateCode !== cfg.stateCode;
+  let cgst=0, sgst=0, igst=0;
+  if(isInterState) {
+    igst = sepRound(taxableValue * cfg.gstRate / 100);
+  } else {
+    cgst = sepRound(taxableValue * cfg.gstRate / 200);
+    sgst = sepRound(taxableValue * cfg.gstRate / 200);
+  }
+  const total = taxableValue + cgst + sgst + igst;
+
+  // Generate invoice number
+  const invNo = genInvNumber();
+
+  // Confirm
+  let confirmMsg = `Invoice ${invNo}\nClient: ${client.name}\n`;
+  lineItems.forEach(li => { confirmMsg += `  ${li.desc}: ${li.qty} ${li.unit} × ₹${li.rate} = ${formatCurrency(li.amount)}\n`; });
+  confirmMsg += `\nTaxable: ${formatCurrency(taxableValue)}`;
+  if(isInterState) confirmMsg += `\nIGST @${cfg.gstRate}%: ${formatCurrency(igst)}`;
+  else confirmMsg += `\nCGST @${cfg.gstRate/2}%: ${formatCurrency(cgst)}\nSGST @${cfg.gstRate/2}%: ${formatCurrency(sgst)}`;
+  confirmMsg += `\nTotal: ${formatCurrency(total)}`;
+  confirmMsg += '\n\nCreate this invoice?';
+
+  if(!confirm(confirmMsg)) return;
+
+  // Save invoice
+  const inv = {
+    id: 'inv_' + Date.now().toString(36),
+    invNo,
+    date: STATE.today,
+    clientId: client.id,
+    clientName: client.name,
+    clientGstin: client.gstin,
+    sac: cfg.sac,
+    lineItems,
+    taxableValue,
+    cgst, sgst, igst,
+    total,
+    supplyType: isInterState ? 'inter' : 'intra',
+    payStatus: 'unpaid',
+    payDate: null,
+    payAmount: 0,
+    createdAt: tnow(),
+  };
+  const invoices = getInvoices();
+  invoices.push(inv);
+  saveJSON(K.invoices, invoices);
+
+  // Increment invoice number
+  cfg.nextNumber = (cfg.nextNumber||1) + 1;
+  saveJSON(K.invCfg, cfg);
+
+  renderInvoice();
+}
+
+// --- View Invoice Detail ---
+function viewInvoice(invId) {
+  const invoices = getInvoices();
+  const inv = invoices.find(i=>i.id===invId);
+  if(!inv) return;
+  history.pushState({popup:'invoice'}, '');
+  const client = getClients().find(c=>c.id===inv.clientId);
+  const cfg = getInvCfg();
+
+  let linesHtml = inv.lineItems.map(li =>
+    `<div class="worker-row">
+      <div class="worker-info">
+        <div class="worker-name">${esc(li.desc)}</div>
+        <div class="worker-detail">${li.qty} ${li.unit} × ₹${li.rate}/${li.unit}</div>
+      </div>
+      <div class="text-right"><div class="card-title ff-mono">${formatCurrency(li.amount)}</div></div>
+    </div>`
+  ).join('');
+
+  const payClass = inv.payStatus==='paid'?'badge-attend':inv.payStatus==='partial'?'badge-warning':'badge-absent';
+  const payLabel = inv.payStatus==='paid'?'Paid':inv.payStatus==='partial'?'Partial':'Unpaid';
+
+  const html = `<div class="settings-overlay" onclick="closeInvDetail()">
+    <div class="settings-panel" onclick="event.stopPropagation()">
+      <div class="flex-between" style="padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--border)">
+        <span class="card-title">Invoice Detail</span>
+        <button class="header-btn" onclick="closeInvDetail()">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="section-zone">
+          <div class="card-hero">
+            <div class="card-label">${esc(cfg.companyName)}</div>
+            <div class="card-value-xl text-cost mt-4">${esc(inv.invNo)}</div>
+            <div class="card-meta mt-8">${formatDate(inv.date)}</div>
+          </div>
+        </div>
+        <div class="section-zone">
+          <div class="section-label">Bill To</div>
+          <div class="card-base">
+            <div class="card-title">${esc(client?.name||inv.clientName)}</div>
+            <div class="card-meta mt-4">GSTIN: ${esc(inv.clientGstin||'—')}</div>
+            <div class="card-meta">SAC: ${esc(inv.sac)} | ${inv.supplyType==='inter'?'Inter-state':'Intra-state'}</div>
+          </div>
+        </div>
+        <div class="section-zone">
+          <div class="section-label">Line Items</div>
+          <div class="card-action">${linesHtml}</div>
+        </div>
+        <div class="section-zone">
+          <div class="section-label">Tax Summary</div>
+          <div class="card-base">
+            <div class="flex-between"><span class="card-label">Taxable Value</span><span class="card-title ff-mono">${formatCurrency(inv.taxableValue)}</span></div>
+            ${inv.cgst ? `<div class="flex-between mt-4"><span class="card-label">CGST @${cfg.gstRate/2}%</span><span class="card-title ff-mono">${formatCurrency(inv.cgst)}</span></div>` : ''}
+            ${inv.sgst ? `<div class="flex-between mt-4"><span class="card-label">SGST @${cfg.gstRate/2}%</span><span class="card-title ff-mono">${formatCurrency(inv.sgst)}</span></div>` : ''}
+            ${inv.igst ? `<div class="flex-between mt-4"><span class="card-label">IGST @${cfg.gstRate}%</span><span class="card-title ff-mono">${formatCurrency(inv.igst)}</span></div>` : ''}
+            <div class="flex-between mt-8" style="border-top:1px solid var(--border);padding-top:var(--sp-8)">
+              <span class="card-title">Total</span><span class="card-value text-cost">${formatCurrency(inv.total)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="section-zone">
+          <div class="flex-between">
+            <span class="badge ${payClass}">${payLabel}</span>
+            ${inv.payStatus!=='paid' ? `<div class="flex-center gap-4">
+              <button class="btn btn-secondary btn-sm" onclick="markInvPartial('${inv.id}')">Partial</button>
+              <button class="btn btn-attend btn-sm" onclick="markInvPaid('${inv.id}')">Mark Paid</button>
+            </div>` : `<span class="card-meta">Paid on ${inv.payDate||'—'}</span>`}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeInvDetail() {
+  const el = document.querySelector('.settings-overlay');
+  if(el) el.remove();
+}
+
+// --- Payment Tracking ---
+function markInvPaid(invId) {
+  const invoices = getInvoices();
+  const inv = invoices.find(i=>i.id===invId);
+  if(!inv) return;
+  inv.payStatus = 'paid';
+  inv.payDate = formatDateShort(STATE.today);
+  inv.payAmount = inv.total;
+  saveJSON(K.invoices, invoices);
+  closeInvDetail();
+  renderInvoice();
+}
+
+function markInvPartial(invId) {
+  const invoices = getInvoices();
+  const inv = invoices.find(i=>i.id===invId);
+  if(!inv) return;
+  const amt = prompt(`Amount received (of ${formatCurrency(inv.total)}):`);
+  if(!amt) return;
+  const amount = parseInt(amt);
+  if(isNaN(amount) || amount<=0) return;
+  inv.payStatus = amount >= inv.total ? 'paid' : 'partial';
+  inv.payDate = formatDateShort(STATE.today);
+  inv.payAmount = amount;
+  saveJSON(K.invoices, invoices);
+  closeInvDetail();
+  renderInvoice();
+}
+
+// --- GST Register CSV Export ---
+function exportGSTRegister() {
+  const invoices = getInvoices();
+  const clients = getClients();
+  const monthInvs = invoices.filter(inv => inv.date.startsWith(STATE.invMonth))
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  if(monthInvs.length === 0) { alert('No invoices for this month.'); return; }
+
+  const headers = ['Invoice No','Date','Client Name','Client GSTIN','SAC','Supply Type','Taxable Value','CGST','SGST','IGST','Total','Payment Status'];
+  const rows = monthInvs.map(inv => {
+    const client = clients.find(c=>c.id===inv.clientId);
+    return [
+      inv.invNo, inv.date, client?.name||inv.clientName, inv.clientGstin||'',
+      inv.sac, inv.supplyType==='inter'?'Inter-state':'Intra-state',
+      inv.taxableValue, inv.cgst||0, inv.sgst||0, inv.igst||0, inv.total,
+      inv.payStatus
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `SEP_GST_Register_${STATE.invMonth}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// A1: MONTH-CLOSE / LOCK
+// ============================================================
+
+function getMonthLocks() { return loadJSON(K.monthLock, {}); }
+
+function isMonthLocked(month) {
+  const locks = getMonthLocks();
+  return locks[month]?.locked === true;
+}
+
+function renderMonthLock() {
+  const el = document.getElementById('finMonthLock');
+  if(!el) return;
+  const d = new Date(STATE.today+'T00:00:00');
+  const month = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  const dayOfMonth = d.getDate();
+  const locks = getMonthLocks();
+
+  if(locks[month]?.locked) {
+    el.innerHTML = `<div class="card-base">
+      <div class="flex-between">
+        <div>
+          <div class="lock-badge">🔒 Month Locked</div>
+          <div class="card-meta mt-4">Locked on ${locks[month].lockedAt||'—'}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="unlockMonth('${month}')">Unlock</button>
+      </div>
+    </div>`;
+    return;
+  }
+
+  if(dayOfMonth >= 28) {
+    el.innerHTML = `<div class="card-base">
+      <div class="flex-between">
+        <div>
+          <div class="card-title">Month-End Close</div>
+          <div class="card-meta mt-4">Lock ${month} to finalize records</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="lockMonth('${month}')">Lock Month</button>
+      </div>
+    </div>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+function lockMonth(month) {
+  const data = calcPermMonthlyPay(month+'-15');
+  const cwSat = getWeekEnd(month+'-28');
+  const cwData = calcCWWeeklyPay(cwSat);
+
+  // Build summary
+  const peAtt = loadJSON(K.peAtt, {});
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const [y,m] = month.split('-').map(Number);
+  const dim = new Date(y,m,0).getDate();
+  let presentDays=0, absentDays=0;
+  const allProd = getAllProdWorkers();
+  for(let i=1; i<=dim; i++) {
+    const ds = `${y}-${String(m).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+    allProd.forEach(w => {
+      const type = getPermWorkers().find(p=>p.id===w.id) ? 'perm' : 'cw';
+      const store = type==='perm' ? peAtt : cwAtt;
+      const k = getAttKey(type, w.id, ds);
+      if(store[k] && (store[k].status==='P'||store[k].status==='OT')) presentDays++;
+      else absentDays++;
+    });
+  }
+
+  // Get month production totals
+  const prodLogs = getProdLogs();
+  let monthExtra=0, monthSnack=0;
+  Object.keys(prodLogs).filter(d=>d.startsWith(month)).forEach(d => {
+    monthExtra += prodLogs[d]?.totals?.extraCost||0;
+    monthSnack += prodLogs[d]?.totals?.snackCost||0;
+  });
+
+  // Get month invoice total
+  const invoices = getInvoices();
+  const monthInvs = invoices.filter(inv=>inv.date.startsWith(month));
+  const invoiceTotal = monthInvs.reduce((s,inv)=>s+(inv.total||0),0);
+
+  const summary = {
+    permTotal: data.grandTotal,
+    cwTotal: cwData.cwWageTotal,
+    extraTotal: monthExtra,
+    snackTotal: monthSnack,
+    invoiceTotal,
+    presentDays, absentDays
+  };
+
+  const msg = `Lock ${month}?\n\nPerm wages: ${formatCurrency(summary.permTotal)}\nCW wages: ${formatCurrency(summary.cwTotal)}\nExtra cost: ${formatCurrency(summary.extraTotal)}\nSnack cost: ${formatCurrency(summary.snackTotal)}\nInvoiced: ${formatCurrency(summary.invoiceTotal)}\nPresent days: ${summary.presentDays}\nAbsent days: ${summary.absentDays}\n\nAttendance and production will become read-only for this month.`;
+
+  if(!confirm(msg)) return;
+
+  const locks = getMonthLocks();
+  locks[month] = {locked:true, lockedAt:formatDateShort(STATE.today), summary};
+  saveJSON(K.monthLock, locks);
+  renderFinance();
+}
+
+function unlockMonth(month) {
+  if(!confirm(`Unlock ${month}? Records will become editable again.`)) return;
+  const locks = getMonthLocks();
+  delete locks[month];
+  saveJSON(K.monthLock, locks);
+  renderFinance();
+}
+
+// ============================================================
+// A2: PRINTABLE SALARY BREAKUP
+// ============================================================
+
+function printCWPay() {
+  const satDate = getWeekEnd(STATE.today);
+  const data = calcCWWeeklyPay(satDate);
+  const cfg = getInvCfg();
+
+  let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
+    <p>CW Weekly Pay — ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>`;
+  html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
+  html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Days</th><th>OT Hrs</th><th>Gross</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
+  data.workers.filter(w=>w.days>0).forEach(w => {
+    html += `<tr style="border-bottom:1px solid #ccc"><td style="padding:4pt">${esc(w.name)}</td><td style="text-align:center">${w.days}</td><td style="text-align:center">${w.otH||0}</td><td style="text-align:right;font-family:monospace">${formatCurrency(w.wage)}</td><td style="text-align:right;font-family:monospace">${w.advance?formatCurrency(w.advance):'—'}</td><td style="text-align:right;font-family:monospace;font-weight:600">${formatCurrency(w.net)}</td></tr>`;
+  });
+  html += `<tr style="border-top:2px solid #000;font-weight:700"><td colspan="3" style="padding:4pt">Total</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.cwWageTotal)}</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.workers.reduce((s,w)=>s+w.advance,0))}</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.grandTotal)}</td></tr>`;
+  html += '</table>';
+  if(data.extraTotal) html += `<p style="font-size:9pt;margin-top:8pt">Extra (shortfall): ${formatCurrency(data.extraTotal)} | Snack: ${formatCurrency(data.snackTotal+data.permSnackTotal)}</p>`;
+  html += `<div class="print-footer"><div class="print-sig"><div>Prepared By</div><div>Verified By</div><div>Approved By</div></div></div>`;
+
+  const w = window.open('','_blank','width=800,height=600');
+  w.document.write(`<!DOCTYPE html><html><head><title>CW Pay - ${data.satDate}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#000} .print-header{text-align:center;border-bottom:2px solid #000;padding-bottom:8pt;margin-bottom:12pt} .print-footer{margin-top:24pt;border-top:1px solid #999;padding-top:8pt} .print-sig{display:flex;justify-content:space-between;margin-top:32pt} .print-sig div{border-top:1px solid #000;padding-top:4pt;width:30%;text-align:center;font-size:9pt}</style></head><body>${html}</body></html>`);
+  w.document.close();
+  w.print();
+}
+
+function printPermPay() {
+  const data = calcPermMonthlyPay(STATE.today);
+  const cfg = getInvCfg();
+  const monthLabel = new Date(data.month+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+
+  let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
+    <p>Permanent Staff Monthly Pay — ${monthLabel}</p></div>`;
+  html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
+  html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Role</th><th>Days</th><th>OT Hrs</th><th>Base</th><th>OT Pay</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
+  data.workers.filter(w=>w.days>0).forEach(w => {
+    html += `<tr style="border-bottom:1px solid #ccc"><td style="padding:4pt">${esc(w.name)}</td><td style="font-size:9pt">${esc(w.role||'')}</td><td style="text-align:center">${w.days}</td><td style="text-align:center">${w.otH||0}</td><td style="text-align:right;font-family:monospace">${formatCurrency(w.basePay)}</td><td style="text-align:right;font-family:monospace">${formatCurrency(w.otPay)}</td><td style="text-align:right;font-family:monospace">${w.advance?formatCurrency(w.advance):'—'}</td><td style="text-align:right;font-family:monospace;font-weight:600">${formatCurrency(w.total)}</td></tr>`;
+  });
+  html += `<tr style="border-top:2px solid #000;font-weight:700"><td colspan="7" style="padding:4pt">Total</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.grandTotal)}</td></tr>`;
+  html += '</table>';
+  html += `<div class="print-footer"><div class="print-sig"><div>Prepared By</div><div>Verified By</div><div>Approved By</div></div></div>`;
+
+  const w = window.open('','_blank','width=800,height=600');
+  w.document.write(`<!DOCTYPE html><html><head><title>Perm Pay - ${data.month}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#000} .print-header{text-align:center;border-bottom:2px solid #000;padding-bottom:8pt;margin-bottom:12pt} .print-footer{margin-top:24pt;border-top:1px solid #999;padding-top:8pt} .print-sig{display:flex;justify-content:space-between;margin-top:32pt} .print-sig div{border-top:1px solid #000;padding-top:4pt;width:30%;text-align:center;font-size:9pt}</style></head><body>${html}</body></html>`);
+  w.document.close();
+  w.print();
+}
+
+// ============================================================
+// A3: WEEKLY PAY DUE-DATE ALERT
+// ============================================================
+
+function getCWPayDueAlerts() {
+  const alerts = [];
+  const d = new Date(STATE.today+'T00:00:00');
+  const dow = d.getDay(); // 0=Sun, 4=Thu, 5=Fri, 6=Sat
+  const satDate = getWeekEnd(STATE.today);
+  const paid = loadJSON(K.cwPay, {});
+  const isPaid = paid[satDate]?.paid || false;
+
+  if(!isPaid) {
+    if(dow === 4 || dow === 5) {
+      alerts.push(`<div class="alert-banner alert-warning">💰 CW pay due Saturday (${formatDateShort(satDate)})</div>`);
+    } else if(dow === 6) {
+      alerts.push(`<div class="alert-banner alert-danger">⚠ CW pay overdue — not yet marked paid for week ending ${formatDateShort(satDate)}</div>`);
+    }
+  }
+  return alerts;
+}
+
+// ============================================================
+// B2: ATTENDANCE PATTERN ALERTS
+// ============================================================
+
+function getAttendancePatternAlerts() {
+  const alerts = [];
+  const allWorkers = getAllProdWorkers();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+  const today = new Date(STATE.today+'T00:00:00');
+
+  allWorkers.forEach(w => {
+    const isPerm = !!getPermWorkers().find(p=>p.id===w.id);
+    const store = isPerm ? peAtt : cwAtt;
+    const type = isPerm ? 'perm' : 'cw';
+
+    // Check last 7 days
+    let absentLast7 = 0;
+    let consecutiveAbsent = 0;
+    let maxConsecutive = 0;
+
+    for(let i=1; i<=7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const ds = localDateStr(d);
+      const k = getAttKey(type, w.id, ds);
+      const rec = store[k];
+      const isAbsent = !rec || rec.status === 'A';
+
+      if(isAbsent) {
+        absentLast7++;
+        consecutiveAbsent++;
+        if(consecutiveAbsent > maxConsecutive) maxConsecutive = consecutiveAbsent;
+      } else {
+        consecutiveAbsent = 0;
+      }
+    }
+
+    if(maxConsecutive >= 3) {
+      alerts.push(`<div class="alert-banner alert-danger">🚨 ${esc(w.name)} absent ${maxConsecutive} consecutive days</div>`);
+    } else if(absentLast7 >= 3) {
+      alerts.push(`<div class="alert-banner alert-warning">⚠ ${esc(w.name)} absent ${absentLast7} of last 7 days</div>`);
+    }
+  });
+
+  return alerts;
+}
+
+// ============================================================
+// A4: FORM-BASED INVOICE CREATION
+// ============================================================
+
+function openInvoiceModal() {
+  const clients = getClients().filter(c=>!c.inactive);
+  if(clients.length === 0) {
+    alert('Add a client first (go to Clients tab).');
+    return;
+  }
+
+  let clientOpts = clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+
+  const html = `<div class="inv-modal-overlay" id="invModalOverlay" onclick="if(event.target===this)closeInvModal()">
+    <div class="inv-modal">
+      <div class="flex-between mb-16">
+        <div class="card-title" style="font-size:var(--fs-lg)">New Invoice</div>
+        <button class="header-btn" onclick="closeInvModal()" style="font-size:var(--fs-lg)">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label>Client</label>
+        <select id="invFormClient" onchange="onInvClientChange()">
+          <option value="">— Select client —</option>
+          ${clientOpts}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Invoice Date</label>
+        <input type="date" id="invFormDate" value="${STATE.today}">
+      </div>
+
+      <div class="form-group">
+        <label>Line Items</label>
+        <div id="invFormLines"></div>
+        <button class="btn btn-secondary btn-sm mt-8" onclick="addInvLine()">+ Add Line</button>
+      </div>
+
+      <div class="inv-tax-preview" id="invTaxPreview">
+        <div class="card-meta">Select a client and add items to see totals</div>
+      </div>
+
+      <div class="flex-center gap-8 mt-16">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeInvModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:2" onclick="submitInvoiceForm()">Create Invoice</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  addInvLine();
+}
+
+function closeInvModal() {
+  const el = document.getElementById('invModalOverlay');
+  if(el) el.remove();
+}
+
+function onInvClientChange() {
+  const clientId = document.getElementById('invFormClient').value;
+  if(!clientId) return;
+
+  // Update rate dropdowns in existing lines
+  const lines = document.querySelectorAll('.inv-line-item');
+  lines.forEach(line => {
+    const sel = line.querySelector('.inv-rate-select');
+    if(sel) updateRateDropdown(sel, clientId);
+  });
+  recalcInvPreview();
+}
+
+function updateRateDropdown(sel, clientId) {
+  const rates = getClientRates(clientId);
+  let opts = '<option value="">Custom item</option>';
+  rates.forEach(r => {
+    opts += `<option value="${r.id}">${esc(r.material)} — ₹${r.rate}/${r.unit}</option>`;
+  });
+  sel.innerHTML = opts;
+}
+
+function addInvLine() {
+  const container = document.getElementById('invFormLines');
+  const clientId = document.getElementById('invFormClient').value;
+  const lineNum = container.children.length + 1;
+  const rates = clientId ? getClientRates(clientId) : [];
+
+  let rateOpts = '<option value="">Custom item</option>';
+  rates.forEach(r => {
+    rateOpts += `<option value="${r.id}">${esc(r.material)} — ₹${r.rate}/${r.unit}</option>`;
+  });
+
+  const lineHtml = `<div class="inv-line-item" data-line="${lineNum}">
+    <div class="line-row">
+      <select class="inv-rate-select" style="flex:2" onchange="onRateSelect(this)">
+        ${rateOpts}
+      </select>
+      <input type="text" class="inv-desc" placeholder="Description" style="flex:2">
+    </div>
+    <div class="line-row">
+      <input type="number" class="inv-qty" placeholder="Qty" step="any" min="0" style="flex:1" oninput="recalcInvPreview()">
+      <input type="number" class="inv-rate" placeholder="Rate (₹)" step="any" min="0" style="flex:1" oninput="recalcInvPreview()">
+      <select class="inv-unit" style="flex:1">
+        <option value="kg">kg</option>
+        <option value="pc">pc</option>
+      </select>
+    </div>
+    ${lineNum > 1 ? `<div class="inv-line-remove" onclick="this.parentElement.remove();recalcInvPreview()">Remove</div>` : ''}
+  </div>`;
+
+  container.insertAdjacentHTML('beforeend', lineHtml);
+}
+
+function onRateSelect(sel) {
+  const line = sel.closest('.inv-line-item');
+  const rateId = sel.value;
+  if(!rateId) {
+    line.querySelector('.inv-desc').value = '';
+    line.querySelector('.inv-rate').value = '';
+    return;
+  }
+  const rates = getRates();
+  const r = rates.find(x=>x.id===rateId);
+  if(r) {
+    line.querySelector('.inv-desc').value = r.material;
+    line.querySelector('.inv-rate').value = r.rate;
+    line.querySelector('.inv-unit').value = r.unit;
+    recalcInvPreview();
+  }
+}
+
+function recalcInvPreview() {
+  const el = document.getElementById('invTaxPreview');
+  const clientId = document.getElementById('invFormClient').value;
+  if(!clientId) { el.innerHTML = '<div class="card-meta">Select a client to see totals</div>'; return; }
+
+  const client = getClients().find(c=>c.id===clientId);
+  const cfg = getInvCfg();
+  const isInter = client.stateCode !== cfg.stateCode;
+
+  let taxable = 0;
+  document.querySelectorAll('.inv-line-item').forEach(line => {
+    const qty = parseFloat(line.querySelector('.inv-qty').value) || 0;
+    const rate = parseFloat(line.querySelector('.inv-rate').value) || 0;
+    taxable += sepRound(qty * rate);
+  });
+
+  let cgst=0, sgst=0, igst=0;
+  if(isInter) { igst = sepRound(taxable * cfg.gstRate / 100); }
+  else { cgst = sepRound(taxable * cfg.gstRate / 200); sgst = sepRound(taxable * cfg.gstRate / 200); }
+  const total = taxable + cgst + sgst + igst;
+
+  el.innerHTML = `<div class="flex-between"><span class="card-label">Taxable</span><span class="card-title ff-mono">${formatCurrency(taxable)}</span></div>
+    ${isInter
+      ? `<div class="flex-between mt-4"><span class="card-label">IGST @${cfg.gstRate}%</span><span class="card-title ff-mono">${formatCurrency(igst)}</span></div>`
+      : `<div class="flex-between mt-4"><span class="card-label">CGST @${cfg.gstRate/2}%</span><span class="card-title ff-mono">${formatCurrency(cgst)}</span></div>
+         <div class="flex-between mt-4"><span class="card-label">SGST @${cfg.gstRate/2}%</span><span class="card-title ff-mono">${formatCurrency(sgst)}</span></div>`}
+    <div class="flex-between mt-8" style="border-top:1px solid var(--border);padding-top:var(--sp-8)">
+      <span class="card-title">Total</span><span class="card-value text-cost">${formatCurrency(total)}</span>
+    </div>
+    <div class="card-meta mt-4">${isInter?'Inter':'Intra'}-state supply</div>`;
+}
+
+function submitInvoiceForm() {
+  const clientId = document.getElementById('invFormClient').value;
+  if(!clientId) { alert('Please select a client.'); return; }
+
+  const invDate = document.getElementById('invFormDate').value;
+  if(!invDate) { alert('Please select a date.'); return; }
+
+  const client = getClients().find(c=>c.id===clientId);
+  const cfg = getInvCfg();
+  const isInter = client.stateCode !== cfg.stateCode;
+
+  // Collect line items
+  const lineItems = [];
+  document.querySelectorAll('.inv-line-item').forEach(line => {
+    const desc = line.querySelector('.inv-desc').value.trim();
+    const qty = parseFloat(line.querySelector('.inv-qty').value) || 0;
+    const rate = parseFloat(line.querySelector('.inv-rate').value) || 0;
+    const unit = line.querySelector('.inv-unit').value;
+    if(desc && qty > 0 && rate > 0) {
+      lineItems.push({desc, unit, rate, qty, amount: sepRound(qty*rate)});
+    }
+  });
+
+  if(lineItems.length === 0) { alert('Add at least one valid line item.'); return; }
+
+  const taxableValue = lineItems.reduce((s,li) => s+li.amount, 0);
+  let cgst=0, sgst=0, igst=0;
+  if(isInter) { igst = sepRound(taxableValue * cfg.gstRate / 100); }
+  else { cgst = sepRound(taxableValue * cfg.gstRate / 200); sgst = sepRound(taxableValue * cfg.gstRate / 200); }
+  const total = taxableValue + cgst + sgst + igst;
+
+  // Use date from form for FY calc
+  const origToday = STATE.today;
+  STATE.today = invDate;
+  const invNo = genInvNumber();
+  STATE.today = origToday;
+
+  if(!confirm(`Create invoice ${invNo} for ${client.name}?\n\nItems: ${lineItems.length}\nTaxable: ${formatCurrency(taxableValue)}\nTotal: ${formatCurrency(total)}`)) return;
+
+  const inv = {
+    id: 'inv_' + Date.now().toString(36),
+    invNo,
+    date: invDate,
+    clientId: client.id,
+    clientName: client.name,
+    clientGstin: client.gstin,
+    sac: cfg.sac,
+    lineItems,
+    taxableValue,
+    cgst, sgst, igst,
+    total,
+    supplyType: isInter ? 'inter' : 'intra',
+    payStatus: 'unpaid',
+    payDate: null,
+    payAmount: 0,
+    createdAt: tnow(),
+  };
+  const invoices = getInvoices();
+  invoices.push(inv);
+  saveJSON(K.invoices, invoices);
+
+  cfg.nextNumber = (cfg.nextNumber||1) + 1;
+  saveJSON(K.invCfg, cfg);
+
+  closeInvModal();
+  renderInvoice();
+}
+
+// ============================================================
+// DATA INITIALIZATION
+// ============================================================
+
+function initData() {
+  if(!localStorage.getItem(K.peEmp)) saveJSON(K.peEmp, DEF_PERM);
+  if(!localStorage.getItem(K.cwEmp)) saveJSON(K.cwEmp, DEF_CW);
+  if(!localStorage.getItem(K.prodAreas)) saveJSON(K.prodAreas, DEF_AREAS);
+  if(!localStorage.getItem(K.prodCfg)) saveJSON(K.prodCfg, DEF_CFG);
+  if(!localStorage.getItem(K.stock)) saveJSON(K.stock, DEF_STOCK);
+  if(!localStorage.getItem(K.invCfg)) saveJSON(K.invCfg, DEF_INV_CFG);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+const APP_VERSION = '2.1';
+
+function init() {
+  document.getElementById('headerDate').textContent = formatDate(STATE.today);
+  initDarkMode();
+  initData();
+  renderTab('home');
+  if('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
