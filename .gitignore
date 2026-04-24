@@ -1,0 +1,36 @@
+# Business data / backups — never commit local JSON exports.
+# Blanket-ignore all JSON, then re-allow the PWA manifest.
+*.json
+!manifest.json
+
+# Common backup/export filename patterns
+SEP_Backup_*
+*_Backup_*.json
+*.bak
+*.backup
+*~
+
+# OS cruft
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
