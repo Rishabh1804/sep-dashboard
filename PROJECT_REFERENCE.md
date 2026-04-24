@@ -200,7 +200,14 @@ Kusu, Sripati, Naren, Champai, Budheswar, Sai, Shambhu, Mantu, Rocky, Birsa, Tuk
 
 ## Build Rules (from design spec)
 
-1. Single-file HTML — no build tools
+1. **Single-file HTML — no build tools for the production artifact.**
+   The production artifact (`index.html`) remains single-file, no build step
+   required to ship or run it. Dev-dependencies for testing and CI
+   (`package.json`, `pnpm-lock.yaml`, `node_modules/`, `playwright.config.ts`,
+   `tests/e2e/`) are permitted but strictly excluded from the production
+   bundle and gitignored where appropriate.
+   *Amended 2026-04-24 by Sovereign via Aurelius, ratified via the
+   `claude/dash-phase-2-arm-playwright` arming PR.*
 2. Token compliance mandatory — no raw px in CSS
 3. Mobile-first — base CSS for phones, @media 700px for desktop
 4. localStorage for all state
