@@ -1,0 +1,15 @@
+{
+  "name": "sep-dashboard",
+  "version": "2.1.0",
+  "private": true,
+  "description": "SEP Dashboard — single-file HTML PWA for Soma Electro Products operations. This package.json exists only for dev-time testing tooling; the production artifact is index.html.",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:report": "playwright show-report"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

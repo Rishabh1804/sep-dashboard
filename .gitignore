@@ -1,7 +1,12 @@
 # Business data / backups — never commit local JSON exports.
-# Blanket-ignore all JSON, then re-allow the PWA manifest.
+# Blanket-ignore all JSON, then re-allow files that must remain tracked.
 *.json
 !manifest.json
+!package.json
+# pnpm-lock.yaml and playwright.config.ts aren't matched by *.json, but the
+# exceptions below document intent if the ignore set ever broadens.
+!pnpm-lock.yaml
+!playwright.config.ts
 
 # Common backup/export filename patterns
 SEP_Backup_*
@@ -34,3 +39,11 @@ desktop.ini
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Node / Playwright dev-dependency artifacts (see Build Rule #1 amendment in
+# PROJECT_REFERENCE.md: production artifact is index.html; these are dev-only).
+node_modules/
+test-results/
+playwright-report/
+tests/e2e/.playwright/
+.pnpm-store/
