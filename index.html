@@ -2530,6 +2530,12 @@ function confirmProduction() {
   const date = STATE.today;
   if(requireUnlocked(monthOf(date), 'production confirm')) return;
   let prod = getProdDay(date);
+  // A2 #4: empty-attendance guard. lockProdAtt already prevents zero-workers
+  // from locking, but defense-in-depth here catches manual state manipulation
+  // and any future refactor that drops the lockProdAtt check.
+  if(!prod || !prod.present || prod.present.length === 0) {
+    if(!confirm('⚠ No workers are marked present for this date.\n\nConfirm production anyway?')) return;
+  }
   const cfg = getCfg();
 
   // Calculate OT per worker
@@ -2902,13 +2908,17 @@ function renderCWPayCard() {
 
   let html = `<div class="card-meta mb-8">Week: ${formatDateShort(data.monDate)} – ${formatDateShort(data.satDate)}</div>`;
 
-  // Worker rows
+  // Worker rows. A2 #2: flag rows where advance exceeds gross wage.
+  // Warning, not block — Sovereign may legitimately advance over-wage
+  // (e.g. hardship loan); the badge surfaces the imbalance for review.
   data.workers.filter(w=>w.days>0).forEach(w => {
-    html += `<div class="worker-row">
-      <span class="worker-name">${esc(w.name)}</span>
+    const overAdv = w.advance > w.wage;
+    const overBadge = overAdv ? ` <span class="badge badge-danger" data-over-advance title="Advance ₹${w.advance} exceeds wage ₹${w.wage}">⚠ over-advance</span>` : '';
+    html += `<div class="worker-row"${overAdv ? ' data-over-advance-row' : ''}>
+      <span class="worker-name">${esc(w.name)}${overBadge}</span>
       <div class="text-right">
         <div class="card-label">${w.days}d ${w.otH?'+ '+w.otH+'h OT':''}${w.advance?' | Adv: '+formatCurrency(w.advance):''}</div>
-        <div class="card-title ff-mono">${formatCurrency(w.net)}</div>
+        <div class="card-title ff-mono${overAdv ? ' text-danger' : ''}">${formatCurrency(w.net)}</div>
       </div>
     </div>`;
   });
@@ -2990,14 +3000,18 @@ function renderPermPayCard() {
   let html = `<div class="card-meta mb-8">${monthLabel} (up to today)</div>`;
 
   data.workers.filter(w=>w.days>0).forEach(w => {
-    html += `<div class="worker-row">
+    // A2 #2: flag rows where advance exceeds gross (basePay + otPay).
+    const gross = w.basePay + w.otPay;
+    const overAdv = w.advance > gross;
+    const overBadge = overAdv ? ` <span class="badge badge-danger" data-over-advance title="Advance ₹${w.advance} exceeds gross ₹${gross}">⚠ over-advance</span>` : '';
+    html += `<div class="worker-row"${overAdv ? ' data-over-advance-row' : ''}>
       <div class="worker-info">
-        <span class="worker-name">${esc(w.name)}</span>
+        <span class="worker-name">${esc(w.name)}${overBadge}</span>
         <span class="worker-detail">${w.role||''} — ${w.days}d${w.otH?' +'+w.otH+'h OT':''}</span>
       </div>
       <div class="text-right">
         <div class="card-label">${w.advance?'Adv: '+formatCurrency(w.advance):''}</div>
-        <div class="card-title ff-mono">${formatCurrency(w.total)}</div>
+        <div class="card-title ff-mono${overAdv ? ' text-danger' : ''}">${formatCurrency(w.total)}</div>
       </div>
     </div>`;
   });
