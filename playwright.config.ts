@@ -7,7 +7,11 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // Aurelius ruling 2026-04-24 (PR #3 merge review): `retries: 0` is the
+  // correct floor for both sep-invoicing and sep-dashboard. With the
+  // hermetic font-stub + local static server the actual network-flake
+  // surface is near zero, so retries would only mask real regressions.
+  retries: 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
