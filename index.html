@@ -3881,121 +3881,6 @@ function editInvConfig() {
   openSettings();
 }
 
-// --- Invoice Creation ---
-function startNewInvoice() {
-  const clients = getClients();
-  if(clients.length === 0) {
-    alert('Add a client first (go to Clients tab).');
-    return;
-  }
-
-  // Select client
-  const clientList = clients.filter(c=>!c.inactive).map((c,i) => `${i+1}. ${c.name}`).join('\n');
-  const choice = prompt('Select client:\n' + clientList);
-  if(!choice) return;
-  const idx = parseInt(choice) - 1;
-  if(isNaN(idx) || idx<0 || idx>=clients.length) { alert('Invalid selection.'); return; }
-  const client = clients.filter(c=>!c.inactive)[idx];
-
-  // Get rates for this client
-  const clientRates = getClientRates(client.id);
-
-  // Collect line items
-  const lineItems = [];
-  let addMore = true;
-  while(addMore) {
-    let ratePrompt = '';
-    if(clientRates.length > 0) {
-      ratePrompt = '\nSaved rates:\n' + clientRates.map((r,i) => `${i+1}. ${r.material} — ₹${r.rate}/${r.unit}`).join('\n');
-      ratePrompt += '\n\nEnter rate number, or type description for custom item:';
-    } else {
-      ratePrompt = 'Item description (e.g. "Zinc plating — hex bolts"):';
-    }
-
-    const itemInput = prompt(`Line item ${lineItems.length+1}${ratePrompt}`);
-    if(!itemInput) { if(lineItems.length>0) break; else return; }
-
-    let desc, unit, rate;
-    const rateIdx = parseInt(itemInput) - 1;
-    if(!isNaN(rateIdx) && rateIdx>=0 && rateIdx<clientRates.length) {
-      desc = clientRates[rateIdx].material;
-      unit = clientRates[rateIdx].unit;
-      rate = clientRates[rateIdx].rate;
-    } else {
-      desc = itemInput.trim();
-      unit = prompt('Unit (kg or pc):', 'kg') || 'kg';
-      rate = parseFloat(prompt('Rate per '+unit+' (₹):'));
-      if(isNaN(rate) || rate<=0) { alert('Invalid rate.'); continue; }
-    }
-
-    const qty = parseFloat(prompt(`Quantity (${unit}):`));
-    if(isNaN(qty) || qty<=0) { alert('Invalid quantity.'); continue; }
-
-    lineItems.push({desc, unit, rate, qty, amount: sepRound(qty * rate)});
-
-    const more = prompt('Add another line item? (y/n)', 'n');
-    addMore = more && more.trim().toLowerCase() === 'y';
-  }
-
-  if(lineItems.length === 0) return;
-
-  // Calculate tax
-  const cfg = getInvCfg();
-  const taxableValue = lineItems.reduce((s,li) => s + li.amount, 0);
-  const isInterState = client.stateCode !== cfg.stateCode;
-  let cgst=0, sgst=0, igst=0;
-  if(isInterState) {
-    igst = sepRound(taxableValue * cfg.gstRate / 100);
-  } else {
-    cgst = sepRound(taxableValue * cfg.gstRate / 200);
-    sgst = sepRound(taxableValue * cfg.gstRate / 200);
-  }
-  const total = taxableValue + cgst + sgst + igst;
-
-  // Generate invoice number
-  const invNo = genInvNumber();
-
-  // Confirm
-  let confirmMsg = `Invoice ${invNo}\nClient: ${client.name}\n`;
-  lineItems.forEach(li => { confirmMsg += `  ${li.desc}: ${li.qty} ${li.unit} × ₹${li.rate} = ${formatCurrency(li.amount)}\n`; });
-  confirmMsg += `\nTaxable: ${formatCurrency(taxableValue)}`;
-  if(isInterState) confirmMsg += `\nIGST @${cfg.gstRate}%: ${formatCurrency(igst)}`;
-  else confirmMsg += `\nCGST @${cfg.gstRate/2}%: ${formatCurrency(cgst)}\nSGST @${cfg.gstRate/2}%: ${formatCurrency(sgst)}`;
-  confirmMsg += `\nTotal: ${formatCurrency(total)}`;
-  confirmMsg += '\n\nCreate this invoice?';
-
-  if(!confirm(confirmMsg)) return;
-
-  // Save invoice
-  const inv = {
-    id: 'inv_' + Date.now().toString(36),
-    invNo,
-    date: STATE.today,
-    clientId: client.id,
-    clientName: client.name,
-    clientGstin: client.gstin,
-    sac: cfg.sac,
-    lineItems,
-    taxableValue,
-    cgst, sgst, igst,
-    total,
-    supplyType: isInterState ? 'inter' : 'intra',
-    payStatus: 'unpaid',
-    payDate: null,
-    payAmount: 0,
-    createdAt: tnow(),
-  };
-  const invoices = getInvoices();
-  invoices.push(inv);
-  saveJSON(K.invoices, invoices);
-
-  // Increment invoice number
-  cfg.nextNumber = (cfg.nextNumber||1) + 1;
-  saveJSON(K.invCfg, cfg);
-
-  renderInvoice();
-}
-
 // --- View Invoice Detail ---
 function viewInvoice(invId) {
   const invoices = getInvoices();
@@ -4116,22 +4001,17 @@ function exportGSTRegister() {
   if(monthInvs.length === 0) { alert('No invoices for this month.'); return; }
 
   const headers = ['Invoice No','Date','Client Name','Client GSTIN','SAC','Supply Type','Taxable Value','CGST','SGST','IGST','Total','Payment Status'];
-  const rows = monthInvs.map(inv => {
+  const dataRows = monthInvs.map(inv => {
     const client = clients.find(c=>c.id===inv.clientId);
     return [
       inv.invNo, inv.date, client?.name||inv.clientName, inv.clientGstin||'',
       inv.sac, inv.supplyType==='inter'?'Inter-state':'Intra-state',
       inv.taxableValue, inv.cgst||0, inv.sgst||0, inv.igst||0, inv.total,
       inv.payStatus
-    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+    ];
   });
 
-  const csv = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `SEP_GST_Register_${STATE.invMonth}.csv`;
-  a.click(); URL.revokeObjectURL(url);
+  csvDownload(`SEP_GST_Register_${STATE.invMonth}.csv`, [headers, ...dataRows]);
 }
 
 // ============================================================
