@@ -7,7 +7,13 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+  // Per-asset best-effort, not cache.addAll (which is all-or-nothing).
+  // If e.g. fonts.googleapis.com is unreachable, the local assets still
+  // cache and the PWA keeps its offline story.
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await Promise.allSettled(ASSETS.map(u => cache.add(u)));
+  })());
   self.skipWaiting();
 });
 
