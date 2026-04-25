@@ -1288,6 +1288,19 @@ input,select,textarea{font:inherit;color:inherit}
 
     <!-- Month Lock Section -->
     <div class="section-zone" id="finMonthLock"></div>
+
+    <!-- B2: Monthly CSV Export Section -->
+    <div class="section-zone" id="finExportSection">
+      <div class="card-base">
+        <div class="card-title mb-8">📊 Monthly Export</div>
+        <div class="card-meta mb-12" id="finExportMonth">—</div>
+        <div class="flex-center gap-8" style="flex-wrap:wrap">
+          <button class="btn btn-secondary" data-export-attendance onclick="exportAttendanceCSV()">Attendance CSV</button>
+          <button class="btn btn-secondary" data-export-payroll onclick="exportPayrollCSV()">Payroll CSV</button>
+          <button class="btn btn-secondary" data-export-costs onclick="exportCostsCSV()">Costs CSV</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ======== INVOICE TAB ======== -->
@@ -2893,6 +2906,14 @@ function renderFinance() {
 
   // Month lock
   renderMonthLock();
+
+  // Monthly export label (B2)
+  const exMonthEl = document.getElementById('finExportMonth');
+  if(exMonthEl) {
+    const month = monthOf(STATE.today);
+    const monthLabel = new Date(month+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+    exMonthEl.textContent = `Export ${monthLabel} attendance / payroll / cost data as CSV.`;
+  }
 }
 
 function renderCWPayCard() {
@@ -4111,6 +4132,141 @@ function exportGSTRegister() {
   const a = document.createElement('a');
   a.href = url; a.download = `SEP_GST_Register_${STATE.invMonth}.csv`;
   a.click(); URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// B2: Monthly CSV Exports (Attendance + Payroll + Costs)
+// ============================================================
+
+// CSV cell escaper — quotes everything, doubles internal quotes.
+// Same shape as exportGSTRegister's inline escaper, factored out.
+function csvCell(v) { return `"${String(v ?? '').replace(/"/g, '""')}"`; }
+function csvDownload(filename, rows) {
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// Iterate every date in the month of `STATE.today` (YYYY-MM-DD strings,
+// localDateStr per Build Rule 8). Returns ['2026-04-01', '2026-04-02', ...].
+function monthDates(monthStr) {
+  const [y, m] = monthStr.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const out = [];
+  for (let d = 1; d <= days; d++) {
+    out.push(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+  }
+  return out;
+}
+
+function exportAttendanceCSV() {
+  const month = monthOf(STATE.today);
+  const dates = monthDates(month);
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+  const cw = getActiveCW();
+  const perm = getActivePermProd();
+  const guard = getPermWorkers().filter(w => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const all = [
+    ...perm.map(w => ({ ...w, type: 'perm' })),
+    ...guard.map(w => ({ ...w, type: 'perm' })),
+    ...cw.map(w => ({ ...w, type: 'cw' })),
+  ];
+
+  const rows = [['Worker ID', 'Worker Name', 'Type', 'Date', 'Status', 'OT Hours']];
+  let dataRowCount = 0;
+  for (const w of all) {
+    const store = w.type === 'perm' ? peAtt : cwAtt;
+    for (const ds of dates) {
+      const k = getAttKey(w.type, w.id, ds);
+      const rec = store[k];
+      if (!rec) continue;
+      rows.push([w.id, w.name, w.type === 'perm' ? 'Perm' : 'CW', ds, rec.status || '', rec.otHours || 0]);
+      dataRowCount++;
+    }
+  }
+
+  if (dataRowCount === 0) { alert(`No attendance recorded for ${month}.`); return; }
+  csvDownload(`SEP_attendance_${month}.csv`, rows);
+}
+
+function exportPayrollCSV() {
+  const month = monthOf(STATE.today);
+
+  // Perm: one row per worker, monthly aggregate from calcPermMonthlyPay.
+  const perm = calcPermMonthlyPay(STATE.today);
+
+  // CW: aggregate the Mon–Sat weeks whose Saturday falls inside the month.
+  const cwAggMap = {};  // workerId → { name, days, otH, wage, advance, net }
+  const [y, m] = month.split('-').map(Number);
+  const dim = new Date(y, m, 0).getDate();
+  for (let d = 1; d <= dim; d++) {
+    const ds = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const sat = getWeekEnd(ds);
+    if (!sat.startsWith(month)) continue;
+    if (cwAggMap[`__week_${sat}`]) continue; // already aggregated
+    cwAggMap[`__week_${sat}`] = true;
+    const wk = calcCWWeeklyPay(sat);
+    for (const w of wk.workers) {
+      if (!cwAggMap[w.id]) cwAggMap[w.id] = { name: w.name, days: 0, otH: 0, wage: 0, advance: 0, net: 0 };
+      const a = cwAggMap[w.id];
+      a.days += w.days; a.otH += w.otH; a.wage += w.wage; a.advance += w.advance; a.net += w.net;
+    }
+  }
+
+  const rows = [['Worker ID', 'Worker Name', 'Type', 'Days', 'Gross', 'OT Hours', 'Advance', 'Net']];
+  for (const w of perm.workers) {
+    if (w.days === 0 && w.advance === 0) continue;
+    rows.push([w.id, w.name, 'Perm', w.days, sepRound(w.basePay + w.otPay), w.otH, w.advance, w.total]);
+  }
+  for (const wid of Object.keys(cwAggMap)) {
+    if (wid.startsWith('__week_')) continue;
+    const a = cwAggMap[wid];
+    if (a.days === 0 && a.advance === 0) continue;
+    rows.push([wid, a.name, 'CW', a.days, sepRound(a.wage), a.otH, a.advance, sepRound(a.net)]);
+  }
+
+  if (rows.length === 1) { alert(`No payroll data for ${month}.`); return; }
+  csvDownload(`SEP_payroll_${month}.csv`, rows);
+}
+
+function exportCostsCSV() {
+  const month = monthOf(STATE.today);
+  const dates = monthDates(month);
+
+  const rows = [['Date', 'Day Wages', 'Extra Cost', 'Snack Cost', 'OT Cost', 'Total']];
+  let nonzeroCount = 0;
+  for (const ds of dates) {
+    const dayWage = calcDayWages(ds);
+    const prod = getProdDay(ds);
+    const extra = prod?.totals?.extraCost || 0;
+    const snack = prod?.totals?.snackCost || 0;
+    // OT cost: same calculation as renderFinance (line 2865-2880 in baseline).
+    const cfg = getCfg();
+    const cwAtt = loadJSON(K.cwAtt, {});
+    const peAtt = loadJSON(K.peAtt, {});
+    let otCost = 0;
+    for (const w of getActiveCW()) {
+      const k = getAttKey('cw', w.id, ds);
+      const rec = cwAtt[k];
+      if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+    }
+    for (const w of getActivePermProd()) {
+      const k = getAttKey('perm', w.id, ds);
+      const rec = peAtt[k];
+      if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier));
+    }
+    const total = dayWage + extra + snack + otCost;
+    if (total === 0) continue;
+    rows.push([ds, dayWage, extra, snack, otCost, total]);
+    nonzeroCount++;
+  }
+
+  if (nonzeroCount === 0) { alert(`No cost data for ${month}.`); return; }
+  csvDownload(`SEP_costs_${month}.csv`, rows);
 }
 
 // ============================================================
