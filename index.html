@@ -1879,6 +1879,7 @@ function renderHomeAlerts(date, present, total) {
 
 function renderAttendance() {
   const date = STATE.today;
+  const monthLocked = isMonthLocked(monthOf(date));
   const perm = getActivePermProd();
   const cw = getActiveCW();
   const guard = getPermWorkers().filter(w=>DEF_CFG.guardIds.includes(w.id)&&!w.inactive);
@@ -1915,20 +1916,28 @@ function renderAttendance() {
       let otBadge = '';
       if(otHours > 0) otBadge = `<span class="badge badge-warning">OT ${otHours}h</span>`;
 
+      const statusBadge = monthLocked
+        ? `<span class="badge ${status==='A'?'badge-danger':(status?'badge-attend':'badge-perm')}" data-attendance-locked-status>${status==='A'?'Absent':(status?'Present':'—')}</span>`
+        : `<button class="mark-btn present ${status==='P'||status==='OT'?'active':''}"
+                  onclick="markAtt('${w.id}','${w.type}','P')">✓</button>
+          <button class="mark-btn absent ${status==='A'?'active':''}"
+                  onclick="markAtt('${w.id}','${w.type}','A')">✗</button>`;
+
       return `<div class="worker-row">
         <div class="worker-avatar">${w.name.charAt(0)}</div>
         <div class="worker-info">
           <div class="worker-name">${esc(w.name)} <span class="badge ${typeCls}">${typeLabel}</span> ${otBadge}</div>
           <div class="worker-detail">${w.role||'Contract Worker'}</div>
         </div>
-        <div class="worker-status">
-          <button class="mark-btn present ${status==='P'||status==='OT'?'active':''}"
-                  onclick="markAtt('${w.id}','${w.type}','P')">✓</button>
-          <button class="mark-btn absent ${status==='A'?'active':''}"
-                  onclick="markAtt('${w.id}','${w.type}','A')">✗</button>
-        </div>
+        <div class="worker-status">${statusBadge}</div>
       </div>`;
     }).join('');
+  }
+
+  // Locked-month banner above the list
+  if(monthLocked) {
+    list.insertAdjacentHTML('afterbegin',
+      `<div class="alert-banner alert-info" data-attendance-locked-banner>🔒 ${monthOf(date)} is locked — attendance is read-only.</div>`);
   }
 
   // Summary
@@ -1944,6 +1953,7 @@ function renderAttendance() {
 
 function markAtt(workerId, type, status) {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'attendance changes')) return;
   const storeKey = type==='perm' ? K.peAtt : K.cwAtt;
   const att = loadJSON(storeKey, {});
   const k = getAttKey(type, workerId, date);
@@ -1975,10 +1985,12 @@ document.addEventListener('click', e => {
 
 function renderProduction() {
   const date = STATE.today;
+  const monthLocked = isMonthLocked(monthOf(date));
   let prod = getProdDay(date);
   if(!prod) { prod = initProdDay(); saveProdDay(date, prod); }
   const areas = getAreas();
   const cfg = getCfg();
+  document.getElementById('tab-production').setAttribute('data-month-locked', monthLocked ? 'true' : 'false');
 
   // Hero
   document.getElementById('prodTotal').textContent = prod.totals?.pieces || '—';
@@ -1998,9 +2010,9 @@ function renderProduction() {
   // Periods
   renderProdPeriods(date, prod, areas, cfg);
 
-  // Confirm button visibility
+  // Confirm button visibility (hidden entirely when month is locked)
   const confirmEl = document.getElementById('prodConfirmSection');
-  confirmEl.style.display = prod.attLocked && !prod.confirmed ? 'block' : 'none';
+  confirmEl.style.display = (!monthLocked && prod.attLocked && !prod.confirmed) ? 'block' : 'none';
 
   // Lock badge
   const lockBadge = document.getElementById('prodLockBadge');
@@ -2015,6 +2027,7 @@ function renderProduction() {
 // --- Production Attendance ---
 function renderProdAttendance(date, prod) {
   const el = document.getElementById('prodAttSection');
+  const monthLocked = isMonthLocked(monthOf(date));
   const allW = getAllProdWorkers();
   const cwAtt = loadJSON(K.cwAtt, {});
   const peAtt = loadJSON(K.peAtt, {});
@@ -2035,8 +2048,13 @@ function renderProdAttendance(date, prod) {
           <span class="badge badge-cw">C: ${cw.length}</span>
         </div>
       </div>
-      ${!prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-12" onclick="unlockProdAtt()">Unlock to Edit</button>` : ''}
+      ${!prod.confirmed && !monthLocked ? `<button class="btn btn-secondary btn-sm mt-12" onclick="unlockProdAtt()">Unlock to Edit</button>` : ''}
     `;
+    return;
+  }
+
+  if(monthLocked) {
+    el.innerHTML = `<div class="alert-banner alert-info" data-prod-locked-banner>🔒 ${monthOf(date)} is locked — production controls are disabled.</div>`;
     return;
   }
 
@@ -2073,6 +2091,7 @@ function renderProdAttendance(date, prod) {
 
 function lockProdAtt() {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'production lock')) return;
   let prod = getProdDay(date) || initProdDay();
   const allW = getAllProdWorkers();
   const cwAtt = loadJSON(K.cwAtt, {});
@@ -2107,6 +2126,7 @@ function lockProdAtt() {
 
 function unlockProdAtt() {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'production unlock')) return;
   let prod = getProdDay(date);
   if(!prod) return;
   prod.attLocked = false;
@@ -2340,6 +2360,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
 
 function togglePeriod(periodKey, enable) {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'period toggle')) return;
   let prod = getProdDay(date) || initProdDay();
   prod.periods[periodKey].active = enable;
   if(enable) {
@@ -2358,6 +2379,7 @@ function togglePeriod(periodKey, enable) {
 
 function setProdCap2(periodKey, areaId, level) {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'capacity change')) return;
   let prod = getProdDay(date) || initProdDay();
   const period = prod.periods[periodKey];
   if(!period.areas) period.areas = {};
@@ -2430,6 +2452,7 @@ function openPicker(periodKey, areaId) {
 
 function togglePickerWorker(workerId) {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'worker assignment')) return;
   let prod = getProdDay(date);
   const period = prod.periods[STATE.pickerPeriod];
   const pa = period.areas[STATE.pickerArea];
@@ -2505,6 +2528,7 @@ function cancelConfirm() {
 
 function confirmProduction() {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'production confirm')) return;
   let prod = getProdDay(date);
   const cfg = getCfg();
 
@@ -2647,6 +2671,7 @@ function isShiftSunday(date) {
 
 function toggleHoliday() {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'holiday toggle')) return;
   let prod = getProdDay(date) || initProdDay();
   prod.isHoliday = !prod.isHoliday;
   prod.timeline = prod.timeline || [];
@@ -2871,6 +2896,7 @@ function renderCWPayCard() {
   const paid = loadJSON(K.cwPay, {});
   const paidKey = satDate;
   const isPaid = paid[paidKey]?.paid || false;
+  const periodLocked = isMonthLocked(monthOf(satDate));
 
   document.getElementById('finCWWeek').textContent = `${formatDateShort(data.monDate)}–${formatDateShort(data.satDate)}`;
 
@@ -2900,9 +2926,11 @@ function renderCWPayCard() {
     <div class="flex-between mt-8"><span class="card-title">Total</span><span class="card-value text-cost">${formatCurrency(data.grandTotal)}</span></div>
   </div>`;
 
-  // Pay + Advance + Print buttons
+  // Pay + Advance + Print buttons (Mark as Paid + Record Advance hidden when period is locked)
   html += `<div class="flex-center gap-8 mt-12">`;
-  if(!isPaid) {
+  if(periodLocked) {
+    html += `<span class="badge badge-warning" data-cw-pay-locked>🔒 Week is in a locked month</span>`;
+  } else if(!isPaid) {
     html += `<button class="btn btn-secondary" onclick="recordCWAdvance('${satDate}')">Record Advance</button>
       <button class="btn btn-primary" style="flex:1" onclick="markCWPaid('${satDate}',${data.grandTotal})">Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
   } else {
@@ -2914,6 +2942,7 @@ function renderCWPayCard() {
 }
 
 function recordCWAdvance(satDate) {
+  if(requireUnlocked(monthOf(satDate), 'CW advance')) return;
   const cw = getActiveCW();
   const names = cw.map((w,i) => `${i+1}. ${w.name}`).join('\n');
   const choice = prompt('Select CW worker number:\n' + names);
@@ -2941,6 +2970,7 @@ function recordCWAdvance(satDate) {
 }
 
 function markCWPaid(satDate, amount) {
+  if(requireUnlocked(monthOf(satDate), 'CW pay')) return;
   const paid = loadJSON(K.cwPay, {});
   paid[satDate] = {paid:true, amount:sepRound(amount), date:formatDateShort(STATE.today)};
   saveJSON(K.cwPay, paid);
@@ -2952,6 +2982,7 @@ function renderPermPayCard() {
   const el = document.getElementById('finPermCard');
   const paid = loadJSON(K.pePay, {});
   const isPaid = paid[data.month]?.paid || false;
+  const periodLocked = isMonthLocked(data.month);
 
   const monthLabel = new Date(data.month+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
   document.getElementById('finPermMonth').textContent = monthLabel;
@@ -2976,7 +3007,9 @@ function renderPermPayCard() {
   </div>`;
 
   html += `<div class="flex-center gap-8 mt-12">`;
-  if(!isPaid) {
+  if(periodLocked) {
+    html += `<span class="badge badge-warning" data-perm-pay-locked>🔒 ${data.month} is locked</span>`;
+  } else if(!isPaid) {
     html += `<button class="btn btn-secondary" onclick="recordAdvance()">Record Advance</button>
       <button class="btn btn-primary" style="flex:1" onclick="markPermPaid('${data.month}',${data.grandTotal})">Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
   } else {
@@ -2988,6 +3021,7 @@ function renderPermPayCard() {
 }
 
 function recordAdvance() {
+  if(requireUnlocked(monthOf(STATE.today), 'Perm advance')) return;
   const perm = getActivePermProd();
   const guard = getPermWorkers().filter(w=>DEF_CFG.guardIds.includes(w.id)&&!w.inactive);
   const all = [...perm, ...guard];
@@ -3019,6 +3053,7 @@ function recordAdvance() {
 }
 
 function markPermPaid(month, amount) {
+  if(requireUnlocked(month, 'Perm pay')) return;
   const paid = loadJSON(K.pePay, {});
   paid[month] = {paid:true, amount:sepRound(amount), date:formatDateShort(STATE.today)};
   saveJSON(K.pePay, paid);
@@ -3123,6 +3158,9 @@ function editStockQty(itemId) {
 
 function renderHistory() {
   const date = STATE.histDate;
+  const histMonth = monthOf(date);
+  const histMonthLocked = isMonthLocked(histMonth);
+  const lockSummary = histMonthLocked ? (getMonthLocks()[histMonth]?.summary) : null;
   document.getElementById('histDate').textContent = formatDate(date);
 
   // Load data for this date
@@ -3142,7 +3180,7 @@ function renderHistory() {
 
   // Detail
   const el = document.getElementById('histData');
-  if(present===0 && !prod) {
+  if(present===0 && !prod && !histMonthLocked) {
     el.innerHTML = `<div class="card-info"><div class="empty-state">
       <div class="empty-state-icon">📊</div>
       <div class="empty-state-text">No data for this date</div>
@@ -3152,6 +3190,26 @@ function renderHistory() {
   }
 
   let html = '';
+
+  // Locked-month badge + summary card
+  if(histMonthLocked) {
+    const lockedAt = getMonthLocks()[histMonth]?.lockedAt || '—';
+    html += `<div class="card-base" data-history-locked-card>
+      <div class="flex-between">
+        <div class="lock-badge">🔒 ${histMonth} Locked</div>
+        <span class="card-meta">Locked on ${lockedAt}</span>
+      </div>`;
+    if(lockSummary) {
+      html += `<div class="mt-8 stat-grid">
+        <div class="stat-pill"><span class="stat-pill-value text-cost ff-mono">${formatCurrency((lockSummary.permTotal||0)+(lockSummary.cwTotal||0)+(lockSummary.extraTotal||0)+(lockSummary.snackTotal||0))}</span><span class="stat-pill-label">Month wage cost</span></div>
+        <div class="stat-pill"><span class="stat-pill-value ff-mono">${formatCurrency(lockSummary.invoiceTotal||0)}</span><span class="stat-pill-label">Invoiced</span></div>
+        <div class="stat-pill"><span class="stat-pill-value text-attend ff-mono">${lockSummary.presentDays||0}</span><span class="stat-pill-label">Present-days</span></div>
+        <div class="stat-pill"><span class="stat-pill-value text-danger ff-mono">${lockSummary.absentDays||0}</span><span class="stat-pill-label">Absent-days</span></div>
+      </div>`;
+    }
+    html += `<div class="card-meta mt-8">Records below are read-only — edit controls suppressed for locked months.</div>
+    </div>`;
+  }
 
   // Attendance summary card
   html += `<div class="card-base">
@@ -3441,6 +3499,7 @@ function fabAction(action) {
 
 function markAllPresent() {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'mark-all-present')) return;
   const allW = getAllProdWorkers();
   const guard = getPermWorkers().filter(w=>DEF_CFG.guardIds.includes(w.id)&&!w.inactive);
 
@@ -4045,6 +4104,20 @@ function getMonthLocks() { return loadJSON(K.monthLock, {}); }
 function isMonthLocked(month) {
   const locks = getMonthLocks();
   return locks[month]?.locked === true;
+}
+
+// YYYY-MM-DD → YYYY-MM. Build Rule 8: localDateStr always emits this shape.
+function monthOf(dateStr) { return dateStr.slice(0, 7); }
+
+// Edit-guard for any write that targets data inside a calendar month.
+// Returns true and surfaces a UX message if the month is locked (caller
+// should early-return); returns false if the month is open.
+function requireUnlocked(month, label) {
+  if(isMonthLocked(month)) {
+    alert(`🔒 ${month} is locked — ${label||'this change'} is blocked. Unlock the month from the Finance tab to edit.`);
+    return true;
+  }
+  return false;
 }
 
 function renderMonthLock() {
