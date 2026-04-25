@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 const TABS = [
   { slug: 'home', label: 'Home' },
@@ -27,14 +27,6 @@ test.beforeEach(async ({ context }) => {
     }),
   );
 });
-
-async function waitForSwRegistration(page: Page) {
-  return page.evaluate(async () => {
-    if (!('serviceWorker' in navigator)) return null;
-    const reg = await navigator.serviceWorker.getRegistration();
-    return reg ? { scope: reg.scope, hasActive: !!reg.active || !!reg.installing || !!reg.waiting } : null;
-  });
-}
 
 test.describe('sep-dashboard baseline smoke @smoke', () => {
   test('1. dashboard renders at /sep-dashboard/ with all 7 tabs visible', async ({ page }) => {
@@ -65,15 +57,17 @@ test.describe('sep-dashboard baseline smoke @smoke', () => {
 
   test('3. service worker registers and claims the page', async ({ page }) => {
     await page.goto('./', { waitUntil: 'load' });
-    await page.waitForFunction(async () => {
-      if (!('serviceWorker' in navigator)) return false;
-      const reg = await navigator.serviceWorker.getRegistration();
-      return !!reg && (!!reg.active || !!reg.installing || !!reg.waiting);
-    }, null, { timeout: 15_000 });
-    const info = await waitForSwRegistration(page);
-    expect(info, 'service worker registration must exist').not.toBeNull();
-    expect(info!.hasActive, 'service worker must have an active/installing/waiting worker').toBe(true);
-    expect(info!.scope).toContain('/sep-dashboard/');
+    // navigator.serviceWorker.ready resolves to a registration whose
+    // .active is non-null, and never rejects — canonical wait pattern
+    // for SW activation. See PR #6 review for the race that a polling
+    // getRegistration() predicate hits between predicate-passing and
+    // the next read.
+    const info = await page.evaluate(async () => {
+      const r = await navigator.serviceWorker.ready;
+      return { hasActive: !!r.active, scope: r.scope };
+    });
+    expect(info.hasActive, 'service worker must be in active state after ready').toBe(true);
+    expect(info.scope).toContain('/sep-dashboard/');
   });
 
   test('4. each tab transition activates its panel without throwing', async ({ page }) => {

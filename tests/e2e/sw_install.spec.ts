@@ -24,19 +24,19 @@ test.describe('sep-dashboard SW install hardening @smoke', () => {
 
     await page.goto('./', { waitUntil: 'load' });
 
-    await page.waitForFunction(async () => {
-      if (!('serviceWorker' in navigator)) return false;
-      const reg = await navigator.serviceWorker.getRegistration();
-      return !!reg && (!!reg.active || !!reg.installing || !!reg.waiting);
-    }, null, { timeout: 15_000 });
-
+    // navigator.serviceWorker.ready is the canonical wait: it returns a
+    // promise that resolves to a registration whose .active is non-null,
+    // and never rejects. This avoids the race that a getRegistration()
+    // poll can hit between predicate-passing and the next read (Cipher
+    // caught the original waitForFunction predicate at ~37% flake under
+    // load on PR #6 review; even tightening to require .active still
+    // races on getRegistration() snapshot timing).
     const reg = await page.evaluate(async () => {
-      const r = await navigator.serviceWorker.getRegistration();
-      return r ? { hasActive: !!r.active, hasInstalling: !!r.installing, hasWaiting: !!r.waiting, scope: r.scope } : null;
+      const r = await navigator.serviceWorker.ready;
+      return { hasActive: !!r.active, scope: r.scope };
     });
-    expect(reg, 'SW registration must exist even when fonts are blocked').not.toBeNull();
-    expect(reg!.hasActive || reg!.hasInstalling || reg!.hasWaiting).toBe(true);
-    expect(reg!.scope).toContain('/sep-dashboard/');
+    expect(reg.hasActive, 'SW must be in active state after ready').toBe(true);
+    expect(reg.scope).toContain('/sep-dashboard/');
 
     const cached = await page.evaluate(async (cacheName) => {
       const cache = await caches.open(cacheName);
