@@ -2360,6 +2360,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
 
 function togglePeriod(periodKey, enable) {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'period toggle')) return;
   let prod = getProdDay(date) || initProdDay();
   prod.periods[periodKey].active = enable;
   if(enable) {
@@ -2378,6 +2379,7 @@ function togglePeriod(periodKey, enable) {
 
 function setProdCap2(periodKey, areaId, level) {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'capacity change')) return;
   let prod = getProdDay(date) || initProdDay();
   const period = prod.periods[periodKey];
   if(!period.areas) period.areas = {};
@@ -2450,6 +2452,7 @@ function openPicker(periodKey, areaId) {
 
 function togglePickerWorker(workerId) {
   const date = STATE.today;
+  if(requireUnlocked(monthOf(date), 'worker assignment')) return;
   let prod = getProdDay(date);
   const period = prod.periods[STATE.pickerPeriod];
   const pa = period.areas[STATE.pickerArea];

@@ -112,4 +112,45 @@ test.describe('dash-3-1 month-lock enforcement @smoke', () => {
     const after = await page.evaluate(() => localStorage.getItem('sep_cw_att_v2'));
     expect(after, 'cw attendance must be unchanged when month is locked').toBe(before);
   });
+
+  // The three tests below cover the production-write sibling cluster Cipher
+  // identified on PR #7 round 1 — togglePeriod, setProdCap2, togglePickerWorker
+  // all wrote to sep_prod_log_v1 under lock before the round-2 guards. Same
+  // template as the markAtt no-op test.
+
+  test('Function guard: togglePeriod is a no-op when month is locked', async ({ page }) => {
+    page.on('dialog', (d) => d.accept());
+    const before = await page.evaluate(() => localStorage.getItem('sep_prod_log_v1'));
+    await page.evaluate(() => {
+      // @ts-expect-error global
+      window.togglePeriod('morningOT', true);
+    });
+    const after = await page.evaluate(() => localStorage.getItem('sep_prod_log_v1'));
+    expect(after, 'sep_prod_log_v1 must be unchanged when month is locked').toBe(before);
+  });
+
+  test('Function guard: setProdCap2 is a no-op when month is locked', async ({ page }) => {
+    page.on('dialog', (d) => d.accept());
+    const before = await page.evaluate(() => localStorage.getItem('sep_prod_log_v1'));
+    await page.evaluate(() => {
+      // @ts-expect-error global
+      window.setProdCap2('standard', 'vat-a1', '100');
+    });
+    const after = await page.evaluate(() => localStorage.getItem('sep_prod_log_v1'));
+    expect(after, 'sep_prod_log_v1 must be unchanged when month is locked').toBe(before);
+  });
+
+  test('Function guard: togglePickerWorker is a no-op when month is locked', async ({ page }) => {
+    page.on('dialog', (d) => d.accept());
+    const before = await page.evaluate(() => localStorage.getItem('sep_prod_log_v1'));
+    // requireUnlocked runs at the top of togglePickerWorker, before any
+    // STATE.pickerPeriod / pickerArea access — so calling it without
+    // seeding picker state is safe: the guard fires and returns.
+    await page.evaluate(() => {
+      // @ts-expect-error global
+      window.togglePickerWorker('sharat_mahato');
+    });
+    const after = await page.evaluate(() => localStorage.getItem('sep_prod_log_v1'));
+    expect(after, 'sep_prod_log_v1 must be unchanged when month is locked').toBe(before);
+  });
 });
