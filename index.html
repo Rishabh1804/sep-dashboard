@@ -3804,6 +3804,10 @@ function editClientRates(clientId) {
   if(action.trim().toLowerCase() === 'add') {
     const material = prompt('Material type (e.g. "Hex bolts", "MS parts"):');
     if(!material) return;
+    // Rate-card duplicate guard (spec A2 #5: BLOCK same (clientId, material) pair).
+    // Case-insensitive match so "Hex Bolts" and "hex bolts" don't both land.
+    const dup = clientRates.find(r => r.material.trim().toLowerCase() === material.trim().toLowerCase());
+    if(dup) { alert(`Rate for "${material.trim()}" already exists for ${client.name} (₹${dup.rate}/${dup.unit}). Delete the existing rate first ("del N"), then add the new one.`); return; }
     const unit = prompt('Unit (kg or pc):', 'kg') || 'kg';
     const rate = parseFloat(prompt('Rate per '+unit+' (₹):', '10'));
     if(isNaN(rate) || rate<=0) { alert('Invalid rate.'); return; }
@@ -4537,6 +4541,13 @@ function submitInvoiceForm() {
   STATE.today = invDate;
   const invNo = genInvNumber();
   STATE.today = origToday;
+
+  // Duplicate-invoice-number guard (spec A2 #1: warn, don't block).
+  // genInvNumber auto-increments under normal flow, so a collision means
+  // either nextNumber was rolled back via Settings, two devices on the
+  // same localStorage, or a genInvNumber bug. Keep override available.
+  const existingInv = getInvoices().find(i => i.invNo === invNo);
+  if(existingInv && !confirm(`⚠ Invoice ${invNo} already exists (${existingInv.clientName||'?'}, ${existingInv.date}, total ${formatCurrency(existingInv.total||0)}).\n\nSave anyway with the same number?`)) return;
 
   if(!confirm(`Create invoice ${invNo} for ${client.name}?\n\nItems: ${lineItems.length}\nTaxable: ${formatCurrency(taxableValue)}\nTotal: ${formatCurrency(total)}`)) return;
 
