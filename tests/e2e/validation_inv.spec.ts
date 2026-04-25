@@ -1,4 +1,5 @@
-import { test, expect, type Page, type Dialog } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { attachDialogScript } from './_helpers';
 
 // dash-3-2a (charter PR #5 §3 slot 2, inv-layer split per Aurelius R3
 // + Cipher's PR #5 §c suggestion): 2 of A2's 5 validation guards land
@@ -7,45 +8,8 @@ import { test, expect, type Page, type Dialog } from '@playwright/test';
 // — and is documented as deferred in the PR body.
 //
 // Uses navigator.serviceWorker.ready (D1) and font-stub (hermetic).
-
-type DialogScript = Array<{
-  expectType: Dialog['type'] extends () => infer R ? R : never;
-  /** substring expected in the dialog message; case-insensitive. */
-  matches?: string;
-  /** for prompt: the response string. for confirm/alert: ignored. */
-  reply?: string;
-  /** confirm dialogs: true = accept (OK), false = dismiss (Cancel). default true. */
-  accept?: boolean;
-}>;
-
-/** Drive a sequence of dialogs in order; capture each one's text for assertions. */
-function attachDialogScript(page: Page, script: DialogScript): { seen: string[] } {
-  const seen: string[] = [];
-  let idx = 0;
-  page.on('dialog', async (d) => {
-    const step = script[idx++];
-    seen.push(`${d.type()}: ${d.message()}`);
-    if (!step) {
-      await d.dismiss().catch(() => {});
-      return;
-    }
-    if (step.matches) {
-      const ok = d.message().toLowerCase().includes(step.matches.toLowerCase());
-      if (!ok) {
-        // Surface the mismatch via the seen[] log — assertions read it.
-        seen.push(`!! mismatch at step ${idx - 1}: expected "${step.matches}"`);
-      }
-    }
-    if (d.type() === 'prompt') {
-      await d.accept(step.reply ?? '');
-    } else if (step.accept === false) {
-      await d.dismiss();
-    } else {
-      await d.accept();
-    }
-  });
-  return { seen };
-}
+// attachDialogScript helper extracted to ./_helpers per Aurelius's
+// PR #8 merge handoff (blessed for dash-3-2b reuse).
 
 async function openSwReady(page: Page) {
   await page.goto('./', { waitUntil: 'load' });
@@ -209,6 +173,66 @@ test.describe('dash-3-2a inv-layer validation guards @smoke', () => {
     expect(seen.find((s) => s.startsWith('confirm:') && s.toLowerCase().includes('already exists')), `duplicate-invoice warning must fire; saw:\n${seen.join('\n')}`).toBeTruthy();
     const afterCount = await page.evaluate(() => JSON.parse(localStorage.getItem('sep_inv_v1') || '[]').length);
     expect(afterCount, 'invoice count unchanged when user cancels duplicate-warning').toBe(beforeCount);
+  });
+
+  test('Duplicate invoice number guard ALLOWS save when user accepts the warning (matrix completion)', async ({ page }) => {
+    // Aurelius PR #8 merge handoff: "Invoice WARN+Accept test" requested
+    // alongside the existing WARN+Cancel test (matrix completion).
+    await page.evaluate(() => {
+      localStorage.setItem('sep_clients_v1', JSON.stringify([
+        { id: 'cli_test', name: 'Test Client', gstin: '20ABCDE1234F1Z5', stateCode: '20', billingPref: 'per dispatch', inactive: false },
+      ]));
+      localStorage.setItem('sep_inv_v1', JSON.stringify([
+        {
+          id: 'inv_seed', invNo: 'SEP/2026-27/0001', date: '2026-04-01',
+          clientId: 'cli_test', clientName: 'Test Client', clientGstin: '20ABCDE1234F1Z5',
+          sac: '998871', lineItems: [{ desc: 'Job', unit: 'kg', rate: 10, qty: 5, amount: 50 }],
+          taxableValue: 50, cgst: 4, sgst: 4, igst: 0, total: 58,
+          supplyType: 'intra', payStatus: 'unpaid', createdAt: '10:00:00',
+        },
+      ]));
+      const cfg = JSON.parse(localStorage.getItem('sep_inv_cfg_v1') || '{}');
+      cfg.nextNumber = 1;
+      cfg.seriesPrefix = cfg.seriesPrefix || 'SEP';
+      cfg.stateCode = cfg.stateCode || '20';
+      cfg.gstRate = cfg.gstRate || 18;
+      cfg.sac = cfg.sac || '998871';
+      localStorage.setItem('sep_inv_cfg_v1', JSON.stringify(cfg));
+    });
+    await page.reload({ waitUntil: 'load' });
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+
+    // First confirm = duplicate warning (Accept). Second = create-confirm (Accept).
+    const { seen } = attachDialogScript(page, [
+      { expectType: 'confirm', matches: 'already exists', accept: true },
+      { expectType: 'confirm', matches: 'create invoice', accept: true },
+    ]);
+
+    await page.evaluate(() => {
+      // @ts-expect-error global
+      window.openInvoiceModal();
+      (document.getElementById('invFormClient') as HTMLSelectElement).value = 'cli_test';
+      (document.getElementById('invFormDate') as HTMLInputElement).value = '2026-04-15';
+      const line = document.querySelector('.inv-line-item');
+      if (line) {
+        (line.querySelector('.inv-desc') as HTMLInputElement).value = 'Job work';
+        (line.querySelector('.inv-qty') as HTMLInputElement).value = '5';
+        (line.querySelector('.inv-rate') as HTMLInputElement).value = '10';
+      }
+      // @ts-expect-error global
+      window.submitInvoiceForm();
+    });
+    await page.waitForTimeout(200);
+
+    // Both warnings fired in order.
+    expect(seen.find((s) => s.startsWith('confirm:') && s.toLowerCase().includes('already exists')), `duplicate warning must fire; saw:\n${seen.join('\n')}`).toBeTruthy();
+    expect(seen.find((s) => s.startsWith('confirm:') && s.toLowerCase().includes('create invoice')), `create-confirm must fire after Accept; saw:\n${seen.join('\n')}`).toBeTruthy();
+
+    // Both invoices live in localStorage now: the seeded one + the new one with the same invNo.
+    const invs = await page.evaluate(() => JSON.parse(localStorage.getItem('sep_inv_v1') || '[]'));
+    expect(invs).toHaveLength(2);
+    const sameNumberInvs = invs.filter((i: { invNo: string }) => i.invNo === 'SEP/2026-27/0001');
+    expect(sameNumberInvs, 'both invoices share the same invNo when user accepts the warning').toHaveLength(2);
   });
 
   test('Duplicate invoice number guard does NOT fire on a fresh number (happy path)', async ({ page }) => {
