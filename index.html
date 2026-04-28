@@ -1011,9 +1011,258 @@ input,select,textarea{font:inherit;color:inherit}
   .ff-mono { font-family:monospace; }
 }
 .print-header, .print-footer { display:none; }
+
+/* ============================================================
+   CONSTRUCTION OVERLAY STYLES
+   ============================================================ */
+/* Construction overlay */
+.construction-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #2a2825 0%, #b45a37 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* Above everything */
+}
+
+/* Modal box */
+.construction-modal {
+  background: var(--bg);
+  border-radius: var(--radius-lg, 16px);
+  padding: var(--space-2xl, 2rem);
+  max-width: 600px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  border: 1px solid rgba(180, 90, 55, 0.2);
+}
+
+/* Icon */
+.construction-icon {
+  font-size: 64px;
+  margin-bottom: var(--space-lg, 1.5rem);
+}
+
+/* Title */
+.construction-title {
+  font-family: var(--ff-display);
+  font-size: var(--fs-3xl, 32px);
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: var(--space-sm, 0.5rem);
+  letter-spacing: -0.02em;
+}
+
+/* Subtitle */
+.construction-subtitle {
+  font-size: var(--fs-lg, 18px);
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: var(--space-lg, 1.5rem);
+  line-height: 1.5;
+}
+
+/* Details section */
+.construction-details {
+  text-align: left;
+  background: rgba(180, 90, 55, 0.05);
+  padding: var(--space-lg, 1.5rem);
+  border-radius: 8px;
+  margin-bottom: var(--space-lg, 1.5rem);
+  font-size: var(--fs-sm, 13px);
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.construction-details p {
+  margin: 0 0 var(--space-md, 1rem) 0;
+}
+
+.construction-details strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Dismiss button */
+.btn-dismiss {
+  background: var(--accent);
+  color: white;
+  padding: var(--space-md, 1rem) var(--space-lg, 1.5rem);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: var(--fs-md, 15px);
+  cursor: pointer;
+  border: none;
+  transition: var(--transition, 200ms ease-in-out);
+  margin-bottom: var(--space-lg, 1.5rem);
+}
+
+.btn-dismiss:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.btn-dismiss:active {
+  transform: translateY(0);
+}
+
+/* Footer */
+.construction-footer {
+  font-size: var(--fs-xs, 11px);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.construction-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.construction-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Warning modal */
+.construction-warning {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.warning-box {
+  background: var(--bg);
+  padding: var(--space-lg, 1.5rem);
+  border-radius: 12px;
+  max-width: 400px;
+  width: 90%;
+  border-left: 4px solid var(--warning);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.warning-box h3 {
+  color: var(--text);
+  margin: 0 0 var(--space-md, 1rem) 0;
+  font-size: var(--fs-lg, 18px);
+}
+
+.warning-box p {
+  color: var(--text-muted);
+  font-size: var(--fs-sm, 13px);
+  margin: 0 0 var(--space-sm, 0.5rem) 0;
+}
+
+.warning-actions {
+  display: flex;
+  gap: var(--space-md, 1rem);
+  margin-top: var(--space-lg, 1.5rem);
+}
+
+.btn-primary, .btn-secondary {
+  flex: 1;
+  padding: var(--space-md, 1rem);
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: var(--fs-sm, 13px);
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-secondary {
+  background: var(--bg-muted);
+  color: var(--text);
+  border: 1px solid var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .construction-modal {
+    max-width: 95%;
+    padding: var(--space-lg, 1.5rem);
+  }
+  
+  .construction-title {
+    font-size: var(--fs-2xl, 25px);
+  }
+  
+  .construction-subtitle {
+    font-size: var(--fs-md, 15px);
+  }
+  
+  .construction-icon {
+    font-size: 48px;
+  }
+}
 </style>
 </head>
 <body>
+
+<!-- ============================================================
+     CONSTRUCTION OVERLAY
+     ============================================================ -->
+<div id="under-construction-overlay" class="construction-overlay">
+  <div class="construction-modal">
+    <!-- Background gradient handled by CSS -->
+    
+    <div class="construction-content">
+      <div class="construction-icon">🏗️</div>
+      
+      <h1 class="construction-title">UNDER CONSTRUCTION</h1>
+      
+      <p class="construction-subtitle">
+        We're rebuilding SEP Dashboard with a modern foundation.
+      </p>
+      
+      <div class="construction-details">
+        <p><strong>What's happening:</strong></p>
+        <p>We're upgrading from a single-file architecture to a modular system with modern tooling (esbuild, Jest, p5.js visualizations). This keeps the app fast, maintainable, and ready for new features.</p>
+        
+        <p><strong>Back online:</strong></p>
+        <p>May 10, 2026 (or sooner)</p>
+        
+        <p><strong>Your data:</strong></p>
+        <p>Safe. All your payroll, production, and invoice data is stored locally and unchanged.</p>
+      </div>
+      
+      <button id="dismiss-construction" class="btn-dismiss">
+        DISMISS & CONTINUE
+      </button>
+      
+      <p class="construction-footer">
+        Questions? <a href="mailto:rishabh1804@gmail.com">rishabh1804@gmail.com</a>
+      </p>
+    </div>
+  </div>
+  
+  <!-- Warning modal (shown on dismiss) -->
+  <div id="construction-warning" class="construction-warning" style="display: none;">
+    <div class="warning-box">
+      <h3>⚠️ Data is Read-Only</h3>
+      <p>During this upgrade period, changes may not be saved reliably.</p>
+      <p>We recommend waiting until May 10 to make any edits.</p>
+      <div class="warning-actions">
+        <button class="btn-primary" onclick="dismissWarning()">I Understand</button>
+        <button class="btn-secondary" onclick="goBack()">Go Back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <!-- ============================================================
      APP SHELL
@@ -4659,7 +4908,66 @@ function init() {
   }
 }
 
+
+// ============================================================
+// CONSTRUCTION OVERLAY LOGIC
+// ============================================================
+
+// Show warning on dismiss
+document.getElementById('dismiss-construction').addEventListener('click', () => {
+  document.getElementById('construction-warning').style.display = 'flex';
+});
+
+// User acknowledges warning
+function dismissWarning() {
+  // Store preference in localStorage (don't show again for 24 hours)
+  localStorage.setItem('construction-dismissed', new Date().getTime());
+  
+  // Hide both modals
+  document.getElementById('construction-overlay').style.display = 'none';
+  document.getElementById('construction-warning').style.display = 'none';
+  
+  // Set read-only flag
+  window.CONSTRUCTION_MODE = true;
+}
+
+// Go back to overlay
+function goBack() {
+  document.getElementById('construction-warning').style.display = 'none';
+}
+
+// App interaction guard (if user tries to edit after dismissing)
+function onAppInteraction(action) {
+  if (localStorage.getItem('construction-dismissed')) {
+    console.warn('App is read-only during construction period.');
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Changes may not be saved. Back online May 10.');
+    }
+    return false; // Prevent actual save
+  }
+}
+
+// Check if already dismissed (restore from localStorage)
+(function() {
+  const dismissed = localStorage.getItem('construction-dismissed');
+  if (dismissed) {
+    const dismissTime = parseInt(dismissed);
+    const now = new Date().getTime();
+    const threeHours = 3 * 60 * 60 * 1000;
+
+    // If dismissed within last 3 hours, hide overlay
+    if (now - dismissTime < threeHours) {
+      document.addEventListener('DOMContentLoaded', () => {
+        const overlay = document.getElementById('under-construction-overlay');
+        if (overlay) overlay.style.display = 'none';
+        window.CONSTRUCTION_MODE = true;
+      });
+    }
+  }
+})();
+
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+                
