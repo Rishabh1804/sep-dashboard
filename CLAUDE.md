@@ -420,3 +420,98 @@ The Aurelius working name carries across both tools because it's defined in:
 Either tool, started in this repo, picks up the persona automatically. No tool-specific memory configuration needed.
 
 *Documented 28 April 2026 by Aurelius (Session 11 closeout)*
+
+---
+
+## Session 12: Phase 2.0 Home View Design Lock (28 April 2026)
+
+### What Happened
+
+Worked the floor-as-game home view design end-to-end across seven phases: viewport, entity vocabulary, state encoding, job-flow visualization, interaction model, HUD/overlays, and the component spec deliverable. Session ended with the design fully locked, an MVP scope cut for the May 10 launch, and an executable kickoff doc for Claude Code (Session 13). No code written — pure design dialogue per the tool boundary.
+
+The session unfolded as a structured Q&A with the user (Rishabh) confirming or pushing back on each phase's locked decisions. Several high-leverage refinements emerged:
+
+- **Floor plan supplied** — user shared the actual building CAD plan early, which sharpened entity-vocabulary decisions (geometric primitives matching the existing visual language) and revealed gate asymmetry (Back Gate = customer material in; Main Gate = product out + stock in)
+- **WPP-derived progress denominator** — the production progress ring works without operator entry by deriving target from received_kg ÷ wpp_grams; dotted ring renders when WPP isn't yet calibrated, solid when it is
+- **Priority as load-bearing dimension** — added mid-session; encoded via badge border thickness (static client tier) + color drift (dynamic time-in-plant pressure approaching 24h SLA); composes with rework clock (separate diagnostic measurement)
+- **Quality tier as first-class data concept** — premium vs standard quality acceptance ripples through DFT inspection rigor, rework decisions, productivity normalization, and quality heatmap calculations
+- **Factorio confirmed as spiritual benchmark** — "the factory must grow" maps cleanly onto the productivity dashboard ethos; ported four mechanics: bottleneck pile-ups, sparkline rate graphs, milestone toasts, multi-zoom map (last banked)
+- **Two-PWA monorepo architecture** — handler app as primary data ingestion surface, dashboard as read+exception-edit; same monorepo, two esbuild entry points, Firebase Firestore as shared real-time sync layer (per Session 11 charter trajectory)
+
+### Deliverables
+
+| File | Purpose |
+|------|---------|
+| `docs/SESSION_12_DESIGN_LOCK.md` | Source of truth for every locked design decision; organized by component (12 sections); includes schema sketches, slip layout, MVP scope cut, and banked items |
+| `SESSION_13_KICKOFF.md` | Executable implementation plan for Claude Code; 8 stages totaling ~22h active work; acceptance criteria; deferred items; banked side-session triggers |
+| `docs/floor-plan.png` | **Pending — to be added by user**; literal viewport layout depends on it; coordinate extraction blocks Stage B of Session 13 |
+| `CLAUDE.md` (this update) | Session 12 closeout entry; references the Design Lock and Kickoff as canonical sources |
+
+### Locked Architectural Additions (Supersedes earlier where conflicting)
+
+1. **Two-PWA monorepo** — primary dashboard + notebook handler entry app share schema, utilities, storage layer (Layers 1–3); two esbuild entry points produce two bundles; handler bundle excludes Konva/p5
+2. **Firebase write permissions structural** — handler writes production entries + job receipts; dashboard writes everything; Firestore security rules enforce
+3. **Audit log first-class in storage layer** — append-only event stream for every write; required for the notebook handler's data-steward role to actually function
+4. **Quality tier as first-class field** — `Customer.default_quality_tier` + `Job.quality_tier_override`; ripples through inspection rigor, rework decisions, productivity normalization, quality heatmap
+
+### MVP Scope Cut (Phase 2.0 — May 10 launch)
+
+**Ships in 2.0:** modular bundle, full floor view design, full interaction model, austere HUD, **Standard overlay only**, hotkey set, empty/error states, job slip print, handler app skeleton, Firebase sync wired, audit log.
+
+**Saved for 2.1:** Priority + Quality overlays, productivity sparklines, milestone toasts, quality certificate generation, mobile status feed, broader search.
+
+**Saved for 2.2+:** Productivity overlay (needs ≥2 weeks of data), stock-criticality overlay, multi-zoom map, time-travel, customer portal, worker activity overlay (post-cameras).
+
+### Banked for Future Sessions
+
+| Item | When |
+|---|---|
+| **Notebook handler app architecture** | Cowork session before Stage F of Session 13 finalizes (subpath vs separate, Firebase rules, conflict resolution, schema migration) |
+| **Camera placement & type** | Cowork session post-2.0; unlocks worker real-time location tracking + theft/safety/quality dispute resolution |
+| **Quality certificate sample review** | When 2.1 cert generation begins; user has outdated sample to share |
+| **Letterhead / branding artwork** | When supplied; plain-functional design at first |
+
+### Cross-Cutting Concerns Surfaced (in Design Lock §8)
+
+- Color-blindness redundancy (every color signal has icon/hatch/border backup) — bake in day one
+- Productivity measurement humane defaults (team prominent, individual gated) — design encodes incentives
+- Hotkeys (Factorio-grade keyboard control) — minimum set: F, P, S, O, Esc, arrows, ±, 1-4, Space
+- Empty / error / sync-warning states — sketch before Phase 7 spec hardens
+- Performance budget — 60fps desktop, 30fps tablet, <50MB memory growth, <800KB dashboard bundle
+- Print artifacts — job slip ships 2.0 (with priority header strip + station stamps + tier-1 distinction); quality cert deferred to 2.1
+
+### Status
+
+**Phase 2.0 design**: LOCKED.
+**Phase 2.0 implementation**: Ready to begin (Session 13, Claude Code).
+**v2.1 production**: Live with construction overlay; will be replaced when 2.0-alpha ships.
+**Tooling**: design conversations stay in Cowork; coding moves to Claude Code per the workflow rule.
+
+### Next Session
+
+**Session 13 (Claude Code) — Phase 2.0 Implementation.** Reads `docs/SESSION_12_DESIGN_LOCK.md` + `SESSION_13_KICKOFF.md`, executes Stages A–H per the kickoff, deploys alpha, updates CLAUDE.md at close.
+
+**Pre-Session 13 task:** add `docs/floor-plan.png` to the repo. Stage B is blocked without it.
+
+### Post-Closeout Revision Pass (28 April 2026)
+
+After the initial Session 12 closeout, an audit pass surfaced operational detail and refinements that fold back into the Design Lock and Kickoff. Highlights:
+
+- **Perimeter loop correction** — single continuous walkway with maintenance-state segments (not multiple discrete corridors); colored borders demarcate the loop's edge
+- **Universal color convention scoped to every entity** — green/orange/red base for rooms, tanks, corridors, stock, workers; state decorators (pulse, hatch, icons, color drift) layer on top; replaces the per-domain palette logic
+- **Tank vocabulary expanded** — Plating Tank, Staging Tank (capacity-state), Passivation Tank, Passivation Rinse Dip, Pickling Tank, Pickling Dip Tank (capacity-state), Barrel, Dryer, Inspection Station — each with appropriate state semantics
+- **VAT Room 1 interior layout supplied** — 4 plating tanks (T2 dysfunctional), 3 staging tanks, 2 passivation tanks, 1 rinse dip, internal pathways, doors. Other rooms similar; layouts to be supplied
+- **Process timings table** — average cycle times per machine type (Pickling 15 min, VAT plating 20 min, Barrel 90 min, etc.)
+- **Multi-location bottleneck pile-ups** — pathway/warehouse, dip tanks, staging tanks, FG strips
+- **Per-station loitering indicator** — micro-clock on badge surfaces parking before SLA timer fires
+- **Animation lane staggering** — concurrent badges visually offset on the single-lane loop
+- **Material flow direction** — counterclockwise (workers move freely both ways; *material* has direction)
+- **Mood / health signal layer** — schema-ready for Workers, Machines, Customers; rendering deferred to 2.1
+- **Notes as generic primitive** — every entity type can carry `Note` records; quick-action affordance + popover UI
+- **Sep-invoicing integration contract** — async best-effort via shared storage; resilience principle locked (invoicing failure must not break dispatch and vice versa); §6.1 in Design Lock spells out the flow
+- **Workforce model per room** — VAT Room 1 = 5 (3 plating + 2 passivation); other rooms TBD when layouts arrive
+- **Two clocks per job** — strict SLA clock (customer-facing) + process clock (internal) with the gap surfacing offloading inefficiency
+
+The audit-pass revision is committed to the same Design Lock + Kickoff files. New backlog and open-items entries reflect the additions.
+
+*Revision pass documented 28 April 2026 by Aurelius (Session 12 closeout, audit-pass).*
