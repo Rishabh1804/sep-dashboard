@@ -10,6 +10,7 @@ import { monthOf } from '../shared/utils/month.js';
 import { recalcExtra } from '../shared/utils/calc-prod.js';
 import { getCfg } from '../shared/storage/production.js';
 import { esc } from '../shared/utils/format.js';
+import { da, overlayClose } from '../shared/utils/dom.js';
 
 export function openPicker(periodKey, areaId) {
   if (document.querySelector('.picker-overlay')) return;
@@ -40,18 +41,18 @@ export function openPicker(periodKey, areaId) {
     }
     const disabled = otherAreaName ? 'disabled' : '';
     const checked = isAssigned ? 'checked' : '';
-    return `<div class="picker-worker ${checked} ${disabled}" onclick="togglePickerWorker('${w.id}')">
+    return `<div class="picker-worker ${checked} ${disabled}" ${da('togglePickerWorker', w.id)}>
       <div class="picker-check">✓</div>
       <span class="picker-name">${esc(w.name)}</span>
       ${otherAreaName ? `<span class="picker-where">→ ${esc(otherAreaName)}</span>` : ''}
     </div>`;
   }
 
-  const html = `<div class="picker-overlay" onclick="closePicker()">
-    <div class="picker-sheet" onclick="event.stopPropagation()">
+  const html = `<div class="picker-overlay" ${overlayClose('closePicker')}>
+    <div class="picker-sheet">
       <div class="picker-header">
         <span class="card-title">${esc(area?.name || areaId)} — Workers</span>
-        <button class="header-btn" onclick="closePicker()">✕</button>
+        <button class="header-btn" ${da('closePicker')}>✕</button>
       </div>
       <div class="picker-body" id="pickerBody">
         <div class="picker-section-label">Permanent Staff</div>

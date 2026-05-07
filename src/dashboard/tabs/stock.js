@@ -5,6 +5,7 @@ import { K } from '../../shared/storage/keys.js';
 import { getState } from '../../shared/storage/state.js';
 import { tnow } from '../../shared/utils/date.js';
 import { esc } from '../../shared/utils/format.js';
+import { da } from '../../shared/utils/dom.js';
 import { getStock, getStockLog } from '../../shared/storage/stock.js';
 import { renderHome } from './home.js';
 
@@ -51,9 +52,9 @@ export function renderStock() {
         </div>
       </div>
       <div class="mt-8 flex-center gap-4">
-        <button class="btn btn-secondary btn-sm" onclick="updateStock('${item.id}',-1)">−</button>
-        <button class="btn btn-secondary btn-sm" onclick="updateStock('${item.id}',1)">+</button>
-        <button class="btn btn-secondary btn-sm" onclick="editStockQty('${item.id}')">Set</button>
+        <button class="btn btn-secondary btn-sm" ${da('updateStock', item.id, -1)}>−</button>
+        <button class="btn btn-secondary btn-sm" ${da('updateStock', item.id, 1)}>+</button>
+        <button class="btn btn-secondary btn-sm" ${da('editStockQty', item.id)}>Set</button>
       </div>
     </div>`;
   }).join('');

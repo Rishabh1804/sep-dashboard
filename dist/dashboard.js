@@ -468,6 +468,16 @@ function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// src/shared/utils/dom.js
+function da(action, ...args) {
+  if (args.length === 0) return `data-action="${action}"`;
+  const json = JSON.stringify(args).replaceAll('"', "&quot;");
+  return `data-action="${action}" data-args="${json}"`;
+}
+function overlayClose(action) {
+  return `data-overlay-close="${action}"`;
+}
+
 // src/components/worker-picker.js
 function openPicker(periodKey, areaId) {
   if (document.querySelector(".picker-overlay")) return;
@@ -495,17 +505,17 @@ function openPicker(periodKey, areaId) {
     }
     const disabled = otherAreaName ? "disabled" : "";
     const checked = isAssigned ? "checked" : "";
-    return `<div class="picker-worker ${checked} ${disabled}" onclick="togglePickerWorker('${w.id}')">
+    return `<div class="picker-worker ${checked} ${disabled}" ${da("togglePickerWorker", w.id)}>
       <div class="picker-check">\u2713</div>
       <span class="picker-name">${esc(w.name)}</span>
       ${otherAreaName ? `<span class="picker-where">\u2192 ${esc(otherAreaName)}</span>` : ""}
     </div>`;
   }
-  const html = `<div class="picker-overlay" onclick="closePicker()">
-    <div class="picker-sheet" onclick="event.stopPropagation()">
+  const html = `<div class="picker-overlay" ${overlayClose("closePicker")}>
+    <div class="picker-sheet">
       <div class="picker-header">
         <span class="card-title">${esc(area?.name || areaId)} \u2014 Workers</span>
-        <button class="header-btn" onclick="closePicker()">\u2715</button>
+        <button class="header-btn" ${da("closePicker")}>\u2715</button>
       </div>
       <div class="picker-body" id="pickerBody">
         <div class="picker-section-label">Permanent Staff</div>
@@ -613,6 +623,11 @@ function importData() {
   };
   input.click();
 }
+function resetAllData() {
+  if (!confirm("Reset ALL data? This cannot be undone.")) return;
+  localStorage.clear();
+  location.reload();
+}
 function openSettings() {
   if (document.querySelector(".settings-overlay")) return;
   history.pushState({ popup: "settings" }, "");
@@ -621,11 +636,11 @@ function openSettings() {
   const _settings = getSettings();
   const cfg = getCfg();
   const invCfg = getInvCfg();
-  const html = `<div class="settings-overlay" onclick="closeSettings()">
-    <div class="settings-panel" onclick="event.stopPropagation()">
+  const html = `<div class="settings-overlay" ${overlayClose("closeSettings")}>
+    <div class="settings-panel">
       <div class="flex-between" style="padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--border)">
         <span class="card-title">Settings</span>
-        <button class="header-btn" onclick="closeSettings()">\u2715</button>
+        <button class="header-btn" ${da("closeSettings")}>\u2715</button>
       </div>
       <div class="settings-body">
 
@@ -650,7 +665,7 @@ function openSettings() {
               <span class="card-meta">\u20B9${w.dailyRate}/day</span>
             </div>`).join("")}
           </div>
-          <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>
+          <button class="btn btn-secondary btn-sm mt-8" ${da("addWorkerPrompt", "perm")}>+ Add Perm Worker</button>
         </div>
 
         <div class="section-zone">
@@ -658,12 +673,12 @@ function openSettings() {
           <div class="card-info">
             ${cw.filter((w) => !w.inactive).map((w) => `<div class="settings-row">
               <span class="card-label">${esc(w.name)}</span>
-              <button class="btn btn-sm" style="color:var(--danger)" onclick="toggleWorkerActive('cw','${w.id}')">Deactivate</button>
+              <button class="btn btn-sm" style="color:var(--danger)" ${da("toggleWorkerActive", "cw", w.id)}>Deactivate</button>
             </div>`).join("")}
             ${cw.filter((w) => w.inactive).length ? `<div class="card-meta mt-8">Inactive: ${cw.filter((w) => w.inactive).map((w) => `${w.name}${w.deactivatedOn ? " (" + formatDateShort(w.deactivatedOn) + ")" : ""}`).join(", ")}</div>
-            <div class="mt-4">${cw.filter((w) => w.inactive).map((w) => `<button class="btn btn-sm btn-secondary mt-4" onclick="toggleWorkerActive('cw','${w.id}')">Reactivate ${esc(w.name)}</button>`).join(" ")}</div>` : ""}
+            <div class="mt-4">${cw.filter((w) => w.inactive).map((w) => `<button class="btn btn-sm btn-secondary mt-4" ${da("toggleWorkerActive", "cw", w.id)}>Reactivate ${esc(w.name)}</button>`).join(" ")}</div>` : ""}
           </div>
-          <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('cw')">+ Add CW Worker</button>
+          <button class="btn btn-secondary btn-sm mt-8" ${da("addWorkerPrompt", "cw")}>+ Add CW Worker</button>
         </div>
 
         <div class="section-zone">
@@ -676,7 +691,7 @@ function openSettings() {
             <div class="settings-row"><span class="card-label">GST Rate</span><span class="card-meta">${invCfg.gstRate}%</span></div>
             <div class="settings-row"><span class="card-label">Next Invoice #</span><span class="card-meta">${invCfg.seriesPrefix}/.../\u200B${String(invCfg.nextNumber).padStart(4, "0")}</span></div>
           </div>
-          <button class="btn btn-secondary btn-sm mt-8" onclick="editInvConfig()">Edit Invoice Config</button>
+          <button class="btn btn-secondary btn-sm mt-8" ${da("editInvConfig")}>Edit Invoice Config</button>
         </div>
 
         <div class="section-zone">
@@ -688,10 +703,10 @@ function openSettings() {
             </div>
           </div>
           <div class="flex-center gap-8 mt-8">
-            <button class="btn btn-secondary btn-sm" onclick="exportData()">Export JSON</button>
-            <button class="btn btn-secondary btn-sm" onclick="importData()">Import JSON</button>
+            <button class="btn btn-secondary btn-sm" ${da("exportData")}>Export JSON</button>
+            <button class="btn btn-secondary btn-sm" ${da("importData")}>Import JSON</button>
           </div>
-          <button class="btn btn-danger btn-sm mt-8 btn-full" onclick="if(confirm('Reset ALL data? This cannot be undone.')){localStorage.clear();location.reload();}">Reset All Data</button>
+          <button class="btn btn-danger btn-sm mt-8 btn-full" ${da("resetAllData")}>Reset All Data</button>
         </div>
 
       </div>
@@ -1012,11 +1027,11 @@ function openInvoiceModal() {
     return;
   }
   const clientOpts = clients.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
-  const html = `<div class="inv-modal-overlay" id="invModalOverlay" onclick="if(event.target===this)closeInvModal()">
+  const html = `<div class="inv-modal-overlay" id="invModalOverlay" ${overlayClose("closeInvModal")}>
     <div class="inv-modal">
       <div class="flex-between mb-16">
         <div class="card-title" style="font-size:var(--fs-lg)">New Invoice</div>
-        <button class="header-btn" onclick="closeInvModal()" style="font-size:var(--fs-lg)">\u2715</button>
+        <button class="header-btn" ${da("closeInvModal")} style="font-size:var(--fs-lg)">\u2715</button>
       </div>
 
       <div class="form-group">
@@ -1035,7 +1050,7 @@ function openInvoiceModal() {
       <div class="form-group">
         <label>Line Items</label>
         <div id="invFormLines"></div>
-        <button class="btn btn-secondary btn-sm mt-8" onclick="addInvLine()">+ Add Line</button>
+        <button class="btn btn-secondary btn-sm mt-8" ${da("addInvLine")}>+ Add Line</button>
       </div>
 
       <div class="inv-tax-preview" id="invTaxPreview">
@@ -1043,8 +1058,8 @@ function openInvoiceModal() {
       </div>
 
       <div class="flex-center gap-8 mt-16">
-        <button class="btn btn-secondary" style="flex:1" onclick="closeInvModal()">Cancel</button>
-        <button class="btn btn-primary" style="flex:2" onclick="submitInvoiceForm()">Create Invoice</button>
+        <button class="btn btn-secondary" style="flex:1" ${da("closeInvModal")}>Cancel</button>
+        <button class="btn btn-primary" style="flex:2" ${da("submitInvoiceForm")}>Create Invoice</button>
       </div>
     </div>
   </div>`;
@@ -1097,9 +1112,13 @@ function addInvLine() {
         <option value="pc">pc</option>
       </select>
     </div>
-    ${lineNum > 1 ? `<div class="inv-line-remove" onclick="this.parentElement.remove();recalcInvPreview()">Remove</div>` : ""}
+    ${lineNum > 1 ? `<div class="inv-line-remove" ${da("removeInvLine")}>Remove</div>` : ""}
   </div>`;
   container.insertAdjacentHTML("beforeend", lineHtml);
+}
+function removeInvLine() {
+  this.parentElement.remove();
+  recalcInvPreview();
 }
 function onRateSelect(sel) {
   const line = sel.closest(".inv-line-item");
@@ -1250,11 +1269,11 @@ function viewInvoice(invId) {
     </div>`).join("");
   const payClass = inv.payStatus === "paid" ? "badge-attend" : inv.payStatus === "partial" ? "badge-warning" : "badge-absent";
   const payLabel = inv.payStatus === "paid" ? "Paid" : inv.payStatus === "partial" ? "Partial" : "Unpaid";
-  const html = `<div class="settings-overlay" onclick="closeInvDetail()">
-    <div class="settings-panel" onclick="event.stopPropagation()">
+  const html = `<div class="settings-overlay" ${overlayClose("closeInvDetail")}>
+    <div class="settings-panel">
       <div class="flex-between" style="padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--border)">
         <span class="card-title">Invoice Detail</span>
-        <button class="header-btn" onclick="closeInvDetail()">\u2715</button>
+        <button class="header-btn" ${da("closeInvDetail")}>\u2715</button>
       </div>
       <div class="settings-body">
         <div class="section-zone">
@@ -1292,8 +1311,8 @@ function viewInvoice(invId) {
           <div class="flex-between">
             <span class="badge ${payClass}">${payLabel}</span>
             ${inv.payStatus !== "paid" ? `<div class="flex-center gap-4">
-              <button class="btn btn-secondary btn-sm" onclick="markInvPartial('${inv.id}')">Partial</button>
-              <button class="btn btn-attend btn-sm" onclick="markInvPaid('${inv.id}')">Mark Paid</button>
+              <button class="btn btn-secondary btn-sm" ${da("markInvPartial", inv.id)}>Partial</button>
+              <button class="btn btn-attend btn-sm" ${da("markInvPaid", inv.id)}>Mark Paid</button>
             </div>` : `<span class="card-meta">Paid on ${inv.payDate || "\u2014"}</span>`}
           </div>
         </div>
@@ -1502,9 +1521,9 @@ function renderAttendance() {
       const typeLabel = w.type === "perm" ? "P" : "C";
       const otBadge = otHours > 0 ? `<span class="badge badge-warning">OT ${otHours}h</span>` : "";
       const statusBadge = monthLocked ? `<span class="badge ${status === "A" ? "badge-danger" : status ? "badge-attend" : "badge-perm"}" data-attendance-locked-status>${status === "A" ? "Absent" : status ? "Present" : "\u2014"}</span>` : `<button class="mark-btn present ${status === "P" || status === "OT" ? "active" : ""}"
-                  onclick="markAtt('${w.id}','${w.type}','P')">\u2713</button>
+                  ${da("markAtt", w.id, w.type, "P")}>\u2713</button>
           <button class="mark-btn absent ${status === "A" ? "active" : ""}"
-                  onclick="markAtt('${w.id}','${w.type}','A')">\u2717</button>`;
+                  ${da("markAtt", w.id, w.type, "A")}>\u2717</button>`;
       return `<div class="worker-row">
         <div class="worker-avatar">${esc(w.name).charAt(0)}</div>
         <div class="worker-info">
@@ -1621,7 +1640,7 @@ function renderProdAttendance(date, prod) {
           <span class="badge badge-cw">C: ${cw.length}</span>
         </div>
       </div>
-      ${!prod.confirmed && !monthLocked ? `<button class="btn btn-secondary btn-sm mt-12" onclick="unlockProdAtt()">Unlock to Edit</button>` : ""}
+      ${!prod.confirmed && !monthLocked ? `<button class="btn btn-secondary btn-sm mt-12" ${da("unlockProdAtt")}>Unlock to Edit</button>` : ""}
     `;
     return;
   }
@@ -1645,13 +1664,13 @@ function renderProdAttendance(date, prod) {
         <div class="worker-name">${esc(w.name)} <span class="badge ${typeCls}">${w.type === "perm" ? "P" : "C"}</span></div>
       </div>
       <div class="worker-status">
-        <button class="mark-btn present ${isPresent ? "active" : ""}" onclick="markAtt('${w.id}','${w.type}','P');renderProduction()">\u2713</button>
-        <button class="mark-btn absent ${!isPresent && presentIds.length > 0 ? "active" : ""}" onclick="markAtt('${w.id}','${w.type}','A');renderProduction()">\u2717</button>
+        <button class="mark-btn present ${isPresent ? "active" : ""}" ${da("markAttFromProduction", w.id, w.type, "P")}>\u2713</button>
+        <button class="mark-btn absent ${!isPresent && presentIds.length > 0 ? "active" : ""}" ${da("markAttFromProduction", w.id, w.type, "A")}>\u2717</button>
       </div>
     </div>`;
   }).join("");
   html += `</div>
-    <button class="btn btn-primary btn-full mt-8" onclick="lockProdAtt()">Lock Attendance (${presentIds.length} present)</button>`;
+    <button class="btn btn-primary btn-full mt-8" ${da("lockProdAtt")}>Lock Attendance (${presentIds.length} present)</button>`;
   el.innerHTML = html;
 }
 function lockProdAtt() {
@@ -1750,7 +1769,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
                 <span class="card-label">${p.label}</span>
                 <span class="card-meta"> ${p.time}</span>
               </div>
-              <button class="btn btn-sm" style="color:var(--text-muted);font-size:var(--fs-2xs)" onclick="togglePeriod('${p.key}',true)">Add OT anyway</button>
+              <button class="btn btn-sm" style="color:var(--text-muted);font-size:var(--fs-2xs)" ${da("togglePeriod", p.key, true)}>Add OT anyway</button>
             </div>
           </div>
         </div>`;
@@ -1762,7 +1781,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
               <span class="card-label">${p.label}</span>
               <span class="card-meta"> ${p.time}</span>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="togglePeriod('${p.key}',true)">+ Enable</button>
+            <button class="btn btn-secondary btn-sm" ${da("togglePeriod", p.key, true)}>+ Enable</button>
           </div>
         </div>
       </div>`;
@@ -1775,7 +1794,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
       const req = getReq(area.id, p.key, prod, areas);
       const statusColor = cap === 0 ? "text-muted" : assigned.length >= req ? "text-attend" : "text-danger";
       const capBtns = area.caps.map(
-        (c) => `<button class="nb ${cap === c.l ? "active" : ""}" onclick="setProdCap2('${p.key}','${area.id}',${c.l})">${c.lb}</button>`
+        (c) => `<button class="nb ${cap === c.l ? "active" : ""}" ${da("setProdCap2", p.key, area.id, c.l)}>${c.lb}</button>`
       ).join("");
       const workerChips = assigned.map((wid) => {
         const w = findWorker(wid);
@@ -1789,7 +1808,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
         </div>
         <div class="mt-8 chip-row">${capBtns}</div>
         <div class="mt-8 chip-row">${workerChips || '<span class="card-meta">No workers assigned</span>'}</div>
-        ${cap > 0 && !prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-8" onclick="openPicker('${p.key}','${area.id}')">Edit Workers</button>` : ""}
+        ${cap > 0 && !prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-8" ${da("openPicker", p.key, area.id)}>Edit Workers</button>` : ""}
       </div>`;
     });
     areas.filter((a) => a.dep).forEach((area) => {
@@ -1808,7 +1827,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
           <span class="${statusColor} area-count-sm ff-mono">${assigned.length}/${req}</span>
         </div>
         <div class="mt-4 chip-row">${workerChips || '<span class="card-meta">Auto-assigned</span>'}</div>
-        ${!prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-4" onclick="openPicker('${p.key}','${area.id}')">Edit</button>` : ""}
+        ${!prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-4" ${da("openPicker", p.key, area.id)}>Edit</button>` : ""}
       </div>`;
     });
     return `<div class="period-card">
@@ -1818,7 +1837,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
             <span class="section-label-md" style="margin-bottom:0;display:inline">${p.label}</span>
             <span class="card-meta"> ${p.time} (${p.hours}h)</span>
           </div>
-          ${p.isOT ? `<button class="btn btn-sm" style="color:var(--danger)" onclick="togglePeriod('${p.key}',false)">Disable</button>` : ""}
+          ${p.isOT ? `<button class="btn btn-sm" style="color:var(--danger)" ${da("togglePeriod", p.key, false)}>Disable</button>` : ""}
         </div>
         ${areaHtml}
       </div>
@@ -1873,8 +1892,8 @@ function showProdConfirm() {
       otMap[id] = (otMap[id] || 0) + hours;
     });
   });
-  const html = `<div class="confirm-overlay" onclick="cancelConfirm()">
-    <div class="confirm-dialog" onclick="event.stopPropagation()">
+  const html = `<div class="confirm-overlay" ${overlayClose("cancelConfirm")}>
+    <div class="confirm-dialog">
       <div class="confirm-icon">\u2713</div>
       <div class="confirm-title">Confirm ${present.length} Workers?</div>
       <div class="confirm-desc">Attendance + OT will be written to records. Extra cost: ${formatCurrency(extraCost)}</div>
@@ -1884,8 +1903,8 @@ function showProdConfirm() {
       </div>
       ${Object.keys(otMap).length > 0 ? `<div class="card-meta mb-12">OT: ${Object.entries(otMap).map(([id, h]) => `${findWorker(id).name} ${h}h`).join(", ")}</div>` : ""}
       <div class="confirm-btns">
-        <button class="btn btn-secondary" onclick="cancelConfirm()">Cancel</button>
-        <button class="btn btn-attend" onclick="confirmProduction()">Confirm</button>
+        <button class="btn btn-secondary" ${da("cancelConfirm")}>Cancel</button>
+        <button class="btn btn-attend" ${da("confirmProduction")}>Confirm</button>
       </div>
     </div>
   </div>`;
@@ -2036,7 +2055,7 @@ function renderShiftBanner(date) {
   const shift = cfg.sundayHolidayShift;
   el.innerHTML = `<div class="alert-banner alert-info mb-12">
     \u{1F4C5} ${sunday ? "Sunday" : "Holiday"} shift: ${shift.start}\u2013${shift.end} (${shift.hours}h, no lunch)
-    ${!sunday ? `<button class="btn btn-sm" style="margin-left:auto;color:var(--danger)" onclick="toggleHoliday()">Remove</button>` : ""}
+    ${!sunday ? `<button class="btn btn-sm" style="margin-left:auto;color:var(--danger)" ${da("toggleHoliday")}>Remove</button>` : ""}
   </div>`;
 }
 function markAllPresent() {
@@ -2064,6 +2083,10 @@ function markAllPresent() {
   if (typeof window.renderTab === "function") {
     window.renderTab(getState().currentTab);
   }
+}
+function markAttFromProduction(workerId, type, status) {
+  markAtt(workerId, type, status);
+  renderProduction();
 }
 function addProdNote() {
   const note = prompt("Add production note:");
@@ -2192,12 +2215,12 @@ function renderCWPayCard() {
   if (periodLocked) {
     html += `<span class="badge badge-warning" data-cw-pay-locked>\u{1F512} Week is in a locked month</span>`;
   } else if (!isPaid) {
-    html += `<button class="btn btn-secondary" onclick="recordCWAdvance('${satDate}')">Record Advance</button>
-      <button class="btn btn-primary" style="flex:1" onclick="markCWPaid('${satDate}',${data.grandTotal})">Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
+    html += `<button class="btn btn-secondary" ${da("recordCWAdvance", satDate)}>Record Advance</button>
+      <button class="btn btn-primary" style="flex:1" ${da("markCWPaid", satDate, data.grandTotal)}>Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
   } else {
     html += `<span class="badge badge-attend">Paid on ${paid[satDate].date}</span>`;
   }
-  html += `<button class="btn btn-secondary" onclick="printCWPay()">Print</button></div>`;
+  html += `<button class="btn btn-secondary" ${da("printCWPay")}>Print</button></div>`;
   el.innerHTML = html;
 }
 function recordCWAdvance(satDate) {
@@ -2275,12 +2298,12 @@ function renderPermPayCard() {
   if (periodLocked) {
     html += `<span class="badge badge-warning" data-perm-pay-locked>\u{1F512} ${data.month} is locked</span>`;
   } else if (!isPaid) {
-    html += `<button class="btn btn-secondary" onclick="recordAdvance()">Record Advance</button>
-      <button class="btn btn-primary" style="flex:1" onclick="markPermPaid('${data.month}',${data.grandTotal})">Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
+    html += `<button class="btn btn-secondary" ${da("recordAdvance")}>Record Advance</button>
+      <button class="btn btn-primary" style="flex:1" ${da("markPermPaid", data.month, data.grandTotal)}>Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
   } else {
     html += `<span class="badge badge-attend">Paid on ${paid[data.month].date}</span>`;
   }
-  html += `<button class="btn btn-secondary" onclick="printPermPay()">Print</button></div>`;
+  html += `<button class="btn btn-secondary" ${da("printPermPay")}>Print</button></div>`;
   el.innerHTML = html;
 }
 function recordAdvance() {
@@ -2343,7 +2366,7 @@ function renderMonthLock() {
           <div class="lock-badge">\u{1F512} Month Locked</div>
           <div class="card-meta mt-4">Locked on ${locks[month].lockedAt || "\u2014"}</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="unlockMonth('${month}')">Unlock</button>
+        <button class="btn btn-secondary btn-sm" ${da("unlockMonth", month)}>Unlock</button>
       </div>
     </div>`;
     return;
@@ -2355,7 +2378,7 @@ function renderMonthLock() {
           <div class="card-title">Month-End Close</div>
           <div class="card-meta mt-4">Lock ${month} to finalize records</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="lockMonth('${month}')">Lock Month</button>
+        <button class="btn btn-primary btn-sm" ${da("lockMonth", month)}>Lock Month</button>
       </div>
     </div>`;
   } else {
@@ -2489,7 +2512,7 @@ function renderInvList(el, invoices, clients) {
     const client = clients.find((c) => c.id === inv.clientId);
     const payClass = inv.payStatus === "paid" ? "badge-attend" : inv.payStatus === "partial" ? "badge-warning" : "badge-absent";
     const payLabel = inv.payStatus === "paid" ? "Paid" : inv.payStatus === "partial" ? "Partial" : "Unpaid";
-    html += `<div class="card-daily" onclick="viewInvoice('${inv.id}')">
+    html += `<div class="card-daily" ${da("viewInvoice", inv.id)}>
       <div class="flex-between">
         <div>
           <div class="card-title">${esc(inv.invNo)}</div>
@@ -2507,7 +2530,7 @@ function renderInvList(el, invoices, clients) {
 }
 function renderClientList(el, clients) {
   let html = '<div class="section-zone"><div class="flex-between"><div class="section-label-md" style="margin-bottom:0">Clients</div>';
-  html += '<button class="btn btn-secondary btn-sm" onclick="addClient()">+ Add Client</button></div></div>';
+  html += `<button class="btn btn-secondary btn-sm" ${da("addClient")}>+ Add Client</button></div></div>`;
   if (clients.length === 0) {
     html += `<div class="section-zone"><div class="card-info"><div class="empty-state">
       <div class="empty-state-icon">\u{1F3E2}</div>
@@ -2529,8 +2552,8 @@ function renderClientList(el, clients) {
           <div class="card-meta">${c.billingPref || "Per dispatch"} | ${rates.length} rate${rates.length !== 1 ? "s" : ""}</div>
         </div>
         <div class="flex-center gap-4">
-          <button class="btn btn-secondary btn-sm" onclick="editClientRates('${c.id}')">Rates</button>
-          <button class="btn btn-secondary btn-sm" onclick="editClient('${c.id}')">Edit</button>
+          <button class="btn btn-secondary btn-sm" ${da("editClientRates", c.id)}>Rates</button>
+          <button class="btn btn-secondary btn-sm" ${da("editClient", c.id)}>Edit</button>
         </div>
       </div>
     </div>`;
@@ -2544,9 +2567,9 @@ function renderGSTRegister(el, invoices, clients) {
     <div class="flex-between">
       <div class="section-label-md" style="margin-bottom:0">GST Register</div>
       <div class="flex-center gap-4">
-        <button class="btn btn-secondary btn-sm" onclick="shiftGSTMonth(-1)">\u2190 Prev</button>
+        <button class="btn btn-secondary btn-sm" ${da("shiftGSTMonth", -1)}>\u2190 Prev</button>
         <span class="card-label ff-mono">${invMonth}</span>
-        <button class="btn btn-secondary btn-sm" onclick="shiftGSTMonth(1)">Next \u2192</button>
+        <button class="btn btn-secondary btn-sm" ${da("shiftGSTMonth", 1)}>Next \u2192</button>
       </div>
     </div>
   </div>`;
@@ -2587,7 +2610,7 @@ function renderGSTRegister(el, invoices, clients) {
     </div>`;
   });
   html += "</div></div>";
-  html += `<div class="section-zone"><button class="btn btn-secondary btn-full" onclick="exportGSTRegister()">Export GST Register (CSV)</button></div>`;
+  html += `<div class="section-zone"><button class="btn btn-secondary btn-full" ${da("exportGSTRegister")}>Export GST Register (CSV)</button></div>`;
   el.innerHTML = html;
 }
 function shiftGSTMonth(delta) {
@@ -2774,9 +2797,9 @@ function renderStock() {
         </div>
       </div>
       <div class="mt-8 flex-center gap-4">
-        <button class="btn btn-secondary btn-sm" onclick="updateStock('${item.id}',-1)">\u2212</button>
-        <button class="btn btn-secondary btn-sm" onclick="updateStock('${item.id}',1)">+</button>
-        <button class="btn btn-secondary btn-sm" onclick="editStockQty('${item.id}')">Set</button>
+        <button class="btn btn-secondary btn-sm" ${da("updateStock", item.id, -1)}>\u2212</button>
+        <button class="btn btn-secondary btn-sm" ${da("updateStock", item.id, 1)}>+</button>
+        <button class="btn btn-secondary btn-sm" ${da("editStockQty", item.id)}>Set</button>
       </div>
     </div>`;
   }).join("");
@@ -3126,13 +3149,20 @@ function initData() {
 }
 function initDataActionDelegation() {
   document.addEventListener("click", (e) => {
-    const el = e.target.closest("[data-action]");
-    if (!el) return;
-    const action = el.dataset.action;
-    const fn = window[action];
-    if (typeof fn === "function") {
-      e.preventDefault();
-      fn();
+    const actionEl = e.target.closest("[data-action]");
+    if (actionEl) {
+      const fn = window[actionEl.dataset.action];
+      if (typeof fn === "function") {
+        e.preventDefault();
+        const args = actionEl.dataset.args ? JSON.parse(actionEl.dataset.args) : [];
+        fn.apply(actionEl, args);
+        return;
+      }
+    }
+    const overlayClose2 = e.target.dataset?.overlayClose;
+    if (overlayClose2) {
+      const fn = window[overlayClose2];
+      if (typeof fn === "function") fn();
     }
   });
 }
@@ -3162,6 +3192,7 @@ function exposeWindowSurface() {
     getStorageUsed,
     exportData,
     importData,
+    resetAllData,
     // Print
     printCWPay,
     printPermPay,
@@ -3173,6 +3204,7 @@ function exposeWindowSurface() {
     onRateSelect,
     recalcInvPreview,
     submitInvoiceForm,
+    removeInvLine,
     // Invoice detail
     viewInvoice,
     closeInvDetail,
@@ -3199,6 +3231,7 @@ function exposeWindowSurface() {
     toggleHoliday,
     markAllPresent,
     addProdNote,
+    markAttFromProduction,
     // Finance
     recordCWAdvance,
     markCWPaid,

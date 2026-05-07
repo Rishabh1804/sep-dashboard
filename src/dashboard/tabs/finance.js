@@ -14,6 +14,7 @@ import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production
 import { getInvoices } from '../../shared/storage/invoice.js';
 import { DEF_CFG } from '../../shared/config/wage.js';
 import { esc } from '../../shared/utils/format.js';
+import { da } from '../../shared/utils/dom.js';
 
 function cwWeekly(satDate) {
   return calcCWWeeklyPay({
@@ -149,12 +150,12 @@ function renderCWPayCard() {
   if (periodLocked) {
     html += `<span class="badge badge-warning" data-cw-pay-locked>🔒 Week is in a locked month</span>`;
   } else if (!isPaid) {
-    html += `<button class="btn btn-secondary" onclick="recordCWAdvance('${satDate}')">Record Advance</button>
-      <button class="btn btn-primary" style="flex:1" onclick="markCWPaid('${satDate}',${data.grandTotal})">Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
+    html += `<button class="btn btn-secondary" ${da('recordCWAdvance', satDate)}>Record Advance</button>
+      <button class="btn btn-primary" style="flex:1" ${da('markCWPaid', satDate, data.grandTotal)}>Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
   } else {
     html += `<span class="badge badge-attend">Paid on ${paid[satDate].date}</span>`;
   }
-  html += `<button class="btn btn-secondary" onclick="printCWPay()">Print</button></div>`;
+  html += `<button class="btn btn-secondary" ${da('printCWPay')}>Print</button></div>`;
 
   el.innerHTML = html;
 }
@@ -241,12 +242,12 @@ function renderPermPayCard() {
   if (periodLocked) {
     html += `<span class="badge badge-warning" data-perm-pay-locked>🔒 ${data.month} is locked</span>`;
   } else if (!isPaid) {
-    html += `<button class="btn btn-secondary" onclick="recordAdvance()">Record Advance</button>
-      <button class="btn btn-primary" style="flex:1" onclick="markPermPaid('${data.month}',${data.grandTotal})">Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
+    html += `<button class="btn btn-secondary" ${da('recordAdvance')}>Record Advance</button>
+      <button class="btn btn-primary" style="flex:1" ${da('markPermPaid', data.month, data.grandTotal)}>Mark as Paid (${formatCurrency(data.grandTotal)})</button>`;
   } else {
     html += `<span class="badge badge-attend">Paid on ${paid[data.month].date}</span>`;
   }
-  html += `<button class="btn btn-secondary" onclick="printPermPay()">Print</button></div>`;
+  html += `<button class="btn btn-secondary" ${da('printPermPay')}>Print</button></div>`;
 
   el.innerHTML = html;
 }
@@ -313,7 +314,7 @@ function renderMonthLock() {
           <div class="lock-badge">🔒 Month Locked</div>
           <div class="card-meta mt-4">Locked on ${locks[month].lockedAt || '—'}</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="unlockMonth('${month}')">Unlock</button>
+        <button class="btn btn-secondary btn-sm" ${da('unlockMonth', month)}>Unlock</button>
       </div>
     </div>`;
     return;
@@ -326,7 +327,7 @@ function renderMonthLock() {
           <div class="card-title">Month-End Close</div>
           <div class="card-meta mt-4">Lock ${month} to finalize records</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="lockMonth('${month}')">Lock Month</button>
+        <button class="btn btn-primary btn-sm" ${da('lockMonth', month)}>Lock Month</button>
       </div>
     </div>`;
   } else {

@@ -8,6 +8,7 @@ import { formatCurrency } from '../../shared/utils/currency.js';
 import { formatDateShort } from '../../shared/utils/date.js';
 import { csvDownload } from '../../shared/utils/csv.js';
 import { esc } from '../../shared/utils/format.js';
+import { da } from '../../shared/utils/dom.js';
 import { getClients, getRates, getInvoices, getInvCfg, getClientRates } from '../../shared/storage/invoice.js';
 
 export function renderInvoice() {
@@ -52,7 +53,7 @@ function renderInvList(el, invoices, clients) {
     const client = clients.find((c) => c.id === inv.clientId);
     const payClass = inv.payStatus === 'paid' ? 'badge-attend' : inv.payStatus === 'partial' ? 'badge-warning' : 'badge-absent';
     const payLabel = inv.payStatus === 'paid' ? 'Paid' : inv.payStatus === 'partial' ? 'Partial' : 'Unpaid';
-    html += `<div class="card-daily" onclick="viewInvoice('${inv.id}')">
+    html += `<div class="card-daily" ${da('viewInvoice', inv.id)}>
       <div class="flex-between">
         <div>
           <div class="card-title">${esc(inv.invNo)}</div>
@@ -71,7 +72,7 @@ function renderInvList(el, invoices, clients) {
 
 function renderClientList(el, clients) {
   let html = '<div class="section-zone"><div class="flex-between"><div class="section-label-md" style="margin-bottom:0">Clients</div>';
-  html += '<button class="btn btn-secondary btn-sm" onclick="addClient()">+ Add Client</button></div></div>';
+  html += `<button class="btn btn-secondary btn-sm" ${da('addClient')}>+ Add Client</button></div></div>`;
 
   if (clients.length === 0) {
     html += `<div class="section-zone"><div class="card-info"><div class="empty-state">
@@ -95,8 +96,8 @@ function renderClientList(el, clients) {
           <div class="card-meta">${c.billingPref || 'Per dispatch'} | ${rates.length} rate${rates.length !== 1 ? 's' : ''}</div>
         </div>
         <div class="flex-center gap-4">
-          <button class="btn btn-secondary btn-sm" onclick="editClientRates('${c.id}')">Rates</button>
-          <button class="btn btn-secondary btn-sm" onclick="editClient('${c.id}')">Edit</button>
+          <button class="btn btn-secondary btn-sm" ${da('editClientRates', c.id)}>Rates</button>
+          <button class="btn btn-secondary btn-sm" ${da('editClient', c.id)}>Edit</button>
         </div>
       </div>
     </div>`;
@@ -111,9 +112,9 @@ function renderGSTRegister(el, invoices, clients) {
     <div class="flex-between">
       <div class="section-label-md" style="margin-bottom:0">GST Register</div>
       <div class="flex-center gap-4">
-        <button class="btn btn-secondary btn-sm" onclick="shiftGSTMonth(-1)">← Prev</button>
+        <button class="btn btn-secondary btn-sm" ${da('shiftGSTMonth', -1)}>← Prev</button>
         <span class="card-label ff-mono">${invMonth}</span>
-        <button class="btn btn-secondary btn-sm" onclick="shiftGSTMonth(1)">Next →</button>
+        <button class="btn btn-secondary btn-sm" ${da('shiftGSTMonth', 1)}>Next →</button>
       </div>
     </div>
   </div>`;
@@ -161,7 +162,7 @@ function renderGSTRegister(el, invoices, clients) {
   });
   html += '</div></div>';
 
-  html += `<div class="section-zone"><button class="btn btn-secondary btn-full" onclick="exportGSTRegister()">Export GST Register (CSV)</button></div>`;
+  html += `<div class="section-zone"><button class="btn btn-secondary btn-full" ${da('exportGSTRegister')}>Export GST Register (CSV)</button></div>`;
 
   el.innerHTML = html;
 }
