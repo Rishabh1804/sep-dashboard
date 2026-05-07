@@ -1,15 +1,25 @@
 {
   "name": "sep-dashboard",
-  "version": "2.1.0",
+  "version": "2.1.0-alpha.1",
   "private": true,
-  "description": "SEP Dashboard — single-file HTML PWA for Soma Electro Products operations. This package.json exists only for dev-time testing tooling; the production artifact is index.html.",
+  "description": "SEP Dashboard — Phase 2.0 modular PWA for Soma Electro Products operations. Built with esbuild from src/ into dist/. Two role-app entry points: dashboard (main) + handler (Phase 2.0 stub).",
+  "type": "module",
   "scripts": {
-    "test": "playwright test",
+    "build": "node esbuild.config.mjs",
+    "build:watch": "node esbuild.config.mjs --watch",
+    "dev": "node tests/e2e/_serve.mjs",
+    "test": "pnpm test:unit && pnpm test:e2e",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:e2e": "playwright test",
     "test:smoke": "playwright test --grep @smoke",
     "test:report": "playwright show-report"
   },
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
-    "@playwright/test": "^1.59.1"
+    "@playwright/test": "^1.59.1",
+    "@types/jest": "^29.5.12",
+    "esbuild": "^0.25.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
   }
 }
