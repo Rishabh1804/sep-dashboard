@@ -1,0 +1,153 @@
+/* ============================================================
+   SEP DASHBOARD — DESIGN TOKENS (Phase 2.0)
+   Single source of truth for typography, spacing, color, surface,
+   shadow, layout. All other CSS files reference these tokens.
+   ============================================================ */
+
+:root {
+  /* --- Typography Scale (9-step, ~1.2× ratio) --- */
+  --fs-2xs: 0.56rem;
+  --fs-xs:  0.69rem;
+  --fs-sm:  0.81rem;
+  --fs-md:  0.94rem;
+  --fs-lg:  1.13rem;
+  --fs-xl:  1.31rem;
+  --fs-2xl: 1.56rem;
+  --fs-3xl: 2.00rem;
+
+  /* --- Font Families --- */
+  --ff-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ff-display: 'Fraunces', Georgia, serif;
+  --ff-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* --- Font Weights --- */
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semi:    600;
+  --fw-bold:    700;
+
+  /* --- Letter Spacing --- */
+  --ls-tight:  -0.025em;
+  --ls-normal: -0.01em;
+  --ls-wide:    0.06em;
+
+  /* --- Spacing Scale --- */
+  --sp-2:  2px;
+  --sp-4:  4px;
+  --sp-6:  6px;
+  --sp-8:  8px;
+  --sp-10: 10px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-20: 20px;
+  --sp-24: 24px;
+  --sp-32: 32px;
+
+  /* --- Semantic Spacing --- */
+  --section-gap-hero: var(--sp-24);
+  --section-gap-zone: var(--sp-20);
+  --card-gap-base:    var(--sp-12);
+  --card-gap-paired:  var(--sp-8);
+  --card-padding:     var(--sp-16);
+  --card-padding-sm:  var(--sp-12);
+
+  /* --- Border Radius --- */
+  --r-sm:   6px;
+  --r-md:   8px;
+  --r-lg:   10px;
+  --r-xl:   12px;
+  --r-full: 9999px;
+
+  /* --- Surfaces --- */
+  --bg:         #faf9f5;
+  --surface:    #fff;
+  --surface-2:  #f5f4ed;
+  --surface-3:  #f7f6f1;
+  --border:     rgba(31,30,29,.12);
+  --border-strong: rgba(31,30,29,.2);
+
+  /* --- Text Colors --- */
+  --text:          #141413;
+  --text-secondary:#73726c;
+  --text-muted:    #706e68;
+  --text-heading:  #1f1e1d;
+  --text-inverse:  #fff;
+
+  /* --- Semantic Colors (Domain-mapped) --- */
+  --attend:      #177a36;
+  --attend-bg:   rgba(23,122,54,.12);
+  --attend-text: #177a36;
+
+  --cost:        #b5583a;
+  --cost-bg:     rgba(181,88,58,.08);
+  --cost-text:   #b5583a;
+  --accent:      #b45a37;
+  --accent-dark: #a24e2f;
+
+  --prod:        #2e75b6;
+  --prod-bg:     rgba(46,117,182,.1);
+  --prod-text:   #2e75b6;
+
+  --danger:      #c13e34;
+  --danger-bg:   rgba(193,62,52,.12);
+  --danger-text: #c13e34;
+
+  --warning:      #8a6b08;
+  --warning-bg:   rgba(138,107,8,.12);
+  --warning-text: #8a6b08;
+
+  --neutral:      #8b6c4a;
+  --neutral-bg:   rgba(139,108,74,.12);
+  --neutral-text: #8b6c4a;
+
+  --cw:    #1a8a3e;
+  --cw-bg: rgba(26,138,62,.1);
+
+  --perm:    #2e75b6;
+  --perm-bg: rgba(46,117,182,.1);
+
+  /* --- Shadows --- */
+  --shadow-sm: 0 1px 3px rgba(31,30,29,.04);
+  --shadow-md: 0 2px 8px rgba(31,30,29,.08);
+  --shadow-lg: 0 4px 16px rgba(31,30,29,.12);
+
+  /* --- Layout --- */
+  --tab-h: 52px;
+  --header-h: 48px;
+  --max-w: 520px;
+}
+
+/* === DARK MODE (toggled by .dark on <html>) === */
+.dark {
+  --bg: #1a1918;
+  --surface: #242320;
+  --surface-2: #2a2928;
+  --surface-3: #1f1e1d;
+  --border: rgba(255,255,255,.1);
+  --border-strong: rgba(255,255,255,.15);
+  --text: #e8e6e1;
+  --text-secondary: #9a9590;
+  --text-muted: #948f89;
+  --text-heading: #f5f3f0;
+  --text-inverse: #1a1918;
+  --attend: #2aaa55;
+  --attend-bg: rgba(42,170,85,.15);
+  --attend-text: #2aaa55;
+  --cost: #e07a5a;
+  --cost-bg: rgba(224,122,90,.12);
+  --cost-text: #e07a5a;
+  --prod: #4a90cc;
+  --prod-bg: rgba(74,144,204,.12);
+  --prod-text: #4a90cc;
+  --danger: #e66058;
+  --danger-bg: rgba(230,96,88,.15);
+  --danger-text: #e66058;
+  --warning: #c8a020;
+  --warning-bg: rgba(200,160,32,.15);
+  --warning-text: #c8a020;
+  --accent: #d98060;
+  --accent-dark: #c46a45;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.3);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,.4);
+}

@@ -1,0 +1,67 @@
+# Minimal CI for the SEP Dashboard Phase 2.0 modular bundle.
+#
+# Runs on every PR targeting main and on direct pushes to main:
+#   1. Install deps (frozen lockfile — catches lock drift)
+#   2. Build the esbuild bundle (dashboard + handler entries)
+#   3. Run the Jest unit suite (Layer 1 utilities)
+#   4. Run the Playwright @smoke suite against the freshly built bundle
+#
+# Node 22 + pnpm 10 match the local dev environment documented in CLAUDE.md.
+# Playwright tests need a Chromium binary; we install it on every run since
+# the GitHub-hosted runner cache is per-job by default. Caching the
+# Playwright browser bundle is a future-improvement (~100 MiB download).
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch when a new commit lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        # Version comes from `packageManager` in package.json (pnpm@10.33.0).
+        # Specifying `version` here as well would conflict and fail the action.
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (esbuild — dashboard + handler bundles)
+        run: pnpm build
+
+      - name: Unit tests (Jest)
+        run: pnpm test:unit
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E smoke tests (Playwright @smoke)
+        run: pnpm test:smoke
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -1,0 +1,13 @@
+{
+  "name": "SEP Handler",
+  "short_name": "SEP-H",
+  "start_url": "/sep-dashboard/entry/handler/",
+  "scope": "/sep-dashboard/entry/handler/",
+  "display": "standalone",
+  "background_color": "#faf9f5",
+  "theme_color": "#177a36",
+  "icons": [
+    {"src": "/sep-dashboard/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/sep-dashboard/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

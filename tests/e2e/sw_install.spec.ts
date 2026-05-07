@@ -38,11 +38,16 @@ test.describe('sep-dashboard SW install hardening @smoke', () => {
     expect(reg.hasActive, 'SW must be in active state after ready').toBe(true);
     expect(reg.scope).toContain('/sep-dashboard/');
 
-    const cached = await page.evaluate(async (cacheName) => {
-      const cache = await caches.open(cacheName);
+    // Cache name bumps with each bundle version (sw.js CACHE_NAME); enumerate
+    // and find the active SEP cache rather than hardcoding a specific tag.
+    const cached = await page.evaluate(async () => {
+      const names = await caches.keys();
+      const sepName = names.find((n) => n.startsWith('sep-')) ?? names[0];
+      if (!sepName) return [];
+      const cache = await caches.open(sepName);
       const keys = await cache.keys();
       return keys.map((req) => new URL(req.url).pathname + new URL(req.url).search);
-    }, 'sep-v2.1');
+    });
 
     const hasIndex = cached.some((u) => u === '/sep-dashboard/' || u === '/sep-dashboard/index.html');
     const hasManifest = cached.some((u) => u === '/sep-dashboard/manifest.json');

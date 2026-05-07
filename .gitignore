@@ -3,6 +3,7 @@
 *.json
 !manifest.json
 !package.json
+!public/manifest-handler.json
 # pnpm-lock.yaml and playwright.config.ts aren't matched by *.json, but the
 # exceptions below document intent if the ignore set ever broadens.
 !pnpm-lock.yaml
