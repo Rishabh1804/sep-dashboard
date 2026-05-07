@@ -515,3 +515,78 @@ After the initial Session 12 closeout, an audit pass surfaced operational detail
 The audit-pass revision is committed to the same Design Lock + Kickoff files. New backlog and open-items entries reflect the additions.
 
 *Revision pass documented 28 April 2026 by Aurelius (Session 12 closeout, audit-pass).*
+
+---
+
+## Cowork Session 12+ — Phase 2 Architecture Lock (7 May 2026)
+
+### What Happened
+
+Single-session deep architecture lock for the notebook handler app, conducted in eight phases with adversarial probes + multiple-choice ratification at each high-stakes decision point. Completes the "Notebook handler app architecture" item banked in Session 12 §11. Also reframes Phase 2.0 alpha scope.
+
+This session produces the architecture decision corpus now living in `docs/architecture/`. CLAUDE.md remains the project meta-history; `docs/architecture/INDEX.md` is the routing surface for per-decision detail; `docs/architecture/DECISION_LOG.md` is the chronological journal.
+
+### Major Reframes (Supersedes Earlier Where Conflicting)
+
+1. **Data capture first; floor view deferred to 2.1.** Phase 2.0 alpha ships the comprehensive data capture handler app + a minimal data viewer dashboard. Konva floor view, HUD, overlays, hotkeys, and the full interaction model move to 2.1+. Rationale: *"this whole thing relies on excellent data capture, that's the unit."* Without real data flowing in, the floor view is theater. Building data capture first means: when floor view ships, it has accumulated real data to render.
+
+2. **N-PWA monorepo (generalizing Session 12's two-PWA lock).** Each role gets its own role-app (handler, future Inspector, Dispatch, etc.); shared Layer-4 component library + role-specific Layer-5+ screens (middle path). Notebook handler ships first as comprehensive data capture, absorbing all role-data until specialized apps ship. Inspector then Dispatch are the next two role-apps in priority order.
+
+3. **Bifurcated read/write surfaces.** Firestore is the live write/sync layer (real-time + offline-first). Per-topic markdown digests (`docs/topics/*.md`) are the agent-consumable / forensic / portable layer, regenerated hourly by Cloud Function from Firestore. Operationally consumed by Aurelius across sessions, Claude Code, future contractors, and any agent reading repo state.
+
+4. **Notes as structured memory.** Notes are first-class typed records with open `kind` discriminator, agent-readable summary field, append-only `revisions[]`, typed links, status (active/resolved/archived), priority (normal/urgent), and expiry. Pattern derived from Pocock skills convention + Karpathy "context is the program." Generalizes — `topics/jobs/J-1042.md` aggregates not just notes but route history, DFT measurements, current status, all compiled from Firestore. Per-entity wiki page emerges naturally.
+
+5. **Documentation as first-class architecture.** Each architectural decision lives in its own file under `docs/architecture/` with bar / criteria / rationale / acceptance embedded. CLAUDE.md becomes the index pointing to these files. Per user principle: *"Having the principles exactly where they should be is exactly why we have till 10th May."* Files for principles, not buried in code.
+
+### Key Locks (Pointers to Detail)
+
+- **Deploy topology** — Subpath dual-PWA monorepo, generalizing to N-PWA. → [`docs/architecture/DEPLOY_TOPOLOGY.md`](docs/architecture/DEPLOY_TOPOLOGY.md)
+- **Data hierarchy** — Hybrid Firestore (top-level + subcollections); compartments by user-identity + role-app + 24h handler edit window. → [`docs/architecture/DATA_HIERARCHY.md`](docs/architecture/DATA_HIERARCHY.md), [`docs/architecture/STRUCTURED_NOTES.md`](docs/architecture/STRUCTURED_NOTES.md), [`docs/architecture/TOPIC_DIGESTS.md`](docs/architecture/TOPIC_DIGESTS.md)
+- **Auth** — Firebase custom tokens, custom claims (`roles[]`, `is_steward`, `is_admin`); QR-in-person provisioning (supersedes URL-via-WhatsApp). → [`docs/architecture/AUTH_MODEL.md`](docs/architecture/AUTH_MODEL.md), [`docs/architecture/HANDLER_PROVISIONING.md`](docs/architecture/HANDLER_PROVISIONING.md)
+- **Firestore security rules** — Five helpers, default-deny, min-bar validation, hybrid revocation, App Check, staging project + emulator CI. → [`docs/architecture/FIRESTORE_RULES.md`](docs/architecture/FIRESTORE_RULES.md), [`docs/architecture/CLOUD_FUNCTION_HOOKS.md`](docs/architecture/CLOUD_FUNCTION_HOOKS.md)
+- **Conflict resolution** — Online: Firestore transactions; Offline: LWW + audit-log surface; pending-conflicts inbox in dashboard; aggressive event-sourcing. → [`docs/architecture/CONFLICT_RESOLUTION.md`](docs/architecture/CONFLICT_RESOLUTION.md), [`docs/architecture/EVENT_SOURCING.md`](docs/architecture/EVENT_SOURCING.md)
+- **Schema migration** — Full 5-layer machinery as routine + safety nets (TTL backup + daily export + Zod + stale-build rejection + content-hash versioning + 3-stage bulk + DAG ordering). → [`docs/architecture/SCHEMA_MIGRATION.md`](docs/architecture/SCHEMA_MIGRATION.md)
+- **Handler UI** — Three-layer screen hierarchy; Devanagari + icons + audio TTS; 64px touch targets; full pre-fill defenses; Android-only. → [`docs/architecture/HANDLER_UI_SHELL.md`](docs/architecture/HANDLER_UI_SHELL.md), [`docs/architecture/HANDLER_FORMS.md`](docs/architecture/HANDLER_FORMS.md)
+- **Adoption** — 4-week phased rollout with parallel paper run. → [`docs/architecture/ADOPTION_PLAN.md`](docs/architecture/ADOPTION_PLAN.md)
+- **Steward affordances** — Anomaly inbox + edit-with-reason + four-metric KPI weekly card + bulk disposition + quick-correct + steward-exclusive disposition. → [`docs/architecture/STEWARD_AFFORDANCES.md`](docs/architecture/STEWARD_AFFORDANCES.md), [`docs/architecture/ANOMALY_INBOX.md`](docs/architecture/ANOMALY_INBOX.md)
+
+### Adversarial Pattern (New Workflow Convention)
+
+For every load-bearing decision phase, an adversarial reviewer agent was spun up after the initial proposal. Same prompt template each time: stress-test, find what's wrong, severity-tag findings (BLOCKER / HIGH / MEDIUM / LOW / DEFENDABLE), predict the most likely first-month failure mode. Findings then folded into multi-choice ratification questions surfaced to the user.
+
+Across 5 probes (Phases 4, 5, 6, 7, 8): 16 BLOCKERs + ~50 HIGH/MEDIUM findings absorbed; 50+ decisions locked; 23 must-adds documented; 3 deliberate divergences from adversary recommendations. Worth keeping as a pattern for future high-stakes architecture work.
+
+### Session 13 (Claude Code) Refresh
+
+`SESSION_13_KICKOFF.md` rewritten to reflect:
+- Data-capture-first reordering (handler app + minimal data viewer ship in alpha; floor view deferred)
+- Comprehensive handler scope (9 forms covering all role-data)
+- Phase 4-8 locks (security rules, conflict resolution, schema migration, UI shell, steward affordances)
+- Must-add inventory (23 items integrated into stage acceptance criteria)
+- Adversary-driven safety nets (CF idempotency, replay tool, TTL backup, Zod, stale-build rejection, etc.)
+
+Reads `docs/SESSION_HANDLER_ARCH.md` (synthesis) + per-decision files in `docs/architecture/` as needed during Stage F.
+
+### Status
+
+**Phase 2 architecture:** LOCKED across 8 phases.
+**Phase 2.0 alpha (data capture):** Ready for Session 13 implementation.
+**Phase 2.0 floor view:** Reframed to 2.1 (was alpha-required per Session 12 §9).
+**Implementation handoff:** `docs/SESSION_HANDLER_ARCH.md` + refreshed `SESSION_13_KICKOFF.md`.
+**Tooling:** design conversations stay in Cowork; coding moves to Claude Code per workflow rule.
+
+### Banked Items Update
+
+Session 12 §11 banked items, status post-this-session:
+
+| Item | Status |
+|---|---|
+| **Notebook handler app architecture** | ✅ COMPLETED this session — see `docs/architecture/` |
+| **Camera placement & type** | Still banked (post-2.0) |
+| **Quality cert sample review** | Still banked (when 2.1 cert generation begins) |
+| **Letterhead/branding artwork** | Still banked (when supplied) |
+| **Floor plan PNG** | ✅ Present at `docs/floor-plan.png` (duplicate at repo root flagged for cleanup) |
+| **Per-room interior layouts (Barrel Room, Pickling Area 4)** | Still banked; addressed in 2.0.x patches per Session 12 plan |
+| **Workforce complement totals (Barrel + Pickling)** | Still banked; 9 of 20 unallocated |
+
+*Architecture lock documented 7 May 2026 by Aurelius (Cowork Session 12+).*

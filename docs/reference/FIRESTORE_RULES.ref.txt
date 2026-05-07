@@ -1,0 +1,442 @@
+// SEP Dashboard — Firestore Security Rules (deployable)
+// Phase 4 + 6 + 8 locked
+// Authority: docs/architecture/FIRESTORE_RULES.md
+// Schema reference: docs/reference/SCHEMA.md
+// Last updated: 2026-05-07
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== Helper functions =====
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return request.auth.token.is_admin == true;
+    }
+
+    function isSteward() {
+      return request.auth.token.is_steward == true;
+    }
+
+    function hasRole(r) {
+      return r in request.auth.token.roles;
+    }
+
+    function isSelf(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function notRevoked() {
+      return get(/databases/$(database)/documents/workers/$(request.auth.uid))
+               .data.revoked_at == null;
+    }
+
+    function activeTokenMatches() {
+      return request.auth.token.token_id ==
+             get(/databases/$(database)/documents/workers/$(request.auth.uid))
+               .data.active_token_id;
+    }
+
+    function withinEditWindow(createdAt) {
+      return request.time < createdAt + duration.value(24, 'h');
+    }
+
+    function authoredBySelf() {
+      return request.resource.data.author_user_id == request.auth.uid;
+    }
+
+    function timestampIsServerSet() {
+      return request.resource.data.created_at == request.time;
+    }
+
+    function authorAndCreatedAtPinned(beforeData) {
+      return request.resource.data.author_user_id == beforeData.author_user_id
+          && request.resource.data.created_at == beforeData.created_at;
+    }
+
+    function buildSupported() {
+      let minBuild = get(/databases/$(database)/documents/config/min_supported_build).data.value;
+      return request.resource.data.app_version >= minBuild;
+    }
+
+    function listFilteredToOwnAuthor() {
+      // For collection-list queries; enforces author scope
+      return request.query.where == null  // unfiltered list disallowed
+          ? false
+          : request.query.where.size() > 0;
+      // Note: Firestore Rules query.where access is limited; pair with App Check + client discipline
+    }
+
+    function isProductionRoleHolder() {
+      return hasRole('handler') || hasRole('pickler') || hasRole('barrel-operator')
+          || hasRole('plating-operator') || hasRole('combined-operator');
+    }
+
+    function isInspectorRoleHolder() {
+      return hasRole('inspector') || hasRole('handler');
+    }
+
+    function isDispatchRoleHolder() {
+      return hasRole('dispatch') || hasRole('handler');
+    }
+
+    // ===== Validation helpers =====
+
+    function isValidProductionEntry(data) {
+      return data.qty_pcs is number && data.qty_pcs > 0 && data.qty_pcs < 100000
+          || data.qty_kg is number && data.qty_kg > 0 && data.qty_kg < 100000;
+    }
+
+    function isValidDftMeasurement(data) {
+      return data.micron_value is number
+          && data.micron_value > 0
+          && data.micron_value <= 50
+          && data.outcome in ['pass', 'fail-rework'];
+    }
+
+    function isValidNote(data) {
+      return data.summary is string
+          && data.summary.size() <= 120
+          && data.summary.size() > 0
+          && data.status in ['active', 'resolved', 'archived']
+          && data.topic_refs is list
+          && data.topic_refs.size() > 0;
+    }
+
+    function isValidJob(data) {
+      return data.received_kg is number
+          && data.received_kg > 0
+          && data.received_kg < 100000
+          && data.customer_id is string
+          && data.item_id is string
+          && data.client_tier_at_receipt in ['tier-1', 'tier-2', 'default'];
+    }
+
+    function isValidStockReceipt(data) {
+      return data.qty_received is number && data.qty_received > 0
+          && data.unit_cost is number && data.unit_cost > 0
+          && data.cost_unit in ['per_kg', 'per_bag', 'per_liter']
+          && data.supplier_id is string;
+    }
+
+    function isValidStockDepletion(data) {
+      return data.qty_depleted is number && data.qty_depleted > 0
+          && data.reason in ['production_use', 'waste', 'spillage', 'theft', 'other'];
+    }
+
+    // ===== Top-level collections =====
+
+    // -- workers
+    match /workers/{wid} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+                   || (isSteward() && onlyTokenFieldChanged())
+                   || (isSelf(wid) && onlyEvaluationNotesChanged());   // self-edit limited
+      allow delete: if isAdmin();
+    }
+
+    function onlyTokenFieldChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['active_token_id', 'token_reissued_at']);
+    }
+
+    function onlyEvaluationNotesChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['evaluation_notes']);
+    }
+
+    // -- customers
+    match /customers/{cid} {
+      allow read: if isAuthenticated();
+      allow create, update: if (isAdmin() || hasRole('handler'))
+                           && notRevoked() && activeTokenMatches()
+                           && buildSupported();
+      allow delete: if isAdmin();
+    }
+
+    // -- items
+    match /items/{iid} {
+      allow read: if isAuthenticated();
+      allow create, update: if (isAdmin() || hasRole('handler'))
+                           && notRevoked() && activeTokenMatches()
+                           && buildSupported();
+      allow delete: if isAdmin();
+    }
+
+    // -- suppliers (Phase 7 must-add)
+    match /suppliers/{sid} {
+      allow read: if isAuthenticated();
+      allow create, update: if (isAdmin() || hasRole('handler'))
+                           && notRevoked() && activeTokenMatches()
+                           && buildSupported();
+      allow delete: if isAdmin();
+    }
+
+    // -- jobs
+    match /jobs/{jid} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && (hasRole('handler') || isAdmin())
+                   && timestampIsServerSet()
+                   && buildSupported()
+                   && isValidJob(request.resource.data);
+
+      allow update: if isAdmin()
+                   || (hasRole('handler') && notRevoked() && activeTokenMatches()
+                       && withinEditWindow(resource.data.created_at)
+                       && authorAndCreatedAtPinned(resource.data)
+                       && buildSupported()
+                       && isValidJob(request.resource.data));
+
+      allow delete: if isAdmin();
+    }
+
+    // -- production_entries
+    match /production_entries/{pid} {
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated();   // tighten with App Check + UI discipline
+
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && isProductionRoleHolder()
+                   && buildSupported()
+                   && isValidProductionEntry(request.resource.data);
+
+      allow update: if isAdmin()
+                   || (request.auth.uid == resource.data.author_user_id
+                       && notRevoked() && activeTokenMatches()
+                       && authorAndCreatedAtPinned(resource.data)
+                       && withinEditWindow(resource.data.created_at)
+                       && buildSupported()
+                       && isValidProductionEntry(request.resource.data));
+
+      allow delete: if isAdmin();
+    }
+
+    // -- dft_measurements
+    match /dft_measurements/{mid} {
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && isInspectorRoleHolder()
+                   && buildSupported()
+                   && isValidDftMeasurement(request.resource.data);
+
+      allow update: if isAdmin()
+                   || (request.auth.uid == resource.data.author_user_id
+                       && notRevoked() && activeTokenMatches()
+                       && authorAndCreatedAtPinned(resource.data)
+                       && withinEditWindow(resource.data.created_at)
+                       && buildSupported());
+
+      allow delete: if isAdmin();
+    }
+
+    // -- dispatch_events
+    match /dispatch_events/{eid} {
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && isDispatchRoleHolder()
+                   && buildSupported();
+
+      allow update: if isAdmin();    // dispatch is one-shot; no client updates
+      allow delete: if isAdmin();
+    }
+
+    // -- notes (top-level only per Phase 4)
+    match /notes/{nid} {
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && request.resource.data.created_by.uid == request.auth.uid
+                   && timestampIsServerSet()
+                   && buildSupported()
+                   && isValidNote(request.resource.data);
+
+      allow update: if isAdmin() || isSteward()
+                   || (request.auth.uid == resource.data.created_by.uid
+                       && notRevoked() && activeTokenMatches()
+                       && withinEditWindow(resource.data.created_at)
+                       && buildSupported());
+
+      allow delete: if isAdmin();
+    }
+
+    // -- stock_items
+    match /stock_items/{sid} {
+      allow read: if isAuthenticated();
+      allow create, update: if (isAdmin() || hasRole('handler'))
+                           && notRevoked() && activeTokenMatches()
+                           && buildSupported();
+      allow delete: if isAdmin();
+    }
+
+    // -- rooms
+    match /rooms/{rid} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // -- machines
+    match /machines/{mid} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();   // direct updates are admin-only; state changes go via state_transitions
+      allow delete: if isAdmin();
+    }
+
+    // -- perimeter_segments
+    match /perimeter_segments/{psid} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // -- audit_events (server-only writes)
+    match /audit_events/{aid} {
+      allow read: if isAdmin() || isSteward();
+      allow write: if false;       // CF admin SDK bypasses rules
+    }
+
+    // -- topic digests (server-only writes; CF-managed)
+    match /topics/{tid} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // -- _migrations_backup (TTL'd; admin read for restore)
+    match /_migrations_backup/{batchId}/{document=**} {
+      allow read: if isAdmin();
+      allow write: if false;       // CF only
+    }
+
+    // -- _rejected_writes (steward inbox source)
+    match /_rejected_writes/{rid} {
+      allow read: if isAdmin() || isSteward();
+      allow write: if false;       // CF only
+    }
+
+    // -- kpi_snapshots (steward KPI source)
+    match /kpi_snapshots/{sid} {
+      allow read: if isAdmin() || isSteward();
+      allow write: if false;       // CF only
+    }
+
+    // -- config (admin-only)
+    match /config/{configId} {
+      allow read: if isAuthenticated();   // all clients read min_supported_build for early reject
+      allow write: if isAdmin();           // confirm-twice modal in UI
+    }
+
+    // ===== Subcollections =====
+
+    // -- jobs/{jid}/route_history
+    match /jobs/{jid}/route_history/{rid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && (isProductionRoleHolder() || isAdmin())
+                   && buildSupported();
+      allow update, delete: if isAdmin();
+    }
+
+    // -- jobs/{jid}/priority_bump_events (Phase 5 event-sourced)
+    match /jobs/{jid}/priority_bump_events/{eid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && (isAdmin() || isSteward())
+                   && buildSupported();
+      allow update, delete: if isAdmin();
+    }
+
+    // -- machines/{mid}/state_transitions
+    match /machines/{mid}/state_transitions/{tid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && buildSupported();
+      allow update, delete: if isAdmin();
+    }
+
+    // -- machines/{mid}/maintenance_log
+    match /machines/{mid}/maintenance_log/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && buildSupported();
+      allow update, delete: if isAdmin();
+    }
+
+    // -- workers/{wid}/shifts
+    match /workers/{wid}/shifts/{sid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && (isSelf(wid) || hasRole('handler') || isAdmin())
+                   && buildSupported();
+      allow update, delete: if isAdmin();
+    }
+
+    // -- stock_items/{sid}/receipts
+    match /stock_items/{sid}/receipts/{rid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && (hasRole('handler') || isAdmin())
+                   && buildSupported()
+                   && isValidStockReceipt(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    // -- stock_items/{sid}/depletions
+    match /stock_items/{sid}/depletions/{did} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                   && notRevoked() && activeTokenMatches()
+                   && authoredBySelf()
+                   && timestampIsServerSet()
+                   && (hasRole('handler') || isAdmin())
+                   && buildSupported()
+                   && isValidStockDepletion(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    // ===== Default deny =====
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
