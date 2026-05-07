@@ -11,6 +11,7 @@ import { isMonthLocked, requireUnlocked } from '../../shared/storage/lock.js';
 import { monthOf } from '../../shared/utils/month.js';
 import { tnow } from '../../shared/utils/date.js';
 import { esc } from '../../shared/utils/format.js';
+import { da } from '../../shared/utils/dom.js';
 import { renderHome } from './home.js';
 
 export function renderAttendance() {
@@ -54,9 +55,9 @@ export function renderAttendance() {
       const statusBadge = monthLocked
         ? `<span class="badge ${status === 'A' ? 'badge-danger' : (status ? 'badge-attend' : 'badge-perm')}" data-attendance-locked-status>${status === 'A' ? 'Absent' : (status ? 'Present' : '—')}</span>`
         : `<button class="mark-btn present ${status === 'P' || status === 'OT' ? 'active' : ''}"
-                  onclick="markAtt('${w.id}','${w.type}','P')">✓</button>
+                  ${da('markAtt', w.id, w.type, 'P')}>✓</button>
           <button class="mark-btn absent ${status === 'A' ? 'active' : ''}"
-                  onclick="markAtt('${w.id}','${w.type}','A')">✗</button>`;
+                  ${da('markAtt', w.id, w.type, 'A')}>✗</button>`;
 
       return `<div class="worker-row">
         <div class="worker-avatar">${esc(w.name).charAt(0)}</div>

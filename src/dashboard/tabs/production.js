@@ -16,8 +16,10 @@ import { monthOf } from '../../shared/utils/month.js';
 import { isSunday, tnow, getWeekEnd } from '../../shared/utils/date.js';
 import { formatCurrency, sepRound } from '../../shared/utils/currency.js';
 import { esc } from '../../shared/utils/format.js';
+import { da, overlayClose } from '../../shared/utils/dom.js';
 import { initProdDay, getReq, recalcExtra } from '../../shared/utils/calc-prod.js';
 import { renderHome } from './home.js';
+import { markAtt } from './attendance.js';
 
 export function renderProduction() {
   const date = getState().today;
@@ -73,7 +75,7 @@ function renderProdAttendance(date, prod) {
           <span class="badge badge-cw">C: ${cw.length}</span>
         </div>
       </div>
-      ${!prod.confirmed && !monthLocked ? `<button class="btn btn-secondary btn-sm mt-12" onclick="unlockProdAtt()">Unlock to Edit</button>` : ''}
+      ${!prod.confirmed && !monthLocked ? `<button class="btn btn-secondary btn-sm mt-12" ${da('unlockProdAtt')}>Unlock to Edit</button>` : ''}
     `;
     return;
   }
@@ -100,14 +102,14 @@ function renderProdAttendance(date, prod) {
         <div class="worker-name">${esc(w.name)} <span class="badge ${typeCls}">${w.type === 'perm' ? 'P' : 'C'}</span></div>
       </div>
       <div class="worker-status">
-        <button class="mark-btn present ${isPresent ? 'active' : ''}" onclick="markAtt('${w.id}','${w.type}','P');renderProduction()">✓</button>
-        <button class="mark-btn absent ${!isPresent && presentIds.length > 0 ? 'active' : ''}" onclick="markAtt('${w.id}','${w.type}','A');renderProduction()">✗</button>
+        <button class="mark-btn present ${isPresent ? 'active' : ''}" ${da('markAttFromProduction', w.id, w.type, 'P')}>✓</button>
+        <button class="mark-btn absent ${!isPresent && presentIds.length > 0 ? 'active' : ''}" ${da('markAttFromProduction', w.id, w.type, 'A')}>✗</button>
       </div>
     </div>`;
   }).join('');
 
   html += `</div>
-    <button class="btn btn-primary btn-full mt-8" onclick="lockProdAtt()">Lock Attendance (${presentIds.length} present)</button>`;
+    <button class="btn btn-primary btn-full mt-8" ${da('lockProdAtt')}>Lock Attendance (${presentIds.length} present)</button>`;
   el.innerHTML = html;
 }
 
@@ -223,7 +225,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
                 <span class="card-label">${p.label}</span>
                 <span class="card-meta"> ${p.time}</span>
               </div>
-              <button class="btn btn-sm" style="color:var(--text-muted);font-size:var(--fs-2xs)" onclick="togglePeriod('${p.key}',true)">Add OT anyway</button>
+              <button class="btn btn-sm" style="color:var(--text-muted);font-size:var(--fs-2xs)" ${da('togglePeriod', p.key, true)}>Add OT anyway</button>
             </div>
           </div>
         </div>`;
@@ -235,7 +237,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
               <span class="card-label">${p.label}</span>
               <span class="card-meta"> ${p.time}</span>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="togglePeriod('${p.key}',true)">+ Enable</button>
+            <button class="btn btn-secondary btn-sm" ${da('togglePeriod', p.key, true)}>+ Enable</button>
           </div>
         </div>
       </div>`;
@@ -250,7 +252,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
       const statusColor = cap === 0 ? 'text-muted' : assigned.length >= req ? 'text-attend' : 'text-danger';
 
       const capBtns = area.caps.map((c) =>
-        `<button class="nb ${cap === c.l ? 'active' : ''}" onclick="setProdCap2('${p.key}','${area.id}',${c.l})">${c.lb}</button>`,
+        `<button class="nb ${cap === c.l ? 'active' : ''}" ${da('setProdCap2', p.key, area.id, c.l)}>${c.lb}</button>`,
       ).join('');
 
       const workerChips = assigned.map((wid) => {
@@ -266,7 +268,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
         </div>
         <div class="mt-8 chip-row">${capBtns}</div>
         <div class="mt-8 chip-row">${workerChips || '<span class="card-meta">No workers assigned</span>'}</div>
-        ${cap > 0 && !prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-8" onclick="openPicker('${p.key}','${area.id}')">Edit Workers</button>` : ''}
+        ${cap > 0 && !prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-8" ${da('openPicker', p.key, area.id)}>Edit Workers</button>` : ''}
       </div>`;
     });
 
@@ -287,7 +289,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
           <span class="${statusColor} area-count-sm ff-mono">${assigned.length}/${req}</span>
         </div>
         <div class="mt-4 chip-row">${workerChips || '<span class="card-meta">Auto-assigned</span>'}</div>
-        ${!prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-4" onclick="openPicker('${p.key}','${area.id}')">Edit</button>` : ''}
+        ${!prod.confirmed ? `<button class="btn btn-secondary btn-sm mt-4" ${da('openPicker', p.key, area.id)}>Edit</button>` : ''}
       </div>`;
     });
 
@@ -298,7 +300,7 @@ function renderProdPeriods(date, prod, areas, cfg) {
             <span class="section-label-md" style="margin-bottom:0;display:inline">${p.label}</span>
             <span class="card-meta"> ${p.time} (${p.hours}h)</span>
           </div>
-          ${p.isOT ? `<button class="btn btn-sm" style="color:var(--danger)" onclick="togglePeriod('${p.key}',false)">Disable</button>` : ''}
+          ${p.isOT ? `<button class="btn btn-sm" style="color:var(--danger)" ${da('togglePeriod', p.key, false)}>Disable</button>` : ''}
         </div>
         ${areaHtml}
       </div>
@@ -357,8 +359,8 @@ export function showProdConfirm() {
     workerSet.forEach((id) => { otMap[id] = (otMap[id] || 0) + hours; });
   });
 
-  const html = `<div class="confirm-overlay" onclick="cancelConfirm()">
-    <div class="confirm-dialog" onclick="event.stopPropagation()">
+  const html = `<div class="confirm-overlay" ${overlayClose('cancelConfirm')}>
+    <div class="confirm-dialog">
       <div class="confirm-icon">✓</div>
       <div class="confirm-title">Confirm ${present.length} Workers?</div>
       <div class="confirm-desc">Attendance + OT will be written to records. Extra cost: ${formatCurrency(extraCost)}</div>
@@ -368,8 +370,8 @@ export function showProdConfirm() {
       </div>
       ${Object.keys(otMap).length > 0 ? `<div class="card-meta mb-12">OT: ${Object.entries(otMap).map(([id, h]) => `${findWorker(id).name} ${h}h`).join(', ')}</div>` : ''}
       <div class="confirm-btns">
-        <button class="btn btn-secondary" onclick="cancelConfirm()">Cancel</button>
-        <button class="btn btn-attend" onclick="confirmProduction()">Confirm</button>
+        <button class="btn btn-secondary" ${da('cancelConfirm')}>Cancel</button>
+        <button class="btn btn-attend" ${da('confirmProduction')}>Confirm</button>
       </div>
     </div>
   </div>`;
@@ -538,7 +540,7 @@ function renderShiftBanner(date) {
   const shift = cfg.sundayHolidayShift;
   el.innerHTML = `<div class="alert-banner alert-info mb-12">
     📅 ${sunday ? 'Sunday' : 'Holiday'} shift: ${shift.start}–${shift.end} (${shift.hours}h, no lunch)
-    ${!sunday ? `<button class="btn btn-sm" style="margin-left:auto;color:var(--danger)" onclick="toggleHoliday()">Remove</button>` : ''}
+    ${!sunday ? `<button class="btn btn-sm" style="margin-left:auto;color:var(--danger)" ${da('toggleHoliday')}>Remove</button>` : ''}
   </div>`;
 }
 
@@ -571,6 +573,13 @@ export function markAllPresent() {
   if (typeof window.renderTab === 'function') {
     window.renderTab(getState().currentTab);
   }
+}
+
+// Production-tab attendance row mark — toggles attendance, then
+// re-renders production so the lock/unlock state reflects the change.
+export function markAttFromProduction(workerId, type, status) {
+  markAtt(workerId, type, status);
+  renderProduction();
 }
 
 export function addProdNote() {
