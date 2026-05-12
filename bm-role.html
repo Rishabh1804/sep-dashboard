@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>SEP Dashboard — BM Role</title>
+<meta name="theme-color" content="#b45a37">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ff-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ff-display: 'Fraunces', Georgia, serif;
+  --ff-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --bg: #faf9f5;
+  --surface: #fff;
+  --surface-2: #f5f4ed;
+  --surface-3: #f7f6f1;
+  --border: rgba(31,30,29,.12);
+  --border-strong: rgba(31,30,29,.2);
+  --text: #141413;
+  --text-2: #73726c;
+  --text-muted: #706e68;
+  --text-head: #1f1e1d;
+  --ok: #0f6e56;
+  --warn: #854f0b;
+  --bad: #a32d2d;
+  --hi-bg: #FCEBEB;
+  --hi-fg: #791F1F;
+  --md-bg: #FAEEDA;
+  --md-fg: #633806;
+  --lo-bg: #E1F5EE;
+  --lo-fg: #085041;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-xl: 12px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--ff-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.app { max-width: 720px; margin: 0 auto; padding: 16px; }
+.app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.app-title { font-family: var(--ff-display); font-size: 22px; font-weight: 500; color: var(--text-head); letter-spacing: -0.02em; }
+.app-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.app-nav { font-size: 12px; color: var(--text-2); }
+.app-nav a { color: var(--text-2); text-decoration: none; padding: 4px 10px; border: 0.5px solid var(--border); border-radius: var(--r-md); }
+.app-nav a:hover { background: var(--surface-2); }
+
+.hero {
+  background: var(--surface-2);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.hero-label {
+  font-size: 11px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.hero-value-row { display: flex; align-items: baseline; gap: 12px; }
+.hero-value {
+  font-family: var(--ff-display);
+  font-size: 40px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text-head);
+}
+.hero-vs { font-size: 14px; color: var(--text-2); font-family: var(--ff-mono); }
+.hero-bar { margin-top: 16px; height: 8px; background: var(--surface); border-radius: var(--r-md); position: relative; overflow: hidden; }
+.hero-bar-fill { height: 100%; background: var(--ok); border-radius: var(--r-md); transition: width 0.4s; }
+.hero-bar-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-head); opacity: 0.5; }
+.hero-sub { font-size: 13px; color: var(--text-2); margin-top: 12px; }
+.hero-sub strong { color: var(--text); font-family: var(--ff-mono); font-weight: 500; }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (min-width: 600px) { .grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr 1fr; } }
+
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+}
+.card-h {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-head);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-h::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-head);
+}
+.kpi { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; font-size: 13px; }
+.kpi-l { color: var(--text-2); }
+.kpi-v { font-weight: 500; font-family: var(--ff-mono); font-variant-numeric: tabular-nums; }
+.ok { color: var(--ok); }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+
+.items {
+  background: var(--surface-2);
+  border-radius: var(--r-xl);
+  padding: 16px;
+}
+.items-h {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  color: var(--text-head);
+}
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  border-bottom: 0.5px solid var(--border);
+}
+.item:last-child { border-bottom: none; }
+.item-pri {
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  align-self: flex-start;
+}
+.pri-h { background: var(--hi-bg); color: var(--hi-fg); }
+.pri-m { background: var(--md-bg); color: var(--md-fg); }
+.pri-l { background: var(--lo-bg); color: var(--lo-fg); }
+.item strong { color: var(--text-head); font-weight: 600; }
+
+.foot {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 0.5px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="app-header">
+    <div>
+      <div class="app-title">BM Role</div>
+      <div class="app-sub">Period: May 2026 (Q1 FY27 in progress)</div>
+    </div>
+    <div class="app-nav">
+      <a href="index.html">← Dashboard</a>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-label">Bonus trigger — Bank + clean receivables</div>
+    <div class="hero-value-row">
+      <div class="hero-value">₹19.2L</div>
+      <div class="hero-vs">vs ₹15L target</div>
+    </div>
+    <div class="hero-bar">
+      <div class="hero-bar-fill" style="width: 78%"></div>
+      <div class="hero-bar-mark" style="left: 62%" title="Target ₹15L"></div>
+    </div>
+    <div class="hero-sub">
+      Trigger met. Accrued this quarter: <strong>₹42,000</strong> (10% of ₹4.2L excess). Pays Q-end Jul 2026.
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-h">Operations</div>
+      <div class="kpi"><span class="kpi-l">Plant headcount</span><span class="kpi-v">20</span></div>
+      <div class="kpi"><span class="kpi-l">Floor hands avg/day</span><span class="kpi-v">15.4</span></div>
+      <div class="kpi"><span class="kpi-l">OT cost % revenue</span><span class="kpi-v ok">4.0%</span></div>
+      <div class="kpi"><span class="kpi-l">Tara dual-source</span><span class="kpi-v warn">Open</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Commercial</div>
+      <div class="kpi"><span class="kpi-l">FY27 invoiced (M1)</span><span class="kpi-v">₹9.37L</span></div>
+      <div class="kpi"><span class="kpi-l">Top-3 concentration</span><span class="kpi-v warn">68%</span></div>
+      <div class="kpi"><span class="kpi-l">Receivables &gt;90d</span><span class="kpi-v">₹8.1L</span></div>
+      <div class="kpi"><span class="kpi-l">Silent clients</span><span class="kpi-v warn">7</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Finance</div>
+      <div class="kpi"><span class="kpi-l">Bank balance</span><span class="kpi-v">₹1.60L</span></div>
+      <div class="kpi"><span class="kpi-l">Clean receivables</span><span class="kpi-v">₹17.61L</span></div>
+      <div class="kpi"><span class="kpi-l">GST status</span><span class="kpi-v ok">Filed</span></div>
+      <div class="kpi"><span class="kpi-l">Overdue carry-fwd</span><span class="kpi-v ok">₹0</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">People</div>
+      <div class="kpi"><span class="kpi-l">Attendance %</span><span class="kpi-v ok">85%</span></div>
+      <div class="kpi"><span class="kpi-l">Perm retention</span><span class="kpi-v">10/10</span></div>
+      <div class="kpi"><span class="kpi-l">Frameworks current</span><span class="kpi-v warn">5/8</span></div>
+      <div class="kpi"><span class="kpi-l">Chronic absent</span><span class="kpi-v bad">3</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Governance</div>
+      <div class="kpi"><span class="kpi-l">Open HIGH risks</span><span class="kpi-v bad">3</span></div>
+      <div class="kpi"><span class="kpi-l">Open MED risks</span><span class="kpi-v warn">7</span></div>
+      <div class="kpi"><span class="kpi-l">Decisions logged</span><span class="kpi-v ok">3/3</span></div>
+      <div class="kpi"><span class="kpi-l">Codex sessions</span><span class="kpi-v">8</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Q1 FY27 close</div>
+      <div class="kpi"><span class="kpi-l">Days to Jul close</span><span class="kpi-v">~50</span></div>
+      <div class="kpi"><span class="kpi-l">Bonus accrued</span><span class="kpi-v ok">₹42K</span></div>
+      <div class="kpi"><span class="kpi-l">Trigger streak</span><span class="kpi-v">M1</span></div>
+      <div class="kpi"><span class="kpi-l">Partner report due</span><span class="kpi-v">Jul 15</span></div>
+    </div>
+
+  </div>
+
+  <div class="items">
+    <div class="items-h">Open items needing your decision</div>
+    <div class="item">
+      <span class="item-pri pri-h">High</span>
+      <span><strong>Belrise residual ₹2.75L</strong> — recovery letter or write-off? Provisioning recommended.</span>
+    </div>
+    <div class="item">
+      <span class="item-pri pri-h">High</span>
+      <span><strong>Ved Prakash ₹80K cheque</strong> — write-off decision. 6 months stale.</span>
+    </div>
+    <div class="item">
+      <span class="item-pri pri-h">High</span>
+      <span><strong>SEP-FIN-006 cheque-dishonor protocol</strong> — draft → approve → operationalise.</span>
+    </div>
+    <div class="item">
+      <span class="item-pri pri-m">Med</span>
+      <span><strong>Tara Traders Tier-2 supplier</strong> — identify alternate for zinc/electrolyte.</span>
+    </div>
+    <div class="item">
+      <span class="item-pri pri-m">Med</span>
+      <span><strong>MB Auto outreach</strong> — 5 weeks silent, ₹1.25L outstanding.</span>
+    </div>
+    <div class="item">
+      <span class="item-pri pri-m">Med</span>
+      <span><strong>Compliance log</strong> — track GST/TDS filings alongside payments.</span>
+    </div>
+    <div class="item">
+      <span class="item-pri pri-l">Low</span>
+      <span><strong>PWA workflow discipline</strong> — fix 172/256 invoices stuck in dispatched state.</span>
+    </div>
+  </div>
+
+  <div class="foot">
+    Prototype v0.1 — BM role view | All values pulled from codex 11 May 2026 | Static prototype, no live data binding yet
+  </div>
+
+</div>
+
+</body>
+</html>
