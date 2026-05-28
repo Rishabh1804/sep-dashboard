@@ -9,6 +9,7 @@ import { getClients, getRates, getInvCfg, getInvoices, getClientRates, genInvNum
 import { sepRound, formatCurrency } from '../shared/utils/currency.js';
 import { tnow } from '../shared/utils/date.js';
 import { esc } from '../shared/utils/format.js';
+import { da, overlayClose } from '../shared/utils/dom.js';
 
 export function openInvoiceModal() {
   const clients = getClients().filter((c) => !c.inactive);
@@ -19,11 +20,11 @@ export function openInvoiceModal() {
 
   const clientOpts = clients.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
 
-  const html = `<div class="inv-modal-overlay" id="invModalOverlay" onclick="if(event.target===this)closeInvModal()">
+  const html = `<div class="inv-modal-overlay" id="invModalOverlay" ${overlayClose('closeInvModal')}>
     <div class="inv-modal">
       <div class="flex-between mb-16">
         <div class="card-title" style="font-size:var(--fs-lg)">New Invoice</div>
-        <button class="header-btn" onclick="closeInvModal()" style="font-size:var(--fs-lg)">✕</button>
+        <button class="header-btn" ${da('closeInvModal')} style="font-size:var(--fs-lg)">✕</button>
       </div>
 
       <div class="form-group">
@@ -42,7 +43,7 @@ export function openInvoiceModal() {
       <div class="form-group">
         <label>Line Items</label>
         <div id="invFormLines"></div>
-        <button class="btn btn-secondary btn-sm mt-8" onclick="addInvLine()">+ Add Line</button>
+        <button class="btn btn-secondary btn-sm mt-8" ${da('addInvLine')}>+ Add Line</button>
       </div>
 
       <div class="inv-tax-preview" id="invTaxPreview">
@@ -50,8 +51,8 @@ export function openInvoiceModal() {
       </div>
 
       <div class="flex-center gap-8 mt-16">
-        <button class="btn btn-secondary" style="flex:1" onclick="closeInvModal()">Cancel</button>
-        <button class="btn btn-primary" style="flex:2" onclick="submitInvoiceForm()">Create Invoice</button>
+        <button class="btn btn-secondary" style="flex:1" ${da('closeInvModal')}>Cancel</button>
+        <button class="btn btn-primary" style="flex:2" ${da('submitInvoiceForm')}>Create Invoice</button>
       </div>
     </div>
   </div>`;
@@ -111,10 +112,17 @@ export function addInvLine() {
         <option value="pc">pc</option>
       </select>
     </div>
-    ${lineNum > 1 ? `<div class="inv-line-remove" onclick="this.parentElement.remove();recalcInvPreview()">Remove</div>` : ''}
+    ${lineNum > 1 ? `<div class="inv-line-remove" ${da('removeInvLine')}>Remove</div>` : ''}
   </div>`;
 
   container.insertAdjacentHTML('beforeend', lineHtml);
+}
+
+// Invoked from a `data-action="removeInvLine"` button on an invoice
+// line. Dispatcher binds `this` to the clicked element.
+export function removeInvLine() {
+  this.parentElement.remove();
+  recalcInvPreview();
 }
 
 export function onRateSelect(sel) {

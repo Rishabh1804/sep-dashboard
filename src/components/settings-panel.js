@@ -13,6 +13,7 @@ import { esc } from '../shared/utils/format.js';
 import { formatDateShort } from '../shared/utils/date.js';
 import { getState } from '../shared/storage/state.js';
 import { APP_VERSION } from '../shared/config/app.js';
+import { da, overlayClose } from '../shared/utils/dom.js';
 
 export function getStorageUsed() {
   let total = 0;
@@ -58,6 +59,12 @@ export function importData() {
   input.click();
 }
 
+export function resetAllData() {
+  if (!confirm('Reset ALL data? This cannot be undone.')) return;
+  localStorage.clear();
+  location.reload();
+}
+
 export function openSettings() {
   if (document.querySelector('.settings-overlay')) return;
   history.pushState({ popup: 'settings' }, '');
@@ -68,11 +75,11 @@ export function openSettings() {
   const cfg = getCfg();
   const invCfg = getInvCfg();
 
-  const html = `<div class="settings-overlay" onclick="closeSettings()">
-    <div class="settings-panel" onclick="event.stopPropagation()">
+  const html = `<div class="settings-overlay" ${overlayClose('closeSettings')}>
+    <div class="settings-panel">
       <div class="flex-between" style="padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--border)">
         <span class="card-title">Settings</span>
-        <button class="header-btn" onclick="closeSettings()">✕</button>
+        <button class="header-btn" ${da('closeSettings')}>✕</button>
       </div>
       <div class="settings-body">
 
@@ -97,7 +104,7 @@ export function openSettings() {
               <span class="card-meta">₹${w.dailyRate}/day</span>
             </div>`).join('')}
           </div>
-          <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>
+          <button class="btn btn-secondary btn-sm mt-8" ${da('addWorkerPrompt', 'perm')}>+ Add Perm Worker</button>
         </div>
 
         <div class="section-zone">
@@ -105,12 +112,12 @@ export function openSettings() {
           <div class="card-info">
             ${cw.filter((w) => !w.inactive).map((w) => `<div class="settings-row">
               <span class="card-label">${esc(w.name)}</span>
-              <button class="btn btn-sm" style="color:var(--danger)" onclick="toggleWorkerActive('cw','${w.id}')">Deactivate</button>
+              <button class="btn btn-sm" style="color:var(--danger)" ${da('toggleWorkerActive', 'cw', w.id)}>Deactivate</button>
             </div>`).join('')}
             ${cw.filter((w) => w.inactive).length ? `<div class="card-meta mt-8">Inactive: ${cw.filter((w) => w.inactive).map((w) => `${w.name}${w.deactivatedOn ? ' (' + formatDateShort(w.deactivatedOn) + ')' : ''}`).join(', ')}</div>
-            <div class="mt-4">${cw.filter((w) => w.inactive).map((w) => `<button class="btn btn-sm btn-secondary mt-4" onclick="toggleWorkerActive('cw','${w.id}')">Reactivate ${esc(w.name)}</button>`).join(' ')}</div>` : ''}
+            <div class="mt-4">${cw.filter((w) => w.inactive).map((w) => `<button class="btn btn-sm btn-secondary mt-4" ${da('toggleWorkerActive', 'cw', w.id)}>Reactivate ${esc(w.name)}</button>`).join(' ')}</div>` : ''}
           </div>
-          <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('cw')">+ Add CW Worker</button>
+          <button class="btn btn-secondary btn-sm mt-8" ${da('addWorkerPrompt', 'cw')}>+ Add CW Worker</button>
         </div>
 
         <div class="section-zone">
@@ -123,7 +130,7 @@ export function openSettings() {
             <div class="settings-row"><span class="card-label">GST Rate</span><span class="card-meta">${invCfg.gstRate}%</span></div>
             <div class="settings-row"><span class="card-label">Next Invoice #</span><span class="card-meta">${invCfg.seriesPrefix}/.../​${String(invCfg.nextNumber).padStart(4, '0')}</span></div>
           </div>
-          <button class="btn btn-secondary btn-sm mt-8" onclick="editInvConfig()">Edit Invoice Config</button>
+          <button class="btn btn-secondary btn-sm mt-8" ${da('editInvConfig')}>Edit Invoice Config</button>
         </div>
 
         <div class="section-zone">
@@ -135,10 +142,10 @@ export function openSettings() {
             </div>
           </div>
           <div class="flex-center gap-8 mt-8">
-            <button class="btn btn-secondary btn-sm" onclick="exportData()">Export JSON</button>
-            <button class="btn btn-secondary btn-sm" onclick="importData()">Import JSON</button>
+            <button class="btn btn-secondary btn-sm" ${da('exportData')}>Export JSON</button>
+            <button class="btn btn-secondary btn-sm" ${da('importData')}>Import JSON</button>
           </div>
-          <button class="btn btn-danger btn-sm mt-8 btn-full" onclick="if(confirm('Reset ALL data? This cannot be undone.')){localStorage.clear();location.reload();}">Reset All Data</button>
+          <button class="btn btn-danger btn-sm mt-8 btn-full" ${da('resetAllData')}>Reset All Data</button>
         </div>
 
       </div>

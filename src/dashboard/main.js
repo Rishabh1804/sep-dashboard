@@ -1,13 +1,17 @@
 // Dashboard app shell — orchestrates tab routing, swipe nav, init,
-// and exposes the v2.1-compatible function surface on `window` so:
-//   1. Inline onclick="fn()" handlers in JS-emitted templates resolve.
-//   2. Existing Playwright tests calling window.fn() keep passing.
+// and exposes the v2.1-compatible function surface on `window` so
+// existing Playwright tests calling window.fn() keep passing.
+//
+// Templates emit `data-action="fn"` (+ optional JSON `data-args`); a
+// single document-level click handler dispatches to window[fn]. Overlay
+// scrim clicks use `data-overlay-close="fn"` and fire only when the
+// click target IS the overlay element itself, replacing the v2.1
+// `event.stopPropagation()` pattern on inner panels.
 //
 // Per Phase 2 audit, the architectural goal of the layer rule is met
 // by the import graph (every module imports only from below); the
 // `window.*` surface is a presentation-layer concern, not a layer
-// violation. Future cleanup: replace template onclicks with delegated
-// data-action handlers.
+// violation.
 
 import { saveJSON } from '../shared/storage/storage.js';
 import { K } from '../shared/storage/keys.js';
@@ -27,11 +31,12 @@ import { openPicker, togglePickerWorker, closePicker } from '../components/worke
 import {
   openSettings, closeSettings, addWorkerPrompt, toggleWorkerActive,
   getStorageUsed, exportData, importData, initSettingsBackHandler,
+  resetAllData,
 } from '../components/settings-panel.js';
 import { printCWPay, printPermPay } from '../components/print-pay.js';
 import {
   openInvoiceModal, closeInvModal, onInvClientChange, addInvLine,
-  onRateSelect, recalcInvPreview, submitInvoiceForm,
+  onRateSelect, recalcInvPreview, submitInvoiceForm, removeInvLine,
 } from '../components/invoice-form.js';
 import { viewInvoice, closeInvDetail, markInvPaid, markInvPartial } from '../components/invoice-detail.js';
 
@@ -40,7 +45,7 @@ import { renderAttendance, markAtt, initAttendanceFilter } from './tabs/attendan
 import {
   renderProduction, lockProdAtt, unlockProdAtt, togglePeriod, setProdCap2,
   showProdConfirm, cancelConfirm, confirmProduction, logProdEntry,
-  toggleHoliday, markAllPresent, addProdNote,
+  toggleHoliday, markAllPresent, addProdNote, markAttFromProduction,
 } from './tabs/production.js';
 import {
   renderFinance, recordCWAdvance, markCWPaid, recordAdvance, markPermPaid,
@@ -119,22 +124,33 @@ function initData() {
   if (!localStorage.getItem(K.invCfg))    saveJSON(K.invCfg, DEF_INV_CFG);
 }
 
-// --- Data-action delegation (static markup) ---
+// --- Data-action delegation ---
 //
-// Static HTML markup uses data-action for header, FAB, and Confirm
-// buttons. Template-emitted onclicks still target window.* functions
-// (audit-deferred). The delegated dispatcher reads `data-action` and
-// calls the registered window function with no args — buttons that
-// need args use the inline-onclick path.
+// Single document-level click dispatcher for both static markup and
+// template-emitted buttons. Reads `data-action="fn"` on the closest
+// ancestor and calls `window[fn](...args)`. Args are optional and
+// JSON-encoded in `data-args`. The clicked element is bound as `this`
+// so functions like `removeInvLine` can use `this.parentElement`.
+//
+// Overlay scrims use `data-overlay-close="fn"` and fire only when the
+// click target IS the overlay (not a descendant), replacing the v2.1
+// `onclick="event.stopPropagation()"` pattern on inner panels.
 function initDataActionDelegation() {
   document.addEventListener('click', (e) => {
-    const el = e.target.closest('[data-action]');
-    if (!el) return;
-    const action = el.dataset.action;
-    const fn = window[action];
-    if (typeof fn === 'function') {
-      e.preventDefault();
-      fn();
+    const actionEl = e.target.closest('[data-action]');
+    if (actionEl) {
+      const fn = window[actionEl.dataset.action];
+      if (typeof fn === 'function') {
+        e.preventDefault();
+        const args = actionEl.dataset.args ? JSON.parse(actionEl.dataset.args) : [];
+        fn.apply(actionEl, args);
+        return;
+      }
+    }
+    const overlayClose = e.target.dataset?.overlayClose;
+    if (overlayClose) {
+      const fn = window[overlayClose];
+      if (typeof fn === 'function') fn();
     }
   });
 }
@@ -157,12 +173,12 @@ function exposeWindowSurface() {
     openPicker, togglePickerWorker, closePicker,
     // Settings + data
     openSettings, closeSettings, addWorkerPrompt, toggleWorkerActive,
-    getStorageUsed, exportData, importData,
+    getStorageUsed, exportData, importData, resetAllData,
     // Print
     printCWPay, printPermPay,
     // Invoice form
     openInvoiceModal, closeInvModal, onInvClientChange, addInvLine,
-    onRateSelect, recalcInvPreview, submitInvoiceForm,
+    onRateSelect, recalcInvPreview, submitInvoiceForm, removeInvLine,
     // Invoice detail
     viewInvoice, closeInvDetail, markInvPaid, markInvPartial,
     // Tab renders (callable from FAB / cross-tab refresh)
@@ -172,7 +188,7 @@ function exposeWindowSurface() {
     markAtt,
     lockProdAtt, unlockProdAtt, togglePeriod, setProdCap2,
     showProdConfirm, cancelConfirm, confirmProduction, logProdEntry,
-    toggleHoliday, markAllPresent, addProdNote,
+    toggleHoliday, markAllPresent, addProdNote, markAttFromProduction,
     // Finance
     recordCWAdvance, markCWPaid, recordAdvance, markPermPaid,
     lockMonth, unlockMonth,

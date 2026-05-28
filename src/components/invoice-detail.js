@@ -7,6 +7,7 @@ import { formatCurrency } from '../shared/utils/currency.js';
 import { formatDate, formatDateShort } from '../shared/utils/date.js';
 import { getState } from '../shared/storage/state.js';
 import { esc } from '../shared/utils/format.js';
+import { da, overlayClose } from '../shared/utils/dom.js';
 
 export function viewInvoice(invId) {
   const invoices = getInvoices();
@@ -28,11 +29,11 @@ export function viewInvoice(invId) {
   const payClass = inv.payStatus === 'paid' ? 'badge-attend' : inv.payStatus === 'partial' ? 'badge-warning' : 'badge-absent';
   const payLabel = inv.payStatus === 'paid' ? 'Paid' : inv.payStatus === 'partial' ? 'Partial' : 'Unpaid';
 
-  const html = `<div class="settings-overlay" onclick="closeInvDetail()">
-    <div class="settings-panel" onclick="event.stopPropagation()">
+  const html = `<div class="settings-overlay" ${overlayClose('closeInvDetail')}>
+    <div class="settings-panel">
       <div class="flex-between" style="padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--border)">
         <span class="card-title">Invoice Detail</span>
-        <button class="header-btn" onclick="closeInvDetail()">✕</button>
+        <button class="header-btn" ${da('closeInvDetail')}>✕</button>
       </div>
       <div class="settings-body">
         <div class="section-zone">
@@ -70,8 +71,8 @@ export function viewInvoice(invId) {
           <div class="flex-between">
             <span class="badge ${payClass}">${payLabel}</span>
             ${inv.payStatus !== 'paid' ? `<div class="flex-center gap-4">
-              <button class="btn btn-secondary btn-sm" onclick="markInvPartial('${inv.id}')">Partial</button>
-              <button class="btn btn-attend btn-sm" onclick="markInvPaid('${inv.id}')">Mark Paid</button>
+              <button class="btn btn-secondary btn-sm" ${da('markInvPartial', inv.id)}>Partial</button>
+              <button class="btn btn-attend btn-sm" ${da('markInvPaid', inv.id)}>Mark Paid</button>
             </div>` : `<span class="card-meta">Paid on ${inv.payDate || '—'}</span>`}
           </div>
         </div>
