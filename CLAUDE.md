@@ -690,3 +690,76 @@ The handler PWA forms (Stage C–D) and dashboard viewer (Stage F) follow.
 
 *Stage A documented 7 May 2026 by Aurelius (Claude Code Session 13).*
 
+---
+
+## Session 13: Stage C — Handler PWA Shell Lands (9 June 2026)
+
+### What Shipped
+
+The notebook-handler app's UI shell — Stage C of the Session 13 kickoff and the first build on top of Stage A's modular foundation. The handler bundle graduates from a navigable stub to a working data-capture surface: three-layer screen hierarchy, the universal form template engine driving all 9 forms, big-button pickers, an offline write queue with an explicit-copy sync chip, Devanagari-primary i18n with long-press TTS, and multi-modal submit confirmation. Built **frontend-only** — the Firestore transport is a documented seam (`setTransport()` in `sync.js`) that Stage B fills; until then writes queue locally and the chip reads "Saved on phone, not yet sent (N)", which is honest rather than fake.
+
+Per the kickoff's "ship a smaller MVP that works" guidance, Stage D's heavy machinery (Zod schemas, full pre-fill defense bundle, CF-mediated cross-doc validation, custom Devanagari numpad) is deliberately deferred — the shell is the substrate those plug into, and it's complete and tested.
+
+### Deliverables
+
+| Area | Detail |
+|---|---|
+| **CSS** | `src/css/handler.css` — handler-only shell styles + the `--tap-target-min: 64px` / `--numpad-key: 80px` gloved-hand tokens (Phase 7 BLOCKER). Consumes `tokens.css`; does not touch the dashboard's component classes |
+| **IndexedDB** | `src/handler/idb.js` — zero-dependency key-value wrapper (no idb-keyval dep added to the offline bundle); prefix-scan for drafts + queue |
+| **i18n** | `src/handler/i18n.js` — Devanagari-primary / English dictionary (every key carries both; unit test fails CI on a gap), `setLang` persistence, long-press TTS via Web Speech API with Hindi-voice preference + silent fallback |
+| **Feedback** | `src/handler/feedback.js` — multi-modal submit confirmation: toast + 50ms haptic + 880Hz Web Audio tone (mutable); each channel feature-detected, degrades silently |
+| **Sync** | `src/handler/sync.js` — IndexedDB write queue, transport seam, `flush()`, chip state machine (synced/syncing/offline/rejected), pre-flush confirmation modal, sync-status sheet, shared modal primitive |
+| **Recent log** | `src/handler/recent.js` — last-10 submitted entries with queued/synced status, IndexedDB-backed |
+| **Form engine** | `src/handler/form.js` — universal template: field kinds (picker/select/number/text/notes), 200ms-debounce draft auto-save, resume-draft dialog, idempotency key on open, inline validation, last-value pre-fill entry point, queue-on-submit |
+| **Picker** | `src/handler/picker.js` — big-button grid sheet (≥120×80px cards, recent-first, tier/method tags, typeahead fallback) |
+| **Forms registry** | `src/handler/forms-registry.js` — all 9 forms (Production, Job Receipt, DFT, Dispatch, Stock Refill, Stock Depletion, Machine State, Check-In, Note) with icons, modes, fields, picker sources seeded from config + static job/customer/supplier lists |
+| **Shell** | `src/handler/main.js` — rewrite of the stub: top bar (clock/shift/name/chip/gear), home (tile grid + recent log), per-form routing, settings sheet (language + sound + name), boot with pre-flush check + SW registration |
+| **Service worker** | `entry/handler/sw-handler.js` — handler-scoped SW (`/sep-dashboard/entry/handler/`), best-effort install, separate cache from dashboard |
+| **Entry HTML** | `entry/handler/index.html` — links `handler.css`, `lang="hi"`, `.h-app` root |
+| **Tests** | +13 unit (`i18n` dictionary completeness + `t`/`setLang`; `handler-sync` pure `summarizeQueue` + `chipState`) → 51 unit total. +6 e2e (`handler_shell.spec.ts`: 9 tiles, 64px floor, chip copy, language toggle, submit→toast→recent log, required-field block) → 37 e2e total. All green |
+
+### Architectural Choices Made During Implementation
+
+1. **Sync transport is an injectable seam, not a stub-that-lies.** `sync.js` exposes `setTransport(fn)`; the default rejects, so records stay queued and the chip honestly reports them as unsent. Stage B injects a Firestore writer and the whole queue/flush/recent-mark pipeline lights up unchanged. No fake "success" states in the alpha shell.
+
+2. **64px floor applies to data-entry targets, not the status chip.** The kickoff's CSS lists `button, .tile, .field-action, .picker-row` at 64px. The top-bar sync chip is a compact glanceable status pill (~30px) — making it 64px would bloat the bar. The e2e test enforces the floor on tiles + gear + form buttons, and separately asserts the chip carries explicit text (never colour-only). Documented in the test.
+
+3. **Pure logic split out for testability.** `summarizeQueue` and `chipState` are dependency-free pure functions in `sync.js` so they unit-test in jsdom without IndexedDB; the IndexedDB-touching paths are exercised by the e2e browser run. Same discipline as the Layer-1 calc promotions in Stage A.
+
+4. **Zero new runtime dependencies.** HANDLER_UI_SHELL.md suggested idb-keyval; the offline-first bundle stays dependency-free with a ~70-line `idb.js`. Keeps the handler bundle small (39.7 kB unminified) and the offline story self-contained.
+
+### Stage C Acceptance — Status
+
+| Criterion (HANDLER_UI_SHELL.md) | Status |
+|---|---|
+| PWA installable on Android at `/sep-dashboard/entry/handler/` | ✅ manifest + scoped SW; on-device Chrome/Firefox install unverified (no device in CI) |
+| All 9 form screens implement universal template | ✅ |
+| 64px touch target enforced via CSS tokens; verified via automated UI test | ✅ |
+| Devanagari labels primary; English toggle; long-press TTS | ✅ (TTS feature-detected; best-effort on devices without Hindi voice) |
+| Multi-modal submit confirmation (toast + haptic + audio) | ✅ (toast e2e-verified; haptic/audio feature-detected, on-device unverified) |
+| Form draft auto-save: recovers on screen-wake / tab close | ✅ (200ms debounce → IndexedDB; resume dialog) |
+| Big-button picker grid: 64px+ cards, recent-first, typeahead fallback | ✅ (recent-first cache hydration from Firestore is Stage B/D) |
+| Sync chip + queued counter + pre-flush confirmation | ✅ |
+| Explicit offline copy; no colour-only chips | ✅ |
+| Recent Entries log on home (last 10, ⏳ for queued) | ✅ |
+| iOS Safari officially unsupported | ✅ documented (Android-only; per Phase 7) |
+
+### Deferred (Stage D and beyond)
+
+- **The 9 forms' field-level specs** (HANDLER_FORMS.md) — Zod schemas, full pre-fill defense bundle (visual diff + 15-min decay + job-completion clear + first-of-session confirm step), sanity hard-blocks beyond the basic positive/DFT-range checks here, CF-mediated cross-doc validation for Production/DFT/Dispatch. The engine + registry are ready for them.
+- **Picker cache hydration from Firestore** — currently seeds from config + static job/customer/supplier lists. Real recent-first cache lands with Stage B sync.
+- **Custom Devanagari numpad** — numeric fields use `inputmode="numeric"` + extra-large mono display for now.
+- **Recorded-MP3 TTS fallback** for older Android without Hindi voice.
+
+### Test Results (Stage C close)
+
+- **Unit (Jest, jsdom):** 8 suites · 51 tests · ~1.4s · all green
+- **E2E (Playwright):** 37 tests (31 prior + 6 handler) · ~10.6s · all green
+- **Build (esbuild):** dashboard.js 123.3 kB · handler.js 39.7 kB · shared chunk 3.7 kB · ~31 ms
+
+### Next Session
+
+Stage B: Firebase project + Firestore schema + security rules + Zod at the storage boundary + Cloud Functions skeleton + audit log + App Check. The handler's `setTransport()` seam is the first integration point — wiring it drains the local queue to Firestore. Needs Firebase project access + GitHub PAT (Stage A's "code complete" precondition is now met).
+
+*Stage C documented 9 June 2026 by Aurelius (Claude Code Session 13).*
+

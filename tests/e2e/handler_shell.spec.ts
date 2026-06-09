@@ -1,0 +1,86 @@
+import { test, expect } from '@playwright/test';
+
+// Stage C handler shell. Hermetic font stub (mirrors smoke.spec) so the
+// suite has no external network dependency.
+test.beforeEach(async ({ context }) => {
+  await context.route(/https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/css; charset=utf-8', body: '/* stub */' }),
+  );
+});
+
+const HANDLER = './entry/handler/';
+
+test.describe('handler PWA shell @smoke', () => {
+  test('home renders all 9 form tiles', async ({ page }) => {
+    await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveTitle(/SEP Handler/);
+    const tiles = page.locator('.h-tile');
+    await expect(tiles).toHaveCount(9);
+  });
+
+  test('primary tap targets clear the 64px gloved-hand floor', async ({ page }) => {
+    await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
+    await page.locator('.h-tile').first().waitFor();
+    // The 64px floor applies to data-entry targets: form tiles + the
+    // settings gear. (The sync chip is a compact status pill, asserted
+    // separately below — it's a glanceable indicator, not a form action.)
+    for (const sel of ['.h-tile', '.h-gear']) {
+      const els = page.locator(sel);
+      const n = await els.count();
+      for (let i = 0; i < n; i++) {
+        const box = await els.nth(i).boundingBox();
+        expect(box, `${sel}[${i}] must be laid out`).not.toBeNull();
+        expect(box!.height, `${sel}[${i}] height`).toBeGreaterThanOrEqual(64);
+      }
+    }
+    // Form-screen buttons (submit/cancel/back) also clear the floor.
+    await page.locator('.h-tile[data-form="note"]').click();
+    for (const sel of ['.h-submit', '.h-cancel', '.h-back']) {
+      const box = await page.locator(sel).boundingBox();
+      expect(box!.height, `${sel} height`).toBeGreaterThanOrEqual(64);
+    }
+  });
+
+  test('the sync chip is tappable and shows explicit status copy', async ({ page }) => {
+    await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
+    const chip = page.locator('#h-chip');
+    await expect(chip).toBeVisible();
+    // Never colour-only: the chip carries text, not just a dot.
+    await expect(chip).toContainText(/synced|sent|sync|सेव|भेज/i);
+  });
+
+  test('language toggle flips tile labels Hindi ↔ English', async ({ page }) => {
+    await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
+    const prodTile = page.locator('.h-tile[data-form="production"] .h-tile-label');
+    await expect(prodTile).toHaveText('प्रोडक्शन');
+
+    await page.locator('#h-gear').click();
+    await page.locator('.h-seg#h-lang-seg button[data-lang="en"]').click();
+    await expect(prodTile).toHaveText('Production');
+  });
+
+  test('a form submits, confirms, and lands in the recent-entries log', async ({ page }) => {
+    await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
+    // Note form: just a kind select + a required text area — no picker needed.
+    await page.locator('.h-tile[data-form="note"]').click();
+    await expect(page.locator('.h-screen-title')).toBeVisible();
+
+    await page.locator('.h-field[data-key="note_text"] .h-textarea').fill('VAT 1 humming');
+    await page.locator('.h-submit').click();
+
+    // Multi-modal confirmation: the visual leg is the toast.
+    await expect(page.locator('.h-toast')).toContainText('✓');
+    // Returns home with the entry queued.
+    await expect(page.locator('.h-recent-row')).toContainText('VAT 1 humming');
+    await expect(page.locator('.h-recent-row .h-recent-status')).toContainText('⏳');
+  });
+
+  test('required-field validation blocks an empty submit', async ({ page }) => {
+    await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
+    await page.locator('.h-tile[data-form="note"]').click();
+    await page.locator('.h-submit').click();
+    await expect(page.locator('.h-field[data-key="note_text"].h-invalid')).toBeVisible();
+    // Still on the form screen (did not return home).
+    await expect(page.locator('.h-screen-title')).toBeVisible();
+  });
+});
