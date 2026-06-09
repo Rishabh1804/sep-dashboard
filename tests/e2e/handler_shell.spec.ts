@@ -71,8 +71,11 @@ test.describe('handler PWA shell @smoke', () => {
     // Multi-modal confirmation: the visual leg is the toast.
     await expect(page.locator('.h-toast')).toContainText('✓');
     // Returns home with the entry queued.
-    await expect(page.locator('.h-recent-row')).toContainText('VAT 1 humming');
-    await expect(page.locator('.h-recent-row .h-recent-status')).toContainText('⏳');
+    const row = page.locator('.h-recent-row');
+    await expect(row).toContainText('VAT 1 humming');
+    await expect(row).toContainText('नोट'); // form-type label resolves (regression: was "undefined")
+    await expect(row).not.toContainText('undefined');
+    await expect(row.locator('.h-recent-status')).toContainText('⏳');
   });
 
   test('required-field validation blocks an empty submit', async ({ page }) => {

@@ -36,7 +36,7 @@ function debounce(fn, ms) {
 export async function renderForm(host, def, ctx = {}) {
   const idempotencyKey = uuid();
   const state = { __idem: idempotencyKey };
-  const lastVals = (idbAvailable() ? await idbGet(LASTVALS_PREFIX + def.type).catch(() => null) : null) || {};
+  const lastVals = (idbAvailable() ? await idbGet(LASTVALS_PREFIX + def.id).catch(() => null) : null) || {};
 
   host.innerHTML = `
     <div class="h-form-head">
@@ -55,7 +55,7 @@ export async function renderForm(host, def, ctx = {}) {
 
   const fieldsEl = host.querySelector('.h-fields');
   host.querySelector('.h-back').addEventListener('click', () => ctx.onBack?.());
-  host.querySelector('.h-cancel').addEventListener('click', () => { clearDraft(def.type); ctx.onBack?.(); });
+  host.querySelector('.h-cancel').addEventListener('click', () => { clearDraft(def.id); ctx.onBack?.(); });
 
   const fieldApi = {}; // key -> { setValue, getEl }
 
@@ -135,7 +135,7 @@ export async function renderForm(host, def, ctx = {}) {
 
   // --- Draft auto-save (defends against acid-splash screen-wake loss) ---
   const scheduleDraft = debounce(() => {
-    if (idbAvailable()) idbSet(DRAFT_PREFIX + def.type, { ...state }).catch(() => {});
+    if (idbAvailable()) idbSet(DRAFT_PREFIX + def.id, { ...state }).catch(() => {});
   }, 200);
 
   await maybeResumeDraft(def, state, fieldApi);
@@ -150,13 +150,13 @@ export async function renderForm(host, def, ctx = {}) {
     await enqueueWrite(record);
     await rememberLastVals(def, state);
     await pushRecent({
-      type: def.type,
+      type: def.id,
       idempotencyKey,
       summary: summarize(def, state),
       ts: record.ts,
       status: 'queued',
     });
-    clearDraft(def.type);
+    clearDraft(def.id);
     confirmSaved();
     ctx.afterSubmit?.(record);
   });
@@ -201,7 +201,7 @@ function buildRecord(def, state, idempotencyKey) {
       if (state[`${f.key}__label`]) fields[`${f.key}__label`] = state[`${f.key}__label`];
     }
   }
-  return { type: def.type, idempotencyKey, ts: Date.now(), fields };
+  return { type: def.id, idempotencyKey, ts: Date.now(), fields };
 }
 
 function summarize(def, state) {
@@ -219,14 +219,14 @@ async function rememberLastVals(def, state) {
   for (const f of def.fields) {
     if (f.remember && state[f.key] != null && state[f.key] !== '') keep[f.key] = state[f.key];
   }
-  await idbSet(LASTVALS_PREFIX + def.type, keep).catch(() => {});
+  await idbSet(LASTVALS_PREFIX + def.id, keep).catch(() => {});
 }
 
 function clearDraft(type) { if (idbAvailable()) idbDel(DRAFT_PREFIX + type).catch(() => {}); }
 
 async function maybeResumeDraft(def, state, fieldApi) {
   if (!idbAvailable()) return;
-  const draft = await idbGet(DRAFT_PREFIX + def.type).catch(() => null);
+  const draft = await idbGet(DRAFT_PREFIX + def.id).catch(() => null);
   if (!draft || !hasContent(def, draft)) return;
   await new Promise((resolve) => {
     showModal({
@@ -237,7 +237,7 @@ async function maybeResumeDraft(def, state, fieldApi) {
           for (const f of def.fields) if (draft[f.key] != null) fieldApi[f.key]?.setValue(draft[f.key]);
           Object.assign(state, draft); close(); resolve();
         } },
-        { label: t('no'), kind: 'ghost', onClick: (close) => { clearDraft(def.type); close(); resolve(); } },
+        { label: t('no'), kind: 'ghost', onClick: (close) => { clearDraft(def.id); close(); resolve(); } },
       ],
     });
   });

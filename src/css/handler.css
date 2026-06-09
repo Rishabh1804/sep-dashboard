@@ -38,7 +38,8 @@ html, body { background: var(--bg); }
   border-bottom: 1px solid var(--border);
   font-size: var(--fs-sm);
 }
-.h-topbar .h-clock { font-family: var(--ff-mono); font-weight: var(--fw-medium); color: var(--text-heading); }
+.h-topbar .h-clock { font-family: var(--ff-mono); font-weight: var(--fw-medium); color: var(--text-heading); white-space: nowrap; flex: none; }
+.h-topbar .h-shift, .h-topbar .h-who { white-space: nowrap; }
 .h-topbar .h-shift,
 .h-topbar .h-who { color: var(--text-secondary); }
 .h-topbar .h-spacer { flex: 1; }

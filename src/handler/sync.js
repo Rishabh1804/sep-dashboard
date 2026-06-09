@@ -20,7 +20,9 @@ let held = false; // user can pause auto-flush from the sync sheet
 
 // --- Transport seam (Stage B swaps this for a Firestore writer) ---
 let transport = async () => { throw new Error('no-transport'); };
-export function setTransport(fn) { transport = fn; }
+let transportReady = false;
+export function setTransport(fn) { transport = fn; transportReady = true; }
+export function isTransportReady() { return transportReady; }
 
 // --- Queue ops ---
 export async function enqueueWrite(record) {
@@ -85,13 +87,20 @@ export function chipState({ pending, online, rejected }) {
   if (rejected > 0) return { state: 'rejected', icon: '🔴', label: t('rejected'), count: rejected };
   if (pending === 0) return { state: 'synced', icon: '✓', label: t('synced'), count: 0 };
   if (online && !held) return { state: 'syncing', icon: '⏳', label: t('syncing'), count: pending };
-  return { state: 'offline', icon: '⚠️', label: t('offline_saved'), count: pending };
+  // Compact label in the chip; the full "Saved on phone, not yet sent"
+  // sentence lives in the sync-status sheet so the top bar stays
+  // single-line on narrow phones.
+  return { state: 'offline', icon: '⚠️', label: t('not_sent'), count: pending };
 }
 
 export async function renderChip(el) {
   if (!el) return;
   const pending = await queueCount();
-  const online = globalThis.navigator?.onLine !== false;
+  // "Can we actually send?" — true network AND a wired transport. Until
+  // Stage B injects the Firestore writer, transportReady is false, so
+  // queued writes honestly read "Not sent" rather than claiming to sync
+  // into a void.
+  const online = (globalThis.navigator?.onLine !== false) && transportReady;
   const s = chipState({ pending, online, rejected: 0 });
   el.dataset.state = s.state;
   el.innerHTML = `<span class="h-dot"></span><span>${s.icon} ${s.label}${s.count ? ` (${s.count})` : ''}</span>`;

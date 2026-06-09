@@ -27,6 +27,7 @@ var DICT = {
   synced: { hi: "\u0938\u092C \u0938\u0947\u0935 \u0939\u094B \u0917\u092F\u093E", en: "All synced" },
   syncing: { hi: "\u092D\u0947\u091C \u0930\u0939\u0947 \u0939\u0948\u0902", en: "Syncing" },
   offline_saved: { hi: "\u092B\u093C\u094B\u0928 \u092E\u0947\u0902 \u0938\u0947\u0935, \u0905\u092D\u0940 \u092D\u0947\u091C\u093E \u0928\u0939\u0940\u0902", en: "Saved on phone, not yet sent" },
+  not_sent: { hi: "\u092D\u0947\u091C\u093E \u0928\u0939\u0940\u0902", en: "Not sent" },
   rejected: { hi: "\u0938\u0930\u094D\u0935\u0930 \u0928\u0947 \u092E\u0928\u093E \u0915\u093F\u092F\u093E", en: "Rejected by server" },
   sync_status: { hi: "\u0938\u093F\u0902\u0915 \u0938\u094D\u0925\u093F\u0924\u093F", en: "Sync status" },
   sync_now: { hi: "\u0905\u092D\u0940 \u092D\u0947\u091C\u0947\u0902", en: "Sync now" },
@@ -308,6 +309,7 @@ var held = false;
 var transport = async () => {
   throw new Error("no-transport");
 };
+var transportReady = false;
 async function enqueueWrite(record) {
   const key = `${QUEUE_PREFIX}${record.ts}:${record.idempotencyKey}`;
   if (idbAvailable()) await idbSet(key, record).catch(() => {
@@ -368,12 +370,12 @@ function chipState({ pending, online, rejected }) {
   if (rejected > 0) return { state: "rejected", icon: "\u{1F534}", label: t("rejected"), count: rejected };
   if (pending === 0) return { state: "synced", icon: "\u2713", label: t("synced"), count: 0 };
   if (online && !held) return { state: "syncing", icon: "\u23F3", label: t("syncing"), count: pending };
-  return { state: "offline", icon: "\u26A0\uFE0F", label: t("offline_saved"), count: pending };
+  return { state: "offline", icon: "\u26A0\uFE0F", label: t("not_sent"), count: pending };
 }
 async function renderChip(el) {
   if (!el) return;
   const pending = await queueCount();
-  const online = globalThis.navigator?.onLine !== false;
+  const online = globalThis.navigator?.onLine !== false && transportReady;
   const s = chipState({ pending, online, rejected: 0 });
   el.dataset.state = s.state;
   el.innerHTML = `<span class="h-dot"></span><span>${s.icon} ${s.label}${s.count ? ` (${s.count})` : ""}</span>`;
@@ -695,7 +697,7 @@ function debounce(fn, ms) {
 async function renderForm(host, def, ctx = {}) {
   const idempotencyKey = uuid();
   const state = { __idem: idempotencyKey };
-  const lastVals = (idbAvailable() ? await idbGet(LASTVALS_PREFIX + def.type).catch(() => null) : null) || {};
+  const lastVals = (idbAvailable() ? await idbGet(LASTVALS_PREFIX + def.id).catch(() => null) : null) || {};
   host.innerHTML = `
     <div class="h-form-head">
       <button class="h-back" aria-label="${t("back")}">\u2190</button>
@@ -713,7 +715,7 @@ async function renderForm(host, def, ctx = {}) {
   const fieldsEl = host.querySelector(".h-fields");
   host.querySelector(".h-back").addEventListener("click", () => ctx.onBack?.());
   host.querySelector(".h-cancel").addEventListener("click", () => {
-    clearDraft(def.type);
+    clearDraft(def.id);
     ctx.onBack?.();
   });
   const fieldApi = {};
@@ -792,7 +794,7 @@ async function renderForm(host, def, ctx = {}) {
     }
   }
   const scheduleDraft = debounce(() => {
-    if (idbAvailable()) idbSet(DRAFT_PREFIX + def.type, { ...state }).catch(() => {
+    if (idbAvailable()) idbSet(DRAFT_PREFIX + def.id, { ...state }).catch(() => {
     });
   }, 200);
   await maybeResumeDraft(def, state, fieldApi);
@@ -808,13 +810,13 @@ async function renderForm(host, def, ctx = {}) {
     await enqueueWrite(record);
     await rememberLastVals(def, state);
     await pushRecent({
-      type: def.type,
+      type: def.id,
       idempotencyKey,
       summary: summarize(def, state),
       ts: record.ts,
       status: "queued"
     });
-    clearDraft(def.type);
+    clearDraft(def.id);
     confirmSaved();
     ctx.afterSubmit?.(record);
   });
@@ -859,7 +861,7 @@ function buildRecord(def, state, idempotencyKey) {
       if (state[`${f.key}__label`]) fields[`${f.key}__label`] = state[`${f.key}__label`];
     }
   }
-  return { type: def.type, idempotencyKey, ts: Date.now(), fields };
+  return { type: def.id, idempotencyKey, ts: Date.now(), fields };
 }
 function summarize(def, state) {
   const parts = [];
@@ -875,7 +877,7 @@ async function rememberLastVals(def, state) {
   for (const f of def.fields) {
     if (f.remember && state[f.key] != null && state[f.key] !== "") keep[f.key] = state[f.key];
   }
-  await idbSet(LASTVALS_PREFIX + def.type, keep).catch(() => {
+  await idbSet(LASTVALS_PREFIX + def.id, keep).catch(() => {
   });
 }
 function clearDraft(type) {
@@ -884,7 +886,7 @@ function clearDraft(type) {
 }
 async function maybeResumeDraft(def, state, fieldApi) {
   if (!idbAvailable()) return;
-  const draft = await idbGet(DRAFT_PREFIX + def.type).catch(() => null);
+  const draft = await idbGet(DRAFT_PREFIX + def.id).catch(() => null);
   if (!draft || !hasContent(def, draft)) return;
   await new Promise((resolve) => {
     showModal({
@@ -898,7 +900,7 @@ async function maybeResumeDraft(def, state, fieldApi) {
           resolve();
         } },
         { label: t("no"), kind: "ghost", onClick: (close) => {
-          clearDraft(def.type);
+          clearDraft(def.id);
           close();
           resolve();
         } }
