@@ -7,6 +7,7 @@
   "scripts": {
     "build": "node esbuild.config.mjs",
     "build:watch": "node esbuild.config.mjs --watch",
+    "build:demo": "node scripts/build-handler-demo.mjs",
     "dev": "node tests/e2e/_serve.mjs",
     "test": "pnpm test:unit && pnpm test:e2e",
     "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
