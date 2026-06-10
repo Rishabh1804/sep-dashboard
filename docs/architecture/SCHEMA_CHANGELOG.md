@@ -101,8 +101,13 @@ n/a (no live data).
 
 - [x] Reference doc updated in `docs/reference/SCHEMA.md`
 - [x] Importer + Jest tests (`tests/unit/invoicing-import.test.js`) against synthetic fixture
-- [ ] Zod schema added in `src/shared/types/` (next Track-1 commit)
+- [x] Zod schema added in `src/shared/types/schemas.js` (`validateImportOutput` / `validateDoc`)
 - [ ] Staging emulator suite (Track 2 — needs live Firebase project)
+
+### Track-2 preconditions (before the real 508-challan import)
+
+- **Challan-number collisions.** `jobId = sep-{challanNo}` assumes challan numbers are unique across the whole export. If sep-invoicing resets numbering per financial year, two challans collapse into one Job on upsert. The importer now surfaces this in `stats.jobIdCollisions` / `collidingJobIds`; the Track-2 import runner MUST abort (or namespace ids by FY) when that count is non-zero — never merge silently.
+- **Unit variants.** `normalizeUnit` folds KG/NOS variants and passes anything else through verbatim, which then fails the Zod `KG|NOS` enum and lands in the `validateImportOutput` failure report. Scan the real export's `unit` values before the seed so nothing surprising fails closed mid-run.
 
 ---
 

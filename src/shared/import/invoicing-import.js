@@ -190,6 +190,15 @@ export function importInvoicingExport(exportJson, opts = {}) {
     for (const l of lines) jobLines.push(l);
   }
 
+  // Challan-collision guard. jobId = `sep-{challanNo}`, so two challans sharing
+  // a number (e.g. if sep-invoicing resets numbering across financial years)
+  // would silently upsert into ONE Job. Surface it in stats so the caller can
+  // abort/branch rather than merge — a Track-2 precondition before the real
+  // 508-challan import runs. jobIdCollisions === 0 is the expected healthy case.
+  const seen = new Set();
+  const collided = new Set();
+  for (const j of jobs) { if (seen.has(j.id)) collided.add(j.id); seen.add(j.id); }
+
   return {
     customers,
     items,
@@ -201,6 +210,8 @@ export function importInvoicingExport(exportJson, opts = {}) {
       jobs: jobs.length,
       jobLines: jobLines.length,
       linesResolvedToItem: jobLines.filter((l) => l.item_id).length,
+      jobIdCollisions: collided.size,
+      collidingJobIds: [...collided],
     },
   };
 }

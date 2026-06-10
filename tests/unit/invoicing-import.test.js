@@ -113,6 +113,27 @@ describe('importInvoicingExport', () => {
   });
 });
 
+describe('challan-collision guard (Track-2 precondition)', () => {
+  const clean = importInvoicingExport(fixture, OPTS);
+  test('clean fixture reports zero collisions', () => {
+    expect(clean.stats.jobIdCollisions).toBe(0);
+    expect(clean.stats.collidingJobIds).toEqual([]);
+  });
+
+  test('duplicate challan numbers are surfaced, not silently merged', () => {
+    const dup = {
+      clients: [], items: [],
+      incomingMaterial: [
+        { id: 'A', challanNo: '2494', clientId: 1, items: [{ id: 'a', partNumber: 'X', unit: 'KG', qty: 1 }] },
+        { id: 'B', challanNo: '2494', clientId: 2, items: [{ id: 'b', partNumber: 'Y', unit: 'KG', qty: 2 }] },
+      ],
+    };
+    const r = importInvoicingExport(dup, OPTS);
+    expect(r.stats.jobIdCollisions).toBe(1);
+    expect(r.stats.collidingJobIds).toEqual([jobId('2494')]);
+  });
+});
+
 describe('toJobWithLines edge: unresolved partNumber', () => {
   test('leaves item_id undefined when no matching item', () => {
     const im = { challanNo: '9', clientId: 1, items: [{ id: 'x', partNumber: 'UNKNOWN', unit: 'KG', qty: 5 }] };

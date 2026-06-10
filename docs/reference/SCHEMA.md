@@ -40,7 +40,7 @@ interface Customer {
   is_informal?: boolean;                           // v2: cash/non-GST customer (Siya, Himani, Ankit)
   notes?: string;                          // free-text legacy; structured notes via /notes/
   health_score?: number;                    // 0-100; derived (Phase 5 event-sourced); Phase 2.1+ rendering
-  sep_invoicing_customer_id?: string;       // FK to sep-invoicing app
+  sep_invoicing_customer_id?: number;       // v2: numeric clientId (1..21) in sep-invoicing (was typed string in v1)
   created_at: Timestamp;
   app_version: string;
   author_user_id: string;
@@ -496,7 +496,8 @@ drop-off. Maps 1:1 to a sep-invoicing `incomingMaterial.items[]` entry.
 ```typescript
 interface JobLine {
   __schema_version: number;
-  id: string;                               // = source IMI id (e.g. "IMI-0001-0") when imported
+  id: string;                               // = '{job_id}__{source IMI id}' on import (e.g. 'sep-2494__IMI-0001-0');
+                                            //   job-prefixed so a source line id reused across challans can't collide
   item_id?: string;                         // FK to items/{iid} (resolved by partNumber)
   part_number: string;                      // raw partNumber as written on the challan
   description?: string;
