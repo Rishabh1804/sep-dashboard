@@ -1,0 +1,48 @@
+{
+  "_comment": "SYNTHETIC fixture mirroring the sep-invoicing backup JSON shape. No real customer/GSTIN data — the public Pages repo must not carry it. Real import runs against the live export in Track 2.",
+  "company": { "name": "SOMA ELECTRO PRODUCTS", "gstin": "20XXXXXXXXXXXX" },
+  "clients": [
+    {
+      "id": 1,
+      "name": "ACME WEIGHTWORKS",
+      "add1": "Plot 1", "add2": "Industrial Area", "add3": "Jamshedpur",
+      "phone": "9000000001", "mobile": "", "email": "",
+      "gstin": "20AAAAA0000A1Z0", "billingMode": "weight", "isActive": true
+    },
+    {
+      "id": 2,
+      "name": "PIECEWISE CLAMPS",
+      "add1": "Shed 7", "add2": "", "add3": "",
+      "phone": "", "mobile": "9000000002", "email": "p@example.com",
+      "gstin": "20BBBBB1111B2Z1", "billingMode": "piece", "isActive": false
+    }
+  ],
+  "items": [
+    { "id": 100, "partNumber": "BRACKET 5069", "desc": "BRACKET 5069", "hsn": "998873", "unit": "KG", "rate": 13, "stdWeightKg": 0.102 },
+    { "id": 101, "partNumber": "188 CD", "desc": "188 CD", "hsn": "998873", "unit": "NOS", "rate": 14.25, "stdWeightKg": 0.098 },
+    { "id": 102, "partNumber": "CLAMP 66X42", "desc": "C-CLAMP 66X42", "hsn": "998873", "unit": "NOS", "rate": 0.95, "stdWeightKg": null }
+  ],
+  "incomingMaterial": [
+    {
+      "id": "IM-0001",
+      "challanNo": "2494",
+      "challanDate": "2026-03-31",
+      "clientId": 1,
+      "items": [
+        { "id": "IMI-0001-0", "partNumber": "BRACKET 5069", "desc": "BRACKET 5069", "unit": "KG", "qty": 20.2, "rate": 13, "amount": 262.6, "invoiced": true, "invoiceId": "INV-900", "nosQty": 198 },
+        { "id": "IMI-0001-1", "partNumber": "188 CD", "desc": "188 CD", "unit": "KG", "qty": 30.0, "rate": 14.25, "amount": 427.5, "invoiced": false, "invoiceId": "", "nosQty": 306 }
+      ],
+      "receivedDate": "2026-03-31"
+    },
+    {
+      "id": "IM-0002",
+      "challanNo": "2495",
+      "challanDate": "2026-04-01",
+      "clientId": 2,
+      "items": [
+        { "id": "IMI-0002-0", "partNumber": "CLAMP 66X42", "desc": "C-CLAMP 66X42", "unit": "NOS", "qty": 1500, "rate": 0.95, "amount": 1425, "invoiced": false, "nosQty": 1500 }
+      ],
+      "receivedDate": "2026-04-01"
+    }
+  ]
+}

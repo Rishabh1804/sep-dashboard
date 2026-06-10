@@ -4,6 +4,9 @@
 !manifest.json
 !package.json
 !public/manifest-handler.json
+# Synthetic test fixtures only — these carry NO real business data (no real
+# customer names / GSTINs). The live sep-invoicing export is never committed.
+!tests/fixtures/*.json
 # pnpm-lock.yaml and playwright.config.ts aren't matched by *.json, but the
 # exceptions below document intent if the ignore set ever broadens.
 !pnpm-lock.yaml
