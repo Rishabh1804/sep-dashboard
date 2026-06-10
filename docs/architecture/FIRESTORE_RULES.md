@@ -225,7 +225,7 @@ match /{document=**} {
 
 ## Acceptance Criteria (the bar)
 
-- [x] Emulator suite passes all tests (`tests/rules/` — 11 cases, run against the Firestore emulator) — staging-project deploy still Track 2
+- [x] Emulator suite passes all tests (`tests/rules/` — 17 cases incl. negative-path revocation / stale-token / author-pinning / edit-window, run against the Firestore emulator) — staging-project deploy still Track 2
 - [x] CI: PRs touching the rules run `firebase emulators:exec --only firestore` via the isolated `firestore-rules` workflow (Java + firebase-tools; separate from the main `test` gate)
 - [ ] Production deploy gated on staging green; rollback plan = previous rules tag
 - [ ] Per-collection unit tests: create/update/delete success + failure cases for each role × auth state combination

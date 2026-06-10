@@ -16,7 +16,7 @@ import {
   initializeTestEnvironment, assertSucceeds, assertFails,
 } from '@firebase/rules-unit-testing';
 import {
-  doc, setDoc, getDoc, serverTimestamp,
+  doc, setDoc, getDoc, updateDoc, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 
 const rulesPath = fileURLToPath(new URL('../../docs/reference/FIRESTORE_RULES.ref.txt', import.meta.url));
@@ -28,6 +28,9 @@ const HANDLER = { roles: ['handler'], token_id: 't-handler', is_admin: false, is
 const INSPECTOR = { roles: ['inspector'], token_id: 't-insp', is_admin: false, is_steward: false };
 const OUTSIDER = { roles: ['viewer'], token_id: 't-out', is_admin: false, is_steward: false };
 const ADMIN = { roles: ['handler'], token_id: 't-admin', is_admin: true, is_steward: false };
+// Compromised actors for the negative-path security tests:
+const REVOKED = { roles: ['handler'], token_id: 't-revoked', is_admin: false, is_steward: false };
+const STALE = { roles: ['handler'], token_id: 't-stale', is_admin: false, is_steward: false };
 
 // A write that satisfies the always-on guards (server timestamp + supported build).
 const stamped = (uid, extra) => ({
@@ -57,9 +60,29 @@ beforeEach(async () => {
         active_token_id: claims.token_id, revoked_at: null, name: uid,
       });
     }
+    // REVOKED worker: revoked_at set → notRevoked() must deny.
+    await setDoc(doc(db, 'workers', `u-${REVOKED.token_id}`), {
+      active_token_id: REVOKED.token_id, revoked_at: Timestamp.fromMillis(Date.now()), name: 'revoked',
+    });
+    // STALE token: worker's active_token_id differs from the token's token_id
+    // → activeTokenMatches() must deny (stolen-phone offline-replay defense).
+    await setDoc(doc(db, 'workers', `u-${STALE.token_id}`), {
+      active_token_id: 't-OLD-rotated-out', revoked_at: null, name: 'stale',
+    });
     await setDoc(doc(db, 'config', 'min_supported_build'), { value: '0' });
   });
 });
+
+// Seed an existing production entry (rules disabled) with a chosen created_at,
+// so update-path rules (pinning + edit window) can be exercised.
+async function seedEntry(id, authorUid, createdAt) {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'production_entries', id), {
+      author_user_id: authorUid, created_at: createdAt, app_version: '999',
+      job_id: 'j1', machine_id: 'vat_a1', qty_pcs: 100, station: 'plating',
+    });
+  });
+}
 
 function ctxFor(claims) {
   return testEnv.authenticatedContext(`u-${claims.token_id}`, claims).firestore();
@@ -136,4 +159,58 @@ test('audit_events are not client-writable (server-only)', async () => {
   const db = ctxFor(ADMIN); // even admin clients cannot write audit_events
   await assertFails(setDoc(doc(db, 'audit_events', 'a1'),
     { entity_type: 'job', action: 'create', recorded_at: serverTimestamp() }));
+});
+
+// ---- negative-path security invariants (the marquee defenses must BLOCK) ----
+
+test('revoked worker cannot write (notRevoked)', async () => {
+  const db = ctxFor(REVOKED);
+  await assertFails(setDoc(doc(db, 'production_entries', 'p-rev'),
+    stamped('u-t-revoked', { job_id: 'j1', machine_id: 'vat_a1', qty_pcs: 150, station: 'plating' })));
+});
+
+test('stale token cannot write (activeTokenMatches — stolen-phone replay)', async () => {
+  const db = ctxFor(STALE);
+  await assertFails(setDoc(doc(db, 'production_entries', 'p-stale'),
+    stamped('u-t-stale', { job_id: 'j1', machine_id: 'vat_a1', qty_pcs: 150, station: 'plating' })));
+});
+
+test('update rewriting author_user_id is rejected (G3 pinning)', async () => {
+  const recent = Timestamp.fromMillis(Date.now());
+  await seedEntry('p-pin', 'u-t-handler', recent);
+  const db = ctxFor(HANDLER);
+  await assertFails(updateDoc(doc(db, 'production_entries', 'p-pin'), {
+    author_user_id: 'u-t-admin', created_at: recent, app_version: '999',
+    job_id: 'j1', machine_id: 'vat_a1', qty_pcs: 200, station: 'plating',
+  }));
+});
+
+test('update rewriting created_at is rejected (G3 pinning, backdate defense)', async () => {
+  const recent = Timestamp.fromMillis(Date.now());
+  await seedEntry('p-pin2', 'u-t-handler', recent);
+  const db = ctxFor(HANDLER);
+  await assertFails(updateDoc(doc(db, 'production_entries', 'p-pin2'), {
+    author_user_id: 'u-t-handler', created_at: Timestamp.fromMillis(Date.now() - 1000), app_version: '999',
+    job_id: 'j1', machine_id: 'vat_a1', qty_pcs: 200, station: 'plating',
+  }));
+});
+
+test('edit past the 24h window is rejected (withinEditWindow)', async () => {
+  const old = Timestamp.fromMillis(Date.now() - 48 * 60 * 60 * 1000); // 48h ago
+  await seedEntry('p-old', 'u-t-handler', old);
+  const db = ctxFor(HANDLER);
+  await assertFails(updateDoc(doc(db, 'production_entries', 'p-old'), {
+    author_user_id: 'u-t-handler', created_at: old, app_version: '999',
+    job_id: 'j1', machine_id: 'vat_a1', qty_pcs: 200, station: 'plating',
+  }));
+});
+
+test('in-window update with pinned author + created_at succeeds (positive contrast)', async () => {
+  const recent = Timestamp.fromMillis(Date.now());
+  await seedEntry('p-ok', 'u-t-handler', recent);
+  const db = ctxFor(HANDLER);
+  await assertSucceeds(updateDoc(doc(db, 'production_entries', 'p-ok'), {
+    author_user_id: 'u-t-handler', created_at: recent, app_version: '999',
+    job_id: 'j1', machine_id: 'vat_a1', qty_pcs: 250, station: 'plating',
+  }));
 });
