@@ -55,6 +55,7 @@ export const DICT = {
 
   // Field labels
   f_job:            { hi: 'जॉब',                   en: 'Job' },
+  f_part:           { hi: 'पार्ट / SKU',           en: 'Part / SKU' },
   f_machine:        { hi: 'मशीन',                  en: 'Machine' },
   f_worker:         { hi: 'कारीगर',                en: 'Worker' },
   f_quantity:       { hi: 'मात्रा',                en: 'Quantity' },
