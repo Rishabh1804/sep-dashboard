@@ -2,7 +2,7 @@
 // Phase 4 + 6 + 8 locked
 // Authority: docs/architecture/FIRESTORE_RULES.md
 // Schema reference: docs/reference/SCHEMA.md
-// Last updated: 2026-05-07
+// Last updated: 2026-06-10 (v2 schema alignment — isValidJob)
 
 rules_version = '2';
 service cloud.firestore {
@@ -108,12 +108,19 @@ service cloud.firestore {
     }
 
     function isValidJob(data) {
-      return data.received_kg is number
-          && data.received_kg > 0
-          && data.received_kg < 100000
-          && data.customer_id is string
-          && data.item_id is string
-          && data.client_tier_at_receipt in ['tier-1', 'tier-2', 'default'];
+      // v2 (2026-06-10): item_id is OPTIONAL — a challan (= Job) carries many
+      // part-lines (jobs/{jid}/job_lines), breaking the v1 one-job-one-item
+      // assumption. A job is valid with a customer, a valid route + status, and
+      // a positive received quantity in EITHER unit — NOS-only challans
+      // legitimately carry received_kg == 0 (qty lives in received_pcs).
+      // client_tier_at_receipt dropped: not a v2 schema field (tier lives on
+      // the customer; the importer never sets it).
+      return data.customer_id is string
+          && data.received_kg is number && data.received_kg >= 0 && data.received_kg < 100000
+          && (data.received_kg > 0
+              || (data.received_pcs is number && data.received_pcs > 0))
+          && data.route in ['standard', 'rework-active', 'rework-completed']
+          && data.current_status in ['in-flight', 'ready', 'dispatched'];
     }
 
     function isValidStockReceipt(data) {

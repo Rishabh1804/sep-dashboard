@@ -1,0 +1,14 @@
+{
+  "name": "sep-firestore-rules-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Firestore security-rules tests against the emulator. SEPARATE package — NOT installed by the root web app, NOT part of the main CI `test` gate (so the existing green build is insulated from these heavy deps). Run by the dedicated `firestore-rules` GitHub Actions workflow via `firebase emulators:exec`.",
+  "scripts": {
+    "test:rules": "node --test"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.3.0"
+  }
+}
