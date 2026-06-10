@@ -93,7 +93,13 @@ interface Job {
   target_pcs?: number;                      // computed
   target_kg?: number;
   quality_tier_override?: 'premium' | 'standard';
-  client_tier_at_receipt: 'tier-1' | 'tier-2' | 'default';   // snapshot
+  client_tier_at_receipt?: 'tier-1' | 'tier-2' | 'default';  // v2: OPTIONAL snapshot. Set when the creating
+                                            //     client knows the customer's tier (handler/dashboard
+                                            //     job receipt); ABSENT on sep-invoicing imports (tier is
+                                            //     not in the billing source) and informal jobs. Snapshot
+                                            //     semantics unchanged where present: tier changes never
+                                            //     retroactively re-prioritize old jobs. Priority overlay
+                                            //     (2.1) must treat absence as 'default', not live-lookup.
   current_priority_bump: number;            // derived (Phase 5 event-sourced from /priority_bump_events)
   current_status: 'in-flight' | 'ready' | 'dispatched';      // derived from /route_history
   current_location: { type: 'machine' | 'staging' | 'gate'; ref: string };  // derived

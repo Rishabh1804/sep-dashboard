@@ -111,4 +111,31 @@ n/a (no live data).
 
 ---
 
+## v2 rules alignment + hardening (no document-shape change)
+
+**Date:** 2026-06-10
+**Author:** Aurelius (Claude Code — PR #17 + code-review findings)
+**Type:** rules-change | validation-tightening
+**Affected collection(s):** rules for `jobs`, `production_entries`, `dft_measurements`; Zod `JobSchema`; importer output hygiene
+**Migration function:** none (validation only; no stored-shape change)
+
+### Rules changes (docs/reference/FIRESTORE_RULES.ref.txt)
+
+1. **`isValidJob` → v2** — `item_id` optional (challan = many `job_lines`); `client_tier_at_receipt` now an OPTIONAL snapshot (SCHEMA.md amended in lockstep — absent on imports/informal jobs; priority overlay treats absence as 'default'); NOS-only jobs valid (`received_kg == 0` with `received_pcs > 0`). Optional fields validated WHEN PRESENT: `received_pcs` typed + capped (< 1,000,000), `item_id` string, tier enum.
+2. **jobs `create` requires `authoredBySelf()`** — author was spoofable on jobs (alone among client-writable event collections).
+3. **`dft_measurements` update re-runs `isValidDftMeasurement`** — the 0–50µm hard block was bypassable via in-window edit.
+4. **`buildSupported()` numeric** — `config/min_supported_build.value` is now a NUMBER and `app_version` is parsed with `int()`. The old string `>=` was lexicographic ('99' >= '100'), silently defeating stale-build rejection at multi-digit boundaries. Clients MUST stamp `app_version` as a numeric build counter (string form OK); non-numeric → denied (fail closed).
+5. **`isValidProductionEntry` hardened** — `job_id`/`machine_id`/`worker_id` strings + station enum required (worker attribution per the domain model, matching the CF validator in `cross-doc.js`); each quantity validated when present; at least one of pcs/kg > 0.
+
+### Rules-vs-data skew window
+
+No stored docs yet (pre-deploy), so no skew on data. Cross-encoding skew CLOSED this change: Zod `JobSchema` now mirrors the rules (caps + at-least-one-positive refine + optional tier enum), and an importer-parity emulator test writes the synthetic-fixture import output through the jobs create rule. The importer also now strips explicit `undefined` values (Firestore setDoc rejects them).
+
+### Track-2 preconditions (additive to the v2 entry's list)
+
+- **Import path MUST use the Admin SDK** (bypasses rules): importer docs carry ISO-string `created_at` (fails `timestampIsServerSet`) and author `system:import` (no `workers/{uid}` doc → `notRevoked()` denies). The client-SDK path is for handler/dashboard live writes only.
+- **`app_version` stamping** must move to numeric build counters before any client write path goes live (see rules change 4).
+
+---
+
 *Initialized 7 May 2026 by Aurelius. Append-only — every schema change adds an entry below.*

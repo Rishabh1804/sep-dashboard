@@ -58,6 +58,21 @@ function joinAddress(c) {
   return [c.add1, c.add2, c.add3].map((s) => (s || '').trim()).filter(Boolean).join(', ');
 }
 
+// Firestore setDoc throws outright on explicit `undefined` field values
+// ("Unsupported field value: undefined"), in both the web and Admin SDKs
+// (unless ignoreUndefinedProperties is set, which we don't rely on). Emitted
+// docs must therefore OMIT absent fields, not carry undefined. Deep over
+// plain objects (contact_info); null is preserved (it's meaningful: e.g.
+// wpp_grams null = uncalibrated).
+export function stripUndefined(obj) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    out[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? stripUndefined(v) : v;
+  }
+  return out;
+}
+
 // --- entity transforms ---
 
 export function toCustomer(client, stamp) {
@@ -175,8 +190,8 @@ export function importInvoicingExport(exportJson, opts = {}) {
   const srcItems = exportJson.items || [];
   const incoming = exportJson.incomingMaterial || [];
 
-  const customers = clients.map((c) => toCustomer(c, stamp));
-  const items = srcItems.map((it) => toItem(it, stamp));
+  const customers = clients.map((c) => stripUndefined(toCustomer(c, stamp)));
+  const items = srcItems.map((it) => stripUndefined(toItem(it, stamp)));
 
   // partNumber → item doc, for line resolution. Last write wins on dupes.
   const itemsByPart = new Map();
@@ -186,8 +201,8 @@ export function importInvoicingExport(exportJson, opts = {}) {
   const jobLines = [];
   for (const im of incoming) {
     const { job, lines } = toJobWithLines(im, itemsByPart, stamp);
-    jobs.push(job);
-    for (const l of lines) jobLines.push(l);
+    jobs.push(stripUndefined(job));
+    for (const l of lines) jobLines.push(stripUndefined(l));
   }
 
   // Challan-collision guard. jobId = `sep-{challanNo}`, so two challans sharing

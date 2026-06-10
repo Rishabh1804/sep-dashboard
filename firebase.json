@@ -1,0 +1,10 @@
+{
+  "firestore": {
+    "rules": "docs/reference/FIRESTORE_RULES.ref.txt"
+  },
+  "emulators": {
+    "firestore": { "port": 8080 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  }
+}

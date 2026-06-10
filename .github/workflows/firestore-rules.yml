@@ -1,0 +1,85 @@
+# Firestore security-rules CI — ISOLATED from the main `test` gate.
+#
+# This is a separate workflow (separate job, separate deps) so it can never
+# break the existing green build. It needs a JVM (the Firestore emulator is a
+# Java process) + firebase-tools, which the main CI deliberately does not carry.
+# The rule-test harness lives in tests/rules/ as its own npm package and is
+# NOT installed by the root pnpm workspace.
+#
+# Path-filtered: only runs when the rules file, emulator config, the harness,
+# or this workflow change — no cost on unrelated PRs.
+
+name: Firestore Rules
+
+# The filter includes the co-encoded validation layers (Zod schemas, cross-doc
+# validators, the importer, fixtures): the suite carries an importer-parity
+# test, so changes there genuinely alter rules-CI outcomes — without this,
+# schema drift merges green and surfaces as rejected writes on the floor.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/reference/FIRESTORE_RULES.ref.txt'
+      - 'firebase.json'
+      - 'tests/rules/**'
+      - 'tests/fixtures/**'
+      - 'src/shared/types/**'
+      - 'src/shared/validation/**'
+      - 'src/shared/import/**'
+      - '.github/workflows/firestore-rules.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/reference/FIRESTORE_RULES.ref.txt'
+      - 'firebase.json'
+      - 'tests/rules/**'
+      - 'tests/fixtures/**'
+      - 'src/shared/types/**'
+      - 'src/shared/validation/**'
+      - 'src/shared/import/**'
+      - '.github/workflows/firestore-rules.yml'
+
+concurrency:
+  group: rules-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/rules/package-lock.json
+
+      - name: Set up Java (Firestore emulator runs on a JVM)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The emulator JAR (~60 MB) is fetched from Google on first run; cache it
+      # so subsequent runs boot straight from disk. Keyed on the pinned
+      # firebase-tools version below — bumping the pin invalidates the cache.
+      - name: Cache Firestore emulator
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-15.19.1
+
+      - name: Install firebase-tools (pinned — bump deliberately with the cache key above)
+        run: npm install -g firebase-tools@15.19.1
+
+      - name: Install rule-test harness deps (reproducible — lockfile committed)
+        run: npm --prefix tests/rules ci
+
+      - name: Run rules tests against the Firestore emulator
+        run: >
+          firebase emulators:exec --only firestore --project demo-sep
+          "npm --prefix tests/rules run test:rules"

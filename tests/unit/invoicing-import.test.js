@@ -101,6 +101,17 @@ describe('importInvoicingExport', () => {
     expect(out.jobs.find((j) => j.id === jobId('2494')).current_status).toBe('in-flight');
   });
 
+  test('no doc carries an explicit undefined value (Firestore setDoc rejects them)', () => {
+    const hasUndefined = (o) => Object.values(o).some(
+      (v) => v === undefined || (v && typeof v === 'object' && !Array.isArray(v) && hasUndefined(v)),
+    );
+    for (const coll of [out.customers, out.items, out.jobs, out.jobLines]) {
+      for (const d of coll) expect(hasUndefined(d)).toBe(false);
+    }
+    // null stays: it's meaningful (wpp_grams null = uncalibrated).
+    expect(out.items.find((i) => i.id === itemId(102)).wpp_grams).toBeNull();
+  });
+
   test('idempotent: re-running yields byte-identical ids', () => {
     const again = importInvoicingExport(fixture, OPTS);
     expect(again.jobs.map((j) => j.id)).toEqual(out.jobs.map((j) => j.id));

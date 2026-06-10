@@ -2,7 +2,8 @@
 // Phase 4 + 6 + 8 locked
 // Authority: docs/architecture/FIRESTORE_RULES.md
 // Schema reference: docs/reference/SCHEMA.md
-// Last updated: 2026-05-07
+// Last updated: 2026-06-10 (v2 alignment + hardening: jobs authoredBySelf,
+//   DFT update re-validation, numeric buildSupported, optional-field checks)
 
 rules_version = '2';
 service cloud.firestore {
@@ -59,8 +60,15 @@ service cloud.firestore {
     }
 
     function buildSupported() {
+      // NUMERIC compare (2026-06-10): config/min_supported_build.value is a
+      // number and app_version is parsed with int(). The previous string `>=`
+      // compared lexicographically — '99' >= '100' is true, '1000' >= '999'
+      // is false — silently defeating stale-build rejection at every
+      // multi-digit boundary. Clients must stamp app_version as a numeric
+      // build counter in string form ('241'); non-numeric values fail int()
+      // and are denied (fail closed). Admin SDK paths bypass rules.
       let minBuild = get(/databases/$(database)/documents/config/min_supported_build).data.value;
-      return request.resource.data.app_version >= minBuild;
+      return int(request.resource.data.app_version) >= minBuild;
     }
 
     function listFilteredToOwnAuthor() {
@@ -87,8 +95,18 @@ service cloud.firestore {
     // ===== Validation helpers =====
 
     function isValidProductionEntry(data) {
-      return data.qty_pcs is number && data.qty_pcs > 0 && data.qty_pcs < 100000
-          || data.qty_kg is number && data.qty_kg > 0 && data.qty_kg < 100000;
+      // Hardened 2026-06-10: refs + station were unchecked, and a present-but-
+      // garbage second quantity rode through the old disjunction. worker_id is
+      // required to keep rules in step with the CF validator (cross-doc.js) —
+      // every production entry is worker-attributed per the domain model.
+      return data.job_id is string
+          && data.machine_id is string
+          && data.worker_id is string
+          && data.station in ['pickling', 'plating', 'inspection', 'dispatch']
+          && (!('qty_pcs' in data) || (data.qty_pcs is number && data.qty_pcs >= 0 && data.qty_pcs < 100000))
+          && (!('qty_kg' in data) || (data.qty_kg is number && data.qty_kg >= 0 && data.qty_kg < 100000))
+          && ((('qty_pcs' in data) && data.qty_pcs > 0)
+              || (('qty_kg' in data) && data.qty_kg > 0));
     }
 
     function isValidDftMeasurement(data) {
@@ -108,12 +126,28 @@ service cloud.firestore {
     }
 
     function isValidJob(data) {
-      return data.received_kg is number
-          && data.received_kg > 0
-          && data.received_kg < 100000
-          && data.customer_id is string
-          && data.item_id is string
-          && data.client_tier_at_receipt in ['tier-1', 'tier-2', 'default'];
+      // v2 (2026-06-10): item_id is OPTIONAL — a challan (= Job) carries many
+      // part-lines (jobs/{jid}/job_lines), breaking the v1 one-job-one-item
+      // assumption. A job is valid with a customer, a valid route + status, and
+      // a positive received quantity in EITHER unit — NOS-only challans
+      // legitimately carry received_kg == 0 (qty lives in received_pcs).
+      // client_tier_at_receipt dropped: not a v2 schema field (tier lives on
+      // the customer; the importer never sets it).
+      // Optional fields are validated WHEN PRESENT (hardened 2026-06-10):
+      // previously received_pcs was unchecked whenever received_kg > 0 and
+      // unbounded on NOS-only jobs, and item_id / client_tier_at_receipt were
+      // unvalidated even when supplied.
+      return data.customer_id is string
+          && data.received_kg is number && data.received_kg >= 0 && data.received_kg < 100000
+          && (!('received_pcs' in data)
+              || (data.received_pcs is number && data.received_pcs >= 0 && data.received_pcs < 1000000))
+          && (data.received_kg > 0
+              || (('received_pcs' in data) && data.received_pcs > 0))
+          && (!('item_id' in data) || data.item_id is string)
+          && (!('client_tier_at_receipt' in data)
+              || data.client_tier_at_receipt in ['tier-1', 'tier-2', 'default'])
+          && data.route in ['standard', 'rework-active', 'rework-completed']
+          && data.current_status in ['in-flight', 'ready', 'dispatched'];
     }
 
     function isValidStockReceipt(data) {
@@ -184,6 +218,7 @@ service cloud.firestore {
       allow create: if isAuthenticated()
                    && notRevoked() && activeTokenMatches()
                    && (hasRole('handler') || isAdmin())
+                   && authoredBySelf()
                    && timestampIsServerSet()
                    && buildSupported()
                    && isValidJob(request.resource.data);
@@ -240,7 +275,11 @@ service cloud.firestore {
                        && notRevoked() && activeTokenMatches()
                        && authorAndCreatedAtPinned(resource.data)
                        && withinEditWindow(resource.data.created_at)
-                       && buildSupported());
+                       && buildSupported()
+                       // Re-validate on update (added 2026-06-10): without this,
+                       // an in-window edit could push micron_value out of the
+                       // 0-50 hard block the create rule enforces.
+                       && isValidDftMeasurement(request.resource.data));
 
       allow delete: if isAdmin();
     }

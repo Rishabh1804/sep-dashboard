@@ -41,6 +41,19 @@ describe('schemas reject malformed docs', () => {
   test('extra/derived fields pass (forward-compatible passthrough)', () => {
     expect(CustomerSchema.safeParse({ ...out.customers[0], health_score: 88 }).success).toBe(true);
   });
+  test('zero-quantity job fails (rules parity: at least one of kg/pcs > 0)', () => {
+    const bad = { ...out.jobs[0], received_kg: 0 };
+    delete bad.received_pcs;
+    expect(JobSchema.safeParse(bad).success).toBe(false);
+  });
+  test('absurd quantities fail (rules parity: kg < 100000, pcs < 1000000)', () => {
+    expect(JobSchema.safeParse({ ...out.jobs[0], received_kg: 200000 }).success).toBe(false);
+    expect(JobSchema.safeParse({ ...out.jobs[0], received_pcs: 2000000 }).success).toBe(false);
+  });
+  test('client_tier_at_receipt validated when present (optional v2 field)', () => {
+    expect(JobSchema.safeParse({ ...out.jobs[0], client_tier_at_receipt: 'gold' }).success).toBe(false);
+    expect(JobSchema.safeParse({ ...out.jobs[0], client_tier_at_receipt: 'tier-1' }).success).toBe(true);
+  });
 });
 
 describe('handler write record schema', () => {
