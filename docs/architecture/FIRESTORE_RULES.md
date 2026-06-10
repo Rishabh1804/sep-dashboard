@@ -225,8 +225,8 @@ match /{document=**} {
 
 ## Acceptance Criteria (the bar)
 
-- [x] Emulator suite passes all tests (`tests/rules/` — 17 cases incl. negative-path revocation / stale-token / author-pinning / edit-window, run against the Firestore emulator) — staging-project deploy still Track 2
-- [x] CI: PRs touching the rules run `firebase emulators:exec --only firestore` via the isolated `firestore-rules` workflow (Java + firebase-tools; separate from the main `test` gate)
+- [ ] Rules deployed to staging Firebase project (Track 2 — needs live project). *Status 2026-06-10: the emulator half of this criterion is met — `tests/rules/`, 25 cases incl. negative-path revocation / stale-token / author-pinning / edit-window / numeric build-gate / importer parity — but the criterion stays unchecked until the staging deploy exists; do NOT ship production rules that have only ever run on the emulator.*
+- [ ] CI: every PR runs `firebase emulators:exec --only firestore "npm test"` against fixture data. *Status 2026-06-10: partially met by the isolated, path-filtered `firestore-rules` workflow (Java + firebase-tools; separate from the main `test` gate). The filter covers the rules file, firebase.json, the harness, AND the co-encoded validation layers (`src/shared/types/`, `src/shared/validation/`, `src/shared/import/`, `tests/fixtures/`) so schema/validator changes re-run the suite; literal every-PR execution deliberately not adopted (cost vs. an isolated gate). Revisit if rules-vs-client drift recurs.*
 - [ ] Production deploy gated on staging green; rollback plan = previous rules tag
 - [ ] Per-collection unit tests: create/update/delete success + failure cases for each role × auth state combination
 - [ ] App Check enabled (Play Integrity for handler PWA, reCAPTCHA Enterprise for dashboard); writes from non-attested clients rejected

@@ -59,11 +59,20 @@ export const JobSchema = z.object({
   sep_invoicing_challan_no: z.string().optional(),
   sep_invoicing_customer_id: z.number().optional(),
   is_informal: z.boolean().optional(),
-  received_kg: z.number().nonnegative(),
-  received_pcs: z.number().nonnegative().optional(),
+  // Caps + the at-least-one-positive refine mirror isValidJob in the Firestore
+  // rules (FIRESTORE_RULES.ref.txt). Keep the two encodings in lockstep — a
+  // Zod-green doc the rules reject means a partial import; the reverse means
+  // garbage lands in Firestore. The rules emulator suite's importer-parity
+  // test guards one direction; this guards the other.
+  received_kg: z.number().nonnegative().lt(100000),
+  received_pcs: z.number().nonnegative().lt(1000000).optional(),
+  client_tier_at_receipt: z.enum(['tier-1', 'tier-2', 'default']).optional(),
   route: z.enum(['standard', 'rework-active', 'rework-completed']),
   current_status: z.enum(['in-flight', 'ready', 'dispatched']),
-}).passthrough();
+}).passthrough().refine(
+  (j) => j.received_kg > 0 || (j.received_pcs ?? 0) > 0,
+  { message: 'at least one of received_kg / received_pcs must be > 0' },
+);
 
 // The queued handler write (form.js buildRecord) — validated before transport.
 export const HandlerRecordSchema = z.object({
