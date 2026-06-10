@@ -48,6 +48,7 @@ Not probed directly in Phase 2 (decision pre-dated MCQ + adversary pattern). Pha
 ### Subcollections (naturally child-of-parent, no cross-cutting reads)
 
 ```
+/jobs/{jid}/job_lines/{lid}                  challan part-breakdown (v2; 1:1 with sep-invoicing IM line)
 /jobs/{jid}/route_history/{rid}              station-by-station log
 /machines/{mid}/state_transitions/{tid}      status changes for this machine
 /machines/{mid}/maintenance_log/{mid}        maintenance events
