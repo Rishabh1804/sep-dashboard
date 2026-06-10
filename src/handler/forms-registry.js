@@ -12,8 +12,13 @@
 import { DEF_PERM, DEF_CW } from '../shared/config/workers.js';
 import { DEF_AREAS } from '../shared/config/areas.js';
 import { DEF_STOCK } from '../shared/config/stock.js';
+import { getCache } from './picker-cache.js';
 
 // --- Picker item providers ---
+// Worker / machine / stock-item come from real config (DEF_PERM / DEF_AREAS /
+// DEF_STOCK). Customer / part / job / supplier come from the Firestore-
+// hydrated cache (picker-cache.js) — empty until Track 2 wires the listener,
+// which is honest rather than the Stage C placeholders it replaces.
 const workerItems = () => [
   ...DEF_PERM.filter((w) => !w.inactive).map((w) => ({ id: w.id, primary: w.name, sub: w.role })),
   ...DEF_CW.filter((w) => !w.inactive).map((w) => ({ id: w.id, primary: w.name, sub: 'Contractor' })),
@@ -23,23 +28,15 @@ const machineItems = () => DEF_AREAS.map((a) => ({
   id: a.id, primary: a.name, sub: a.group, method: a.group === 'vat' ? 'V' : a.group === 'barrel' ? 'B' : '—',
 }));
 
+// `item` = our consumable stock (chemicals) — used by the stock forms.
 const itemItems = () => DEF_STOCK.map((s) => ({ id: s.id, primary: s.name, sub: s.unit }));
 
-// Seed lists — replaced by the Firestore-hydrated cache in Stage B/D.
-const jobItems = () => [
-  { id: 'J-1042', primary: 'ABC Industries', sub: 'J-1042', tier: 'P', method: 'V' },
-  { id: 'J-1041', primary: 'XYZ Auto',       sub: 'J-1041', tier: 'S', method: 'B' },
-  { id: 'J-1038', primary: 'DEF Hardware',   sub: 'J-1038', tier: 'P', method: 'V' },
-];
-const customerItems = () => [
-  { id: 'C-ABC', primary: 'ABC Industries', tier: 'P' },
-  { id: 'C-XYZ', primary: 'XYZ Auto',       tier: 'S' },
-  { id: 'C-DEF', primary: 'DEF Hardware',   tier: 'P' },
-];
-const supplierItems = () => [
-  { id: 'S-TARA', primary: 'Tara Traders' },
-  { id: 'S-GROWEL', primary: 'Growel Chem' },
-];
+// `part` = a CUSTOMER part / SKU (items collection) — distinct from stock.
+// The production register keys on customer + SKU, so Production needs this.
+const partItems = () => getCache('part');
+const jobItems = () => getCache('job');
+const customerItems = () => getCache('customer');
+const supplierItems = () => getCache('supplier');
 
 const STATION_OPTS = [
   { value: 'pickling', labelKey: 'opt_pickling' },
@@ -59,7 +56,7 @@ const DIRECTION_OPTS = [
 
 const PICKERS = {
   job: jobItems, machine: machineItems, worker: workerItems,
-  customer: customerItems, item: itemItems, supplier: supplierItems,
+  customer: customerItems, item: itemItems, part: partItems, supplier: supplierItems,
 };
 
 const posNumber = (v) => (Number(v) > 0 ? null : '> 0');
@@ -73,6 +70,9 @@ export const FORMS = [
     pickers: PICKERS,
     fields: [
       { key: 'job', labelKey: 'f_job', kind: 'picker', pickerKey: 'job', icon: '📋', required: true, remember: true },
+      // Customer SKU run on this job — the register keys on customer+SKU.
+      // Optional in alpha (the part cache is empty until Track 2 hydration).
+      { key: 'part', labelKey: 'f_part', kind: 'picker', pickerKey: 'part', icon: '🏷️', remember: true },
       { key: 'machine', labelKey: 'f_machine', kind: 'picker', pickerKey: 'machine', icon: '🔧', required: true, remember: true },
       { key: 'worker', labelKey: 'f_worker', kind: 'picker', pickerKey: 'worker', icon: '👷', required: true, remember: true },
       { key: 'quantity', labelKey: 'f_quantity', kind: 'number', icon: '🔢', required: true, validate: posNumber },

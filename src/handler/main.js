@@ -17,6 +17,7 @@ import { renderChip, openSyncSheet, preFlushCheck, showModal } from './sync.js';
 import { loadRecent, getRecent } from './recent.js';
 import { FORMS, getForm } from './forms-registry.js';
 import { renderForm } from './form.js';
+import { hydrateCaches } from './picker-cache.js';
 
 const NAME_KEY = 'sep_handler_name';
 const root = () => document.getElementById('handler-root');
@@ -144,6 +145,9 @@ async function boot() {
   if (!root()) return;
   document.documentElement.lang = getLang();
   await loadRecent();
+  // Restore the last persisted picker snapshot (customer/part/job/supplier).
+  // Empty until Track 2 hydrates from Firestore; safe no-op meanwhile.
+  await hydrateCaches().catch(() => {});
   renderHome();
   // Tick the top-bar clock each minute (update text only, no full re-render).
   setInterval(() => {

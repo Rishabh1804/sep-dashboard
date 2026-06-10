@@ -51,6 +51,7 @@ var DICT = {
   note: { hi: "\u0928\u094B\u091F", en: "Note" },
   // Field labels
   f_job: { hi: "\u091C\u0949\u092C", en: "Job" },
+  f_part: { hi: "\u092A\u093E\u0930\u094D\u091F / SKU", en: "Part / SKU" },
   f_machine: { hi: "\u092E\u0936\u0940\u0928", en: "Machine" },
   f_worker: { hi: "\u0915\u093E\u0930\u0940\u0917\u0930", en: "Worker" },
   f_quantity: { hi: "\u092E\u093E\u0924\u094D\u0930\u093E", en: "Quantity" },
@@ -454,6 +455,21 @@ function showModal({ title, bodyHtml, actions }) {
   return close;
 }
 
+// src/handler/picker-cache.js
+var KINDS = ["customer", "part", "job", "supplier"];
+var CACHE = Object.fromEntries(KINDS.map((k) => [k, []]));
+var KEY = (kind) => `pickcache:${kind}`;
+function getCache(kind) {
+  return CACHE[kind] || [];
+}
+async function hydrateCaches(kinds = KINDS) {
+  if (!idbAvailable()) return;
+  for (const kind of kinds) {
+    const saved = await idbGet(KEY(kind)).catch(() => null);
+    if (Array.isArray(saved)) CACHE[kind] = saved;
+  }
+}
+
 // src/handler/forms-registry.js
 var workerItems = () => [
   ...DEF_PERM.filter((w) => !w.inactive).map((w) => ({ id: w.id, primary: w.name, sub: w.role })),
@@ -466,20 +482,10 @@ var machineItems = () => DEF_AREAS.map((a) => ({
   method: a.group === "vat" ? "V" : a.group === "barrel" ? "B" : "\u2014"
 }));
 var itemItems = () => DEF_STOCK.map((s) => ({ id: s.id, primary: s.name, sub: s.unit }));
-var jobItems = () => [
-  { id: "J-1042", primary: "ABC Industries", sub: "J-1042", tier: "P", method: "V" },
-  { id: "J-1041", primary: "XYZ Auto", sub: "J-1041", tier: "S", method: "B" },
-  { id: "J-1038", primary: "DEF Hardware", sub: "J-1038", tier: "P", method: "V" }
-];
-var customerItems = () => [
-  { id: "C-ABC", primary: "ABC Industries", tier: "P" },
-  { id: "C-XYZ", primary: "XYZ Auto", tier: "S" },
-  { id: "C-DEF", primary: "DEF Hardware", tier: "P" }
-];
-var supplierItems = () => [
-  { id: "S-TARA", primary: "Tara Traders" },
-  { id: "S-GROWEL", primary: "Growel Chem" }
-];
+var partItems = () => getCache("part");
+var jobItems = () => getCache("job");
+var customerItems = () => getCache("customer");
+var supplierItems = () => getCache("supplier");
 var STATION_OPTS = [
   { value: "pickling", labelKey: "opt_pickling" },
   { value: "plating", labelKey: "opt_plating" },
@@ -501,6 +507,7 @@ var PICKERS = {
   worker: workerItems,
   customer: customerItems,
   item: itemItems,
+  part: partItems,
   supplier: supplierItems
 };
 var posNumber = (v) => Number(v) > 0 ? null : "> 0";
@@ -514,6 +521,9 @@ var FORMS = [
     pickers: PICKERS,
     fields: [
       { key: "job", labelKey: "f_job", kind: "picker", pickerKey: "job", icon: "\u{1F4CB}", required: true, remember: true },
+      // Customer SKU run on this job — the register keys on customer+SKU.
+      // Optional in alpha (the part cache is empty until Track 2 hydration).
+      { key: "part", labelKey: "f_part", kind: "picker", pickerKey: "part", icon: "\u{1F3F7}\uFE0F", remember: true },
       { key: "machine", labelKey: "f_machine", kind: "picker", pickerKey: "machine", icon: "\u{1F527}", required: true, remember: true },
       { key: "worker", labelKey: "f_worker", kind: "picker", pickerKey: "worker", icon: "\u{1F477}", required: true, remember: true },
       { key: "quantity", labelKey: "f_quantity", kind: "number", icon: "\u{1F522}", required: true, validate: posNumber },
@@ -1037,6 +1047,8 @@ async function boot() {
   if (!root()) return;
   document.documentElement.lang = getLang();
   await loadRecent();
+  await hydrateCaches().catch(() => {
+  });
   renderHome();
   setInterval(() => {
     const clock = document.querySelector(".h-topbar .h-clock");

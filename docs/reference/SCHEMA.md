@@ -1,7 +1,7 @@
 # Canonical Schema Reference
 
 **Phase:** 1-8 synthesis
-**Status:** LIVE — 7 May 2026 (v1)
+**Status:** LIVE — 10 Jun 2026 (v2; was v1 7 May 2026)
 **Authority:** This is THE canonical entity reference. When TypeScript types or Zod schemas in code conflict with this document, this document is authoritative — fix the code or update this document with a new version entry.
 
 Companion: [`../architecture/SCHEMA_MIGRATION.md`](../architecture/SCHEMA_MIGRATION.md) for evolution discipline; [`../architecture/SCHEMA_CHANGELOG.md`](../architecture/SCHEMA_CHANGELOG.md) for the change log.
@@ -33,12 +33,14 @@ interface Customer {
     address?: string;
     primary_contact_name?: string;
   };
-  client_tier: 'tier-1' | 'tier-2' | 'default';
-  default_quality_tier: 'premium' | 'standard';
-  default_billing_unit: 'kg' | 'pcs';
+  client_tier: 'tier-1' | 'tier-2' | 'default';   // v2: NOT in sep-invoicing source — defaults to
+                                                  //     'default' on import; promoted manually
+  default_quality_tier: 'premium' | 'standard';   // v2: NOT in source — defaults 'standard' on import
+  default_billing_unit: 'kg' | 'pcs';             // v2: mapped from sep-invoicing billingMode (weight→kg, piece→pcs)
+  is_informal?: boolean;                           // v2: cash/non-GST customer (Siya, Himani, Ankit)
   notes?: string;                          // free-text legacy; structured notes via /notes/
   health_score?: number;                    // 0-100; derived (Phase 5 event-sourced); Phase 2.1+ rendering
-  sep_invoicing_customer_id?: string;       // FK to sep-invoicing app
+  sep_invoicing_customer_id?: number;       // v2: numeric clientId (1..21) in sep-invoicing (was typed string in v1)
   created_at: Timestamp;
   app_version: string;
   author_user_id: string;
@@ -52,12 +54,16 @@ interface Customer {
 ```typescript
 interface Item {
   __schema_version: number;
-  id: string;
-  customer_id: string;                      // FK
+  id: string;                               // = 'item-{sep id}' on import
+  customer_id?: string;                     // v2: OPTIONAL — sep-invoicing items are global by
+                                            //     partNumber; customer scope comes from sku-master / usage
+  part_number: string;                      // v2: canonical partNumber (e.g. '188 CD', 'BRACKET 5069 4370 0108')
+  hsn?: string;                             // v2: HSN/SAC from source ('998873')
+  default_unit?: 'KG' | 'NOS';              // v2: source `unit`
   description: string;
-  wpp_grams: number | null;                 // null until calibrated
+  wpp_grams: number | null;                 // v2: imported = stdWeightKg × 1000 (source is kg/pc); null until calibrated
   wpp_calibrated_at: Timestamp | null;
-  default_plating_method: 'cyanide' | 'acid';
+  default_plating_method: 'cyanide' | 'acid';   // v2: NOT in source — derived from line (vat→cyanide, barrel→acid) or null
   hazmat_notes?: string;
   created_at: Timestamp;
   app_version: string;
@@ -70,13 +76,20 @@ interface Item {
 
 ```typescript
 interface Job {
-  __schema_version: number;
-  id: string;                               // format: J-{YYYY}-{nnnn}
+  __schema_version: number;                 // v2: item_id now OPTIONAL — see job_lines
+  id: string;                               // format: J-{YYYY}-{nnnn}, OR sep-{challanNo} for imported challans
   customer_id: string;                      // FK
-  item_id: string;                          // FK
-  invoice_id?: string;                      // FK to sep-invoicing
-  received_kg: number;
-  received_pcs?: number;                    // derivable from received_kg / wpp
+  item_id?: string;                         // v2: OPTIONAL. Single-item convenience FK; the
+                                            //     authoritative per-part breakdown lives in
+                                            //     jobs/{jid}/job_lines (a challan carries many parts).
+  invoice_id?: string;                      // FK to sep-invoicing (invoice doc)
+  // --- sep-invoicing linkage (v2; canonical keys from the billing system of record) ---
+  sep_invoicing_challan_no?: string;        // IM challan number (e.g. "2494") — the natural job key
+  sep_invoicing_challan_date?: string;      // YYYY-MM-DD
+  sep_invoicing_customer_id?: number;       // numeric clientId (1..21) in sep-invoicing
+  is_informal?: boolean;                    // cash/non-GST job (Siya, Himani, Ankit) — no invoice link
+  received_kg: number;                      // sum over job_lines
+  received_pcs?: number;                    // derivable from received_kg / wpp, or sum of line nosQty
   target_pcs?: number;                      // computed
   target_kg?: number;
   quality_tier_override?: 'premium' | 'standard';
@@ -179,9 +192,14 @@ interface Pathway {
 ### `machines/{mid}`
 
 ```typescript
+// v2 capture-grain note: the floor records production at LINE/AREA grain
+// (vat_a1 = the 3 A1 tanks run as one unit, vat_a2, barrel, pickle_*), matching
+// the handler's DEF_AREAS and Shyam's register. Per-tank machines ('t-1-1' …)
+// remain the floor-view target but are NOT required for alpha data capture;
+// production_entries.machine_id may reference an area id until tanks are seeded.
 interface Machine {
   __schema_version: number;
-  id: string;                               // 't-1-1' / 'st-1-1' / etc.
+  id: string;                               // 't-1-1' / 'st-1-1' — OR an area id ('vat_a1') in alpha
   name: string;
   area: 'area-1' | 'area-2' | 'area-3' | 'area-4';
   room_id: string;                          // FK
@@ -288,10 +306,16 @@ interface ProductionEntry {
   __schema_version: number;
   id: string;
   job_id: string;                           // FK
-  machine_id: string;                       // FK
+  item_id?: string;                         // v2: FK to items — the SKU actually run (the
+                                            //     register keys on customer+SKU, not job alone;
+                                            //     a job_line's item, since a job spans many SKUs)
+  part_number?: string;                     // v2: raw SKU shorthand as recorded, pre-resolution
+  machine_id: string;                       // FK — line/area grain in alpha (vat_a1/vat_a2/barrel/pickle)
   worker_id: string;                        // FK
-  qty_pcs?: number;
-  qty_kg?: number;
+  qty_pcs?: number;                         // VAT lines record pieces (NOS)
+  qty_kg?: number;                          // Barrel records kg
+  rounds?: number;                          // v2: VAT cadence — number of rounds run
+  round_size?: number;                      // v2: pieces per round (150/108 etc.)
   station: 'pickling' | 'plating' | 'inspection' | 'dispatch';
   recorded_by_app: 'dashboard' | 'handler' | 'pickler' | 'inspector' | 'dispatch';
   client_created_at: Timestamp;             // Phase 5 ordering
@@ -463,6 +487,33 @@ Surfaces in steward inbox per [STEWARD_AFFORDANCES.md](../architecture/STEWARD_A
 ---
 
 ## Subcollections
+
+### `jobs/{jid}/job_lines/{lid}` (v2 — challan part-breakdown)
+
+A challan (= a Job) carries many part-lines. Each line is one item received in that
+drop-off. Maps 1:1 to a sep-invoicing `incomingMaterial.items[]` entry.
+
+```typescript
+interface JobLine {
+  __schema_version: number;
+  id: string;                               // = '{job_id}__{source IMI id}' on import (e.g. 'sep-2494__IMI-0001-0');
+                                            //   job-prefixed so a source line id reused across challans can't collide
+  item_id?: string;                         // FK to items/{iid} (resolved by partNumber)
+  part_number: string;                      // raw partNumber as written on the challan
+  description?: string;
+  qty: number;                              // received quantity in `unit`
+  unit: 'KG' | 'NOS';                       // billing/receipt unit for THIS line
+  qty_kg?: number;                          // normalized
+  qty_pcs?: number;                         // = nosQty when present
+  rate?: number;                            // ₹ per unit at receipt (may be null on challan)
+  amount?: number;                          // qty × rate
+  invoiced?: boolean;                       // line-level invoice status (from source)
+  invoice_id?: string;                      // FK to the invoice that billed this line
+  created_at: Timestamp;
+  app_version: string;
+  author_user_id: string;
+}
+```
 
 ### `jobs/{jid}/route_history/{rid}`
 
