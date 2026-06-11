@@ -14,6 +14,7 @@ import { t } from './i18n.js';
 import { markRecentSynced } from './recent.js';
 
 const QUEUE_PREFIX = 'queue:';
+const REJECTED_PREFIX = 'rejected:';
 const LAST_SYNC_KEY = 'sep_handler_last_sync';
 
 let held = false; // user can pause auto-flush from the sync sheet
@@ -40,6 +41,24 @@ export async function listQueue() {
 
 export async function queueCount() { return (await listQueue()).length; }
 
+// Permanently-rejected records (rules said no — retrying an identical doc
+// gets an identical verdict). Parked here so they never wedge the queue;
+// surfaced via the chip + sync sheet. The steward inbox (Stage F) is the
+// proper review surface; discard-from-sheet is the alpha affordance.
+export async function listRejected() {
+  if (!idbAvailable()) return [];
+  const rows = await idbScan(REJECTED_PREFIX).catch(() => []);
+  return rows.map((r) => ({ key: r.key, ...r.value }));
+}
+
+export async function rejectedCount() { return (await listRejected()).length; }
+
+export async function discardRejected() {
+  const rows = await listRejected();
+  for (const r of rows) await idbDel(r.key).catch(() => {});
+  return rows.length;
+}
+
 // Pure: roll a queue into { total, byType: {type: n}, since }.
 // Kept dependency-free so it unit-tests without IndexedDB.
 export function summarizeQueue(records) {
@@ -59,20 +78,29 @@ export async function flush() {
   if (held) return { sent: 0, remaining: await queueCount() };
   const queued = await listQueue();
   const synced = [];
+  let rejected = 0;
   for (const { key, record } of queued) {
     try {
       await transport(record);
       await idbDel(key).catch(() => {});
       synced.push(record.idempotencyKey);
-    } catch {
-      break; // stop on first failure; preserve order, retry whole batch later
+    } catch (err) {
+      if (err?.permanent) {
+        // Park it and keep draining — a deterministic rules rejection must
+        // never block the records behind it.
+        await idbSet(`${REJECTED_PREFIX}${key}`, { record, reason: String(err.message || err) }).catch(() => {});
+        await idbDel(key).catch(() => {});
+        rejected += 1;
+        continue;
+      }
+      break; // transient (offline/unavailable); preserve order, retry whole batch later
     }
   }
   if (synced.length) {
     await markRecentSynced(synced);
     try { globalThis.localStorage?.setItem(LAST_SYNC_KEY, String(Date.now())); } catch { /* ignore */ }
   }
-  return { sent: synced.length, remaining: queued.length - synced.length };
+  return { sent: synced.length, rejected, remaining: queued.length - synced.length - rejected };
 }
 
 export function setHeld(v) { held = !!v; }
@@ -101,7 +129,7 @@ export async function renderChip(el) {
   // queued writes honestly read "Not sent" rather than claiming to sync
   // into a void.
   const online = (globalThis.navigator?.onLine !== false) && transportReady;
-  const s = chipState({ pending, online, rejected: 0 });
+  const s = chipState({ pending, online, rejected: await rejectedCount() });
   el.dataset.state = s.state;
   el.innerHTML = `<span class="h-dot"></span><span>${s.icon} ${s.label}${s.count ? ` (${s.count})` : ''}</span>`;
 }
@@ -132,18 +160,28 @@ export async function preFlushCheck({ onReview } = {}) {
 export async function openSyncSheet(refresh) {
   const queued = await listQueue();
   const { total } = summarizeQueue(queued.map((q) => q.record));
+  const rejectedRows = await listRejected();
   const online = globalThis.navigator?.onLine !== false;
   const last = lastSyncTs();
+  const rejectedHtml = rejectedRows.length
+    ? `<div>${t('rejected')}: <strong>${rejectedRows.length}</strong></div>
+       <ul class="h-rejected-list">${rejectedRows.slice(0, 5).map((r) =>
+        `<li>${t(r.record?.type || 'note')} — ${r.reason || ''}</li>`).join('')}</ul>`
+    : '';
+  const actions = [
+    { label: t('sync_now'), kind: 'primary', onClick: async (close) => { setHeld(false); await flush(); close(); refresh?.(); } },
+    { label: t('hold'), kind: 'ghost', onClick: (close) => { setHeld(true); close(); refresh?.(); } },
+  ];
+  if (rejectedRows.length) {
+    actions.push({ label: t('discard_rejected'), kind: 'ghost', onClick: async (close) => { await discardRejected(); close(); refresh?.(); } });
+  }
   showModal({
     title: t('sync_status'),
     bodyHtml: `
       <div>${t('offline_saved')}: <strong>${total}</strong></div>
       <div>${t('last_sync')}: ${last ? new Date(last).toLocaleTimeString() : '—'}</div>
-      <div>${t('network')}: ${online ? t('online') : t('offline')}</div>`,
-    actions: [
-      { label: t('sync_now'), kind: 'primary', onClick: async (close) => { setHeld(false); await flush(); close(); refresh?.(); } },
-      { label: t('hold'), kind: 'ghost', onClick: (close) => { setHeld(true); close(); refresh?.(); } },
-    ],
+      <div>${t('network')}: ${online ? t('online') : t('offline')}</div>${rejectedHtml}`,
+    actions,
   });
 }
 

@@ -31,6 +31,7 @@ export const DICT = {
   offline_saved:    { hi: 'फ़ोन में सेव, अभी भेजा नहीं', en: 'Saved on phone, not yet sent' },
   not_sent:         { hi: 'भेजा नहीं',                 en: 'Not sent' },
   rejected:         { hi: 'सर्वर ने मना किया',     en: 'Rejected by server' },
+  discard_rejected: { hi: 'मना किए हुए हटाएं',     en: 'Discard rejected' },
   sync_status:      { hi: 'सिंक स्थिति',           en: 'Sync status' },
   sync_now:         { hi: 'अभी भेजें',             en: 'Sync now' },
   hold:             { hi: 'रुकें',                 en: 'Hold' },
