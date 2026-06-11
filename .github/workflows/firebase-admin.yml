@@ -1,0 +1,71 @@
+# Manually-triggered Firebase admin operations against staging.
+#
+# Consumes the FIREBASE_SERVICE_ACCOUNT_STAGING repository secret
+# (Settings → Secrets and variables → Actions). The key never appears in
+# the repo, in cloud-session env vars, or in logs — scripts/deploy-rules.mjs
+# materializes it to a 0600 temp file only for the duration of the command.
+#
+# Actions:
+#   deploy-rules — push docs/reference/FIRESTORE_RULES.ref.txt live
+#   mint-token   — provision a worker + print the handler sign-in URL
+#                  (custom token, 1h validity; run logs are private-repo)
+#   seed-dry-run — transform + Zod-validate the FIXTURE export, no writes
+#                  (the real 508-challan seed runs locally with the export file)
+
+name: firebase-admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Operation'
+        required: true
+        type: choice
+        options: [deploy-rules, mint-token, seed-dry-run]
+      uid:
+        description: 'mint-token: worker uid (e.g. champai)'
+        required: false
+        type: string
+      name:
+        description: 'mint-token: display name'
+        required: false
+        type: string
+      roles:
+        description: 'mint-token: comma-separated roles'
+        required: false
+        default: 'handler'
+        type: string
+
+jobs:
+  admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FIREBASE_SERVICE_ACCOUNT_STAGING: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Firestore rules (staging)
+        if: inputs.action == 'deploy-rules'
+        run: pnpm deploy:rules:staging
+
+      - name: Mint provisioning token
+        if: inputs.action == 'mint-token'
+        run: node scripts/mint-token.mjs --uid "${{ inputs.uid }}" --name "${{ inputs.name || inputs.uid }}" --roles "${{ inputs.roles }}"
+
+      - name: Seed dry-run (fixture)
+        if: inputs.action == 'seed-dry-run'
+        run: node scripts/seed-staging.mjs --export tests/fixtures/invoicing-sample.json --dry-run
