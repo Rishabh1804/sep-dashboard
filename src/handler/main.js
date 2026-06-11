@@ -64,7 +64,7 @@ function renderHome() {
     ? recent.map((e) => `<div class="h-recent-row">
         <span class="h-recent-time">${new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         <span class="h-recent-text">${t(e.type)} · ${e.summary}</span>
-        <span class="h-recent-status">${e.status === 'queued' ? '⏳' : '✓'}</span>
+        <span class="h-recent-status">${e.status === 'queued' ? '⏳' : e.status === 'rejected' ? '🔴' : '✓'}</span>
       </div>`).join('')
     : `<div class="h-empty">${t('no_recent')}</div>`;
 

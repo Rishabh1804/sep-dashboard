@@ -1,8 +1,7 @@
 import {
   DEF_CW,
-  DEF_PERM,
-  DEF_STOCK
-} from "./chunks/chunk-JR6KBK3Q.js";
+  DEF_PERM
+} from "./chunks/chunk-42434FVJ.js";
 import {
   LANGS,
   enqueueWrite,
@@ -23,11 +22,12 @@ import {
   showModal,
   speak,
   t
-} from "./chunks/chunk-5EDSVHNY.js";
+} from "./chunks/chunk-JM3BSFQS.js";
 import {
   APP_VERSION,
-  DEF_AREAS
-} from "./chunks/chunk-ZKOL2YBM.js";
+  DEF_AREAS,
+  DEF_STOCK
+} from "./chunks/chunk-GEIU5DZV.js";
 
 // src/handler/feedback.js
 var MUTE_KEY = "sep_handler_mute";
@@ -116,7 +116,6 @@ var supplierItems = () => getCache("supplier");
 var STATION_OPTS = [
   { value: "pickling", labelKey: "opt_pickling" },
   { value: "plating", labelKey: "opt_plating" },
-  { value: "passivation", labelKey: "opt_passivation" },
   { value: "inspection", labelKey: "opt_inspection" }
 ];
 var STATE_OPTS = [
@@ -179,6 +178,12 @@ var FORMS = [
     fields: [
       { key: "job", labelKey: "f_job", kind: "picker", pickerKey: "job", icon: "\u{1F4CB}", required: true },
       { key: "dft_micron", labelKey: "f_dft_micron", kind: "number", icon: "\u{1F52C}", required: true, validate: dftRange },
+      // Inspector judgment is a FIELD, not a formula (HANDLER_FORMS.md) — a
+      // 7.8 µm reading can be a pass for a customer who accepts 7+.
+      { key: "outcome", labelKey: "f_outcome", kind: "select", icon: "\u2696\uFE0F", required: true, options: [
+        { value: "pass", labelKey: "opt_pass" },
+        { value: "fail-rework", labelKey: "opt_fail_rework" }
+      ] },
       { key: "notes", labelKey: "f_notes", kind: "notes" }
     ]
   },
@@ -592,7 +597,7 @@ function renderHome() {
   const recentRows = recent.length ? recent.map((e) => `<div class="h-recent-row">
         <span class="h-recent-time">${new Date(e.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
         <span class="h-recent-text">${t(e.type)} \xB7 ${e.summary}</span>
-        <span class="h-recent-status">${e.status === "queued" ? "\u23F3" : "\u2713"}</span>
+        <span class="h-recent-status">${e.status === "queued" ? "\u23F3" : e.status === "rejected" ? "\u{1F534}" : "\u2713"}</span>
       </div>`).join("") : `<div class="h-empty">${t("no_recent")}</div>`;
   root().innerHTML = topBar() + `<div class="h-body">
     <div class="h-tiles">${tiles}</div>
@@ -682,7 +687,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-T4DCFL7G.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-WHCS6W4H.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

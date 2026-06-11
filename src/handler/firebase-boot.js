@@ -12,7 +12,7 @@
 // fragment is scrubbed from the URL immediately after sign-in.
 
 import { getFirebaseConfig } from '../shared/config/firebase.js';
-import { setTransport, flush } from './sync.js';
+import { setTransport, clearTransport, flush } from './sync.js';
 import { createTransport } from './transport.js';
 import {
   setCache, customersToPickerItems, itemsToPickerItems, jobsToPickerItems,
@@ -38,22 +38,40 @@ export async function startFirebase({ onChange } = {}) {
   // never logged in HTTP access logs — why fragment, not query).
   const m = (globalThis.location?.hash || '').match(/[#&]token=([^&]+)/);
   if (m) {
+    let scrub = true;
     try {
       await fbAuth.signInWithCustomToken(auth, decodeURIComponent(m[1]));
-    } catch { /* expired/garbled token — stay signed out, chip stays honest */ }
-    try {
-      globalThis.history?.replaceState(null, '', globalThis.location.pathname + globalThis.location.search);
-    } catch { /* ignore */ }
+    } catch (err) {
+      // Keep the still-valid token in the URL on TRANSIENT failures (factory
+      // wifi blips during QR provisioning) so a reload retries — only an
+      // actually bad token is consumed. Without this, every signal blip
+      // during rollout week means re-minting and re-QR-ing.
+      const code = err?.code || '';
+      scrub = code === 'auth/invalid-custom-token' || code === 'auth/custom-token-mismatch'
+           || code === 'auth/user-disabled';
+    }
+    if (scrub) {
+      try {
+        globalThis.history?.replaceState(null, '', globalThis.location.pathname + globalThis.location.search);
+      } catch { /* ignore */ }
+    }
   }
 
   let unsubscribers = [];
+  let activeUid = null;
   fbAuth.onAuthStateChanged(auth, (user) => {
+    if (user?.uid === activeUid) return; // same session settling — keep listeners
     unsubscribers.forEach((u) => { try { u(); } catch { /* ignore */ } });
     unsubscribers = [];
+    activeUid = user?.uid || null;
     if (user) {
       setTransport(createTransport({ db, auth, fs }));
       unsubscribers = startPickerListeners({ db, fs, onChange });
+      // flush() respects the pre-flush hold from boot — an unreviewed
+      // leftover queue is never drained behind the confirmation modal.
       flush().then(() => onChange?.()).catch(() => {});
+    } else {
+      clearTransport(); // chip must not claim "syncing" against a dead auth
     }
     onChange?.();
   });

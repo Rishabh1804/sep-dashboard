@@ -20,11 +20,9 @@
 //     pickling/plating/inspection/dispatch.
 //   - stock_refill without cost or supplier — rules require unit_cost > 0
 //     and supplier_id (isValidStockReceipt); the form has both optional.
-//   - dft outcome — rules require pass|fail-rework; the form has no outcome
-//     field, so it is DERIVED from the locked 8-12 µm DFT benchmark
-//     (Session 11 domain lock). Stage D should add an explicit outcome field.
 
 import { DEF_AREAS } from '../shared/config/areas.js';
+import { DEF_STOCK } from '../shared/config/stock.js';
 import { BUILD } from '../shared/config/app.js';
 
 export class PermanentRejection extends Error {
@@ -49,6 +47,10 @@ function qtyFieldFor(machineId) {
 // Pickling areas log pickling; everything else defaults to plating.
 function defaultStation(machineId) {
   return areaById(machineId)?.dep ? 'pickling' : 'plating';
+}
+
+function stockUnitFor(itemId) {
+  return DEF_STOCK.find((s) => s.id === itemId)?.unit || 'kg';
 }
 
 function num(v) { return typeof v === 'number' ? v : Number(v); }
@@ -98,14 +100,17 @@ const MAPPERS = {
 
   dft(f, record, ctx) {
     const v = num(f.dft_micron);
+    // The form's explicit outcome wins (HANDLER_FORMS.md: inspector judgment
+    // is a field, not a formula). The 8-12 µm derivation only covers records
+    // queued by builds that predate the outcome field — flagged when used.
+    const derived = !f.outcome;
     const data = {
       ...envelope(record, ctx),
       job_id: f.job,
       micron_value: v,
-      // Derived from the 8-12 µm domain benchmark — see skew note above.
-      outcome: v >= 8 && v <= 12 ? 'pass' : 'fail-rework',
-      outcome_derived: true,
+      outcome: f.outcome || (v >= 8 && v <= 12 ? 'pass' : 'fail-rework'),
     };
+    if (derived) data.outcome_derived = true;
     if (f.notes) data.notes = f.notes;
     return { path: ['dft_measurements', record.idempotencyKey], data };
   },
@@ -125,7 +130,10 @@ const MAPPERS = {
       ...envelope(record, ctx),
       qty_received: num(f.quantity),
       unit_cost: num(f.cost),
-      cost_unit: 'per_kg',
+      // Cost unit follows the stock item's tracked unit (DEF_STOCK): litre-
+      // tracked chemistry is priced per litre, everything else per kg. A
+      // per-piece tier lands with the universal stock model (Stage D+).
+      cost_unit: stockUnitFor(f.item) === 'L' ? 'per_liter' : 'per_kg',
       supplier_id: f.supplier,
     };
     if (f.notes) data.notes = f.notes;
@@ -186,19 +194,27 @@ export function createTransport({ db, auth, fs }) {
     if (!user) throw new Error('not-signed-in'); // transient: stay queued
     const w = recordToWrite(record, { uid: user.uid, build: BUILD, serverTimestamp: fs.serverTimestamp });
     const ref = fs.doc(db, ...w.path);
-    const existing = await fs.getDoc(ref).catch(() => null);
-    if (existing?.exists()) return; // idempotent replay after a crash mid-flush
     try {
       await fs.setDoc(ref, w.data);
     } catch (err) {
-      // Rules are deterministic: an identical doc gets an identical verdict,
-      // so retrying a denied write can only wedge the queue behind it.
-      if (err?.code === 'permission-denied' || err?.code === 'invalid-argument') {
-        const e = new PermanentRejection(`${err.code}: ${err.message}`);
-        e.cause = err;
-        throw e;
+      if (err?.code === 'permission-denied') {
+        // The rules' verdict is NOT a pure function of the doc — it reads
+        // mutable state (active_token_id, revoked_at, min_supported_build).
+        // A denial here is therefore treated as TRANSIENT: re-provisioning
+        // or a build update can make the same record valid, and parking a
+        // whole day's queue over a token rotation would invite data loss.
+        // Content-deterministic rejections are recordToWrite's job (above),
+        // raised as PermanentRejection BEFORE anything is sent.
+        //
+        // One denial cause IS handled here: a doc that already exists (a
+        // crash or concurrent flush replayed the same idempotency key — the
+        // create rule's serverTimestamp/pinning checks fail on the second
+        // attempt). Existence check runs only on this failure path so the
+        // happy path costs one write and zero reads.
+        const existing = await fs.getDoc(ref).catch(() => null);
+        if (existing?.exists()) return; // already synced — treat as success
       }
-      throw err; // transient (offline, unavailable) — flush retries later
+      throw err; // transient (offline, unavailable, env denial) — retry later
     }
   };
 }

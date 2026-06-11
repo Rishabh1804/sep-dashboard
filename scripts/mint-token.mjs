@@ -13,13 +13,10 @@
 //   node scripts/mint-token.mjs --uid champai --name "Champai" --roles handler
 //   node scripts/mint-token.mjs --uid rishabh --name "Rishabh" --roles handler --admin
 
-import { argv, env, exit } from 'node:process';
+import { argv, exit } from 'node:process';
 import { randomUUID } from 'node:crypto';
+import { arg, initAdminApp } from './lib/admin.mjs';
 
-function arg(name, dflt = null) {
-  const i = argv.indexOf(`--${name}`);
-  return i > -1 ? argv[i + 1] : dflt;
-}
 const uid = arg('uid');
 const name = arg('name', uid);
 const roles = (arg('roles', 'handler') || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -30,12 +27,10 @@ if (!uid) {
   exit(2);
 }
 
-const { initializeApp, cert, applicationDefault } = await import('firebase-admin/app');
 const { getAuth } = await import('firebase-admin/auth');
 const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
 
-const saJson = env.FIREBASE_SERVICE_ACCOUNT_STAGING;
-const app = initializeApp({ credential: saJson ? cert(JSON.parse(saJson)) : applicationDefault() });
+const app = await initAdminApp();
 
 const tokenId = `t-${randomUUID().slice(0, 8)}`;
 const claims = { roles, token_id: tokenId, is_admin: isAdmin, is_steward: isSteward };

@@ -11,7 +11,7 @@
 
 import { idbAvailable, idbScan, idbSet, idbDel } from './idb.js';
 import { t } from './i18n.js';
-import { markRecentSynced } from './recent.js';
+import { markRecentSynced, markRecentRejected } from './recent.js';
 
 const QUEUE_PREFIX = 'queue:';
 const REJECTED_PREFIX = 'rejected:';
@@ -20,9 +20,13 @@ const LAST_SYNC_KEY = 'sep_handler_last_sync';
 let held = false; // user can pause auto-flush from the sync sheet
 
 // --- Transport seam (Stage B swaps this for a Firestore writer) ---
-let transport = async () => { throw new Error('no-transport'); };
+const NO_TRANSPORT = async () => { throw new Error('no-transport'); };
+let transport = NO_TRANSPORT;
 let transportReady = false;
 export function setTransport(fn) { transport = fn; transportReady = true; }
+// Sign-out path: without this the chip would keep claiming "syncing" against
+// an auth the transport can no longer use — the dishonest state Phase 5/7 forbid.
+export function clearTransport() { transport = NO_TRANSPORT; transportReady = false; }
 export function isTransportReady() { return transportReady; }
 
 // --- Queue ops ---
@@ -59,6 +63,18 @@ export async function discardRejected() {
   return rows.length;
 }
 
+// Put parked records back on the queue (e.g. after a Stage D fix ships for
+// the skew that rejected them). The recovery affordance that makes parking
+// safe — rejected data is never one tap from oblivion only.
+export async function requeueRejected() {
+  const rows = await listRejected();
+  for (const r of rows) {
+    if (r.record) await enqueueWrite(r.record);
+    await idbDel(r.key).catch(() => {});
+  }
+  return rows.length;
+}
+
 // Pure: roll a queue into { total, byType: {type: n}, since }.
 // Kept dependency-free so it unit-tests without IndexedDB.
 export function summarizeQueue(records) {
@@ -74,11 +90,24 @@ export function summarizeQueue(records) {
 // Drain the queue through the transport. Resolved records leave the
 // queue and flip their recent-log row to synced. Unreachable transport
 // leaves everything queued and surfaces via the chip.
-export async function flush() {
-  if (held) return { sent: 0, remaining: await queueCount() };
+//
+// Re-entrant calls join the in-flight drain instead of racing it — the
+// triggers multiplied in Track 2 (auth ready, 'online' event, the two
+// Sync-now buttons) and two concurrent drains would double-send records
+// and double-count the result.
+let inflight = null;
+export function flush() {
+  if (!inflight) {
+    inflight = doFlush().finally(() => { inflight = null; });
+  }
+  return inflight;
+}
+
+async function doFlush() {
+  if (held) return { sent: 0, rejected: 0, remaining: await queueCount() };
   const queued = await listQueue();
   const synced = [];
-  let rejected = 0;
+  const parked = [];
   for (const { key, record } of queued) {
     try {
       await transport(record);
@@ -86,21 +115,24 @@ export async function flush() {
       synced.push(record.idempotencyKey);
     } catch (err) {
       if (err?.permanent) {
-        // Park it and keep draining — a deterministic rules rejection must
-        // never block the records behind it.
+        // Content-deterministic rejection (recordToWrite pre-flight): park it
+        // and keep draining — it must never block the records behind it.
+        // Environmental denials (revoked token, stale build) are NOT permanent
+        // and take the break below; see createTransport in transport.js.
         await idbSet(`${REJECTED_PREFIX}${key}`, { record, reason: String(err.message || err) }).catch(() => {});
         await idbDel(key).catch(() => {});
-        rejected += 1;
+        parked.push(record.idempotencyKey);
         continue;
       }
-      break; // transient (offline/unavailable); preserve order, retry whole batch later
+      break; // transient (offline/unavailable/env denial); preserve order, retry whole batch later
     }
   }
   if (synced.length) {
     await markRecentSynced(synced);
     try { globalThis.localStorage?.setItem(LAST_SYNC_KEY, String(Date.now())); } catch { /* ignore */ }
   }
-  return { sent: synced.length, rejected, remaining: queued.length - synced.length - rejected };
+  if (parked.length) await markRecentRejected(parked);
+  return { sent: synced.length, rejected: parked.length, remaining: queued.length - synced.length - parked.length };
 }
 
 export function setHeld(v) { held = !!v; }
@@ -111,8 +143,12 @@ export function lastSyncTs() {
 
 // --- Chip rendering ---
 // Derive chip state from queue + network. Pure given its inputs.
+// Priority: live queue truth first — a parked rejected record persists until
+// someone deals with it, and letting it mask "Not sent (30)" indefinitely
+// would defeat the chip's load-bearing "is my data on the server?" signal.
+// Rejected surfaces once the queue itself is clean.
 export function chipState({ pending, online, rejected }) {
-  if (rejected > 0) return { state: 'rejected', icon: '🔴', label: t('rejected'), count: rejected };
+  if (pending === 0 && rejected > 0) return { state: 'rejected', icon: '🔴', label: t('rejected'), count: rejected };
   if (pending === 0) return { state: 'synced', icon: '✓', label: t('synced'), count: 0 };
   if (online && !held) return { state: 'syncing', icon: '⏳', label: t('syncing'), count: pending };
   // Compact label in the chip; the full "Saved on phone, not yet sent"
@@ -137,9 +173,15 @@ export async function renderChip(el) {
 // --- Pre-flush confirmation (Phase 5 lock) ---
 // On app open, if writes are queued, confirm before draining. Catches
 // reinstall scenarios where an unexpected queue appears.
+//
+// Holds the queue BEFORE showing the modal: Track 2's auth listener
+// auto-flushes the moment the persisted session resolves, which would
+// otherwise race past this confirmation and drain the queue while the
+// user is still reading it.
 export async function preFlushCheck({ onReview } = {}) {
   const queued = await listQueue();
   if (!queued.length) return;
+  setHeld(true);
   const { total, byType, since } = summarizeQueue(queued.map((q) => q.record));
   const sinceStr = since ? new Date(since).toLocaleString() : '—';
   const lines = Object.entries(byType)
@@ -150,7 +192,7 @@ export async function preFlushCheck({ onReview } = {}) {
     bodyHtml: `<div>${t('pending_since')}: ${sinceStr}</div><ul>${lines}</ul>`,
     actions: [
       { label: t('review'), kind: 'ghost', onClick: (close) => { close(); onReview?.(); } },
-      { label: t('sync_now'), kind: 'primary', onClick: (close) => { close(); flush(); } },
+      { label: t('sync_now'), kind: 'primary', onClick: (close) => { setHeld(false); close(); flush(); } },
       { label: t('hold'), kind: 'ghost', onClick: (close) => { setHeld(true); close(); } },
     ],
   });
@@ -173,6 +215,7 @@ export async function openSyncSheet(refresh) {
     { label: t('hold'), kind: 'ghost', onClick: (close) => { setHeld(true); close(); refresh?.(); } },
   ];
   if (rejectedRows.length) {
+    actions.push({ label: t('requeue_rejected'), kind: 'ghost', onClick: async (close) => { await requeueRejected(); close(); refresh?.(); } });
     actions.push({ label: t('discard_rejected'), kind: 'ghost', onClick: async (close) => { await discardRejected(); close(); refresh?.(); } });
   }
   showModal({

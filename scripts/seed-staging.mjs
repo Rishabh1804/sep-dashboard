@@ -19,11 +19,8 @@ import { argv, env, exit } from 'node:process';
 import { importInvoicingExport } from '../src/shared/import/invoicing-import.js';
 import { validateImportOutput } from '../src/shared/types/schemas.js';
 import { BUILD } from '../src/shared/config/app.js';
+import { arg, initAdminApp } from './lib/admin.mjs';
 
-function arg(name) {
-  const i = argv.indexOf(`--${name}`);
-  return i > -1 ? argv[i + 1] : null;
-}
 const DRY = argv.includes('--dry-run');
 const exportPath = arg('export');
 if (!exportPath) {
@@ -37,8 +34,9 @@ const out = importInvoicingExport(exportJson);
 const { customers, items, jobs, jobLines, stats } = out;
 
 console.log(`[seed] transformed: ${customers.length} customers · ${items.length} items · ${jobs.length} jobs · ${jobLines.length} job lines`);
-if (stats?.jobIdCollisions?.length) {
-  console.error(`[seed] ABORT — ${stats.jobIdCollisions.length} challan-number collisions:`, stats.jobIdCollisions.slice(0, 10));
+// stats.jobIdCollisions is a COUNT (collided.size); the ids are in collidingJobIds.
+if (stats?.jobIdCollisions > 0) {
+  console.error(`[seed] ABORT — ${stats.jobIdCollisions} challan-number collisions:`, (stats.collidingJobIds || []).slice(0, 10));
   exit(1);
 }
 const v = validateImportOutput(out);
@@ -51,13 +49,8 @@ console.log('[seed] Zod validation: all green');
 if (DRY) { console.log('[seed] dry-run — no writes performed'); exit(0); }
 
 // --- Admin SDK writes ---
-const { initializeApp, cert, applicationDefault } = await import('firebase-admin/app');
 const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
-
-const saJson = env.FIREBASE_SERVICE_ACCOUNT_STAGING;
-const app = initializeApp({
-  credential: saJson ? cert(JSON.parse(saJson)) : applicationDefault(),
-});
+const app = await initAdminApp();
 const db = getFirestore(app);
 console.log(`[seed] project: ${app.options.credential?.projectId || env.GOOGLE_CLOUD_PROJECT || '(from credential)'}`);
 
@@ -76,9 +69,19 @@ for (const it of items) await put(db.collection('items').doc(it.id), it);
 for (const j of jobs) await put(db.collection('jobs').doc(j.id), j);
 for (const l of jobLines) await put(db.collection('jobs').doc(l.job_id).collection('job_lines').doc(l.id), l);
 
-// buildSupported() reads this on every client write — must exist before any
-// handler can sync (rules fail closed on a missing doc).
-await put(db.collection('config').doc('min_supported_build'), { value: BUILD });
-
 if (inBatch > 0) await batch.commit();
-console.log(`[seed] done — ${written} documents written (incl. config/min_supported_build = ${BUILD})`);
+
+// buildSupported() reads this on every client write — must exist before any
+// handler can sync (rules fail closed on a missing doc). CREATE-ONLY: a
+// re-seed must never move the gate, or every installed handler still on an
+// older bundle gets its whole queue denied. Raising the gate is a deliberate
+// admin action, not a side effect of refreshing data.
+const gateRef = db.collection('config').doc('min_supported_build');
+const gate = await gateRef.get();
+if (!gate.exists) {
+  await gateRef.set({ value: BUILD });
+  console.log(`[seed] config/min_supported_build created = ${BUILD}`);
+} else {
+  console.log(`[seed] config/min_supported_build untouched (existing value: ${gate.data().value})`);
+}
+console.log(`[seed] done — ${written} documents written`);

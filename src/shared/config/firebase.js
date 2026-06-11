@@ -28,14 +28,17 @@ export function resolveFirebaseEnv() {
   let env = null;
   try {
     const m = globalThis.location?.search?.match(/[?&]fbenv=(staging|prod)\b/);
-    if (m) {
+    if (m && CONFIGS[m[1]]) {
+      // Persist only a PROVISIONED env — pinning a device to a null config
+      // (e.g. ?fbenv=prod before prod exists) would silently disable sync
+      // on every subsequent boot until localStorage is cleared by hand.
       env = m[1];
       globalThis.localStorage?.setItem(ENV_KEY, env);
     } else {
       env = globalThis.localStorage?.getItem(ENV_KEY);
     }
   } catch { /* storage unavailable — fall through */ }
-  return env && Object.prototype.hasOwnProperty.call(CONFIGS, env) ? env : DEFAULT_ENV;
+  return env && CONFIGS[env] ? env : DEFAULT_ENV;
 }
 
 export function getFirebaseConfig(env = resolveFirebaseEnv()) {

@@ -46,9 +46,13 @@ self.addEventListener('fetch', (e) => {
     if (r) return r;
     return fetch(e.request).then((resp) => {
       const url = new URL(e.request.url);
+      // Hashed chunks ONLY (dist/chunks/*-HASH.js): immutable by construction,
+      // safe to pin. The non-hashed entry bundles (dist/handler.js) must stay
+      // network-fresh when absent from the install snapshot — runtime-pinning
+      // them would freeze a build past its CACHE_NAME version.
       if (resp.ok && e.request.method === 'GET'
           && url.origin === self.location.origin
-          && url.pathname.startsWith(BASE + 'dist/')) {
+          && url.pathname.startsWith(BASE + 'dist/chunks/')) {
         const copy = resp.clone();
         caches.open(CACHE_NAME).then((c) => c.put(e.request, copy)).catch(() => {});
       }

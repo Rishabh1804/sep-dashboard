@@ -64,7 +64,14 @@ jobs:
 
       - name: Mint provisioning token
         if: inputs.action == 'mint-token'
-        run: node scripts/mint-token.mjs --uid "${{ inputs.uid }}" --name "${{ inputs.name || inputs.uid }}" --roles "${{ inputs.roles }}"
+        # Inputs pass through env, never spliced into the command line —
+        # ${{ }} interpolation in run: is shell injection in a job whose
+        # env holds the staging admin credential.
+        env:
+          IN_UID: ${{ inputs.uid }}
+          IN_NAME: ${{ inputs.name }}
+          IN_ROLES: ${{ inputs.roles }}
+        run: node scripts/mint-token.mjs --uid "$IN_UID" --name "${IN_NAME:-$IN_UID}" --roles "$IN_ROLES"
 
       - name: Seed dry-run (fixture)
         if: inputs.action == 'seed-dry-run'

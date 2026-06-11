@@ -38,10 +38,13 @@ const jobItems = () => getCache('job');
 const customerItems = () => getCache('customer');
 const supplierItems = () => getCache('supplier');
 
+// Stations the Firestore rules accept (isValidProductionEntry). Passivation
+// is real floor work but the locked v2 schema folds it into plating — the
+// option was a silent reject-on-sync trap (HANDLER_FORMS.md locks station as
+// machine-derived anyway; the select survives only as an alpha override).
 const STATION_OPTS = [
   { value: 'pickling', labelKey: 'opt_pickling' },
   { value: 'plating', labelKey: 'opt_plating' },
-  { value: 'passivation', labelKey: 'opt_passivation' },
   { value: 'inspection', labelKey: 'opt_inspection' },
 ];
 const STATE_OPTS = [
@@ -95,6 +98,12 @@ export const FORMS = [
     fields: [
       { key: 'job', labelKey: 'f_job', kind: 'picker', pickerKey: 'job', icon: '📋', required: true },
       { key: 'dft_micron', labelKey: 'f_dft_micron', kind: 'number', icon: '🔬', required: true, validate: dftRange },
+      // Inspector judgment is a FIELD, not a formula (HANDLER_FORMS.md) — a
+      // 7.8 µm reading can be a pass for a customer who accepts 7+.
+      { key: 'outcome', labelKey: 'f_outcome', kind: 'select', icon: '⚖️', required: true, options: [
+        { value: 'pass', labelKey: 'opt_pass' },
+        { value: 'fail-rework', labelKey: 'opt_fail_rework' },
+      ] },
       { key: 'notes', labelKey: 'f_notes', kind: 'notes' },
     ],
   },

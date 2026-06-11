@@ -1,12 +1,12 @@
 import {
   DEF_CW,
-  DEF_PERM,
-  DEF_STOCK
-} from "./chunks/chunk-JR6KBK3Q.js";
+  DEF_PERM
+} from "./chunks/chunk-42434FVJ.js";
 import {
   APP_VERSION,
-  DEF_AREAS
-} from "./chunks/chunk-ZKOL2YBM.js";
+  DEF_AREAS,
+  DEF_STOCK
+} from "./chunks/chunk-GEIU5DZV.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();

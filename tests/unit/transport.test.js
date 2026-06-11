@@ -74,13 +74,18 @@ describe('job_receipt → jobs', () => {
 });
 
 describe('dft → dft_measurements', () => {
-  test('derives outcome from the 8-12 µm benchmark and flags the derivation', () => {
+  test('explicit inspector outcome wins and is not flagged as derived', () => {
+    // 7.8 µm can be a pass for a customer who accepts 7+ — judgment is a field.
+    const w = recordToWrite(rec('dft', { job: 'j', dft_micron: 7.8, outcome: 'pass' }), CTX);
+    expect(w.data.outcome).toBe('pass');
+    expect(w.data.outcome_derived).toBeUndefined();
+  });
+
+  test('records without an outcome (pre-field builds) fall back to the 8-12 µm derivation, flagged', () => {
     const pass = recordToWrite(rec('dft', { job: 'j', dft_micron: 10 }), CTX);
     expect(pass.data).toMatchObject({ micron_value: 10, outcome: 'pass', outcome_derived: true });
-    const low = recordToWrite(rec('dft', { job: 'j', dft_micron: 5 }), CTX);
-    expect(low.data.outcome).toBe('fail-rework');
-    const high = recordToWrite(rec('dft', { job: 'j', dft_micron: 14 }), CTX);
-    expect(high.data.outcome).toBe('fail-rework');
+    expect(recordToWrite(rec('dft', { job: 'j', dft_micron: 5 }), CTX).data.outcome).toBe('fail-rework');
+    expect(recordToWrite(rec('dft', { job: 'j', dft_micron: 14 }), CTX).data.outcome).toBe('fail-rework');
   });
 });
 
@@ -89,6 +94,11 @@ describe('stock forms', () => {
     const w = recordToWrite(rec('stock_refill', { item: 'zinc_anodes', supplier: 'sup-1', quantity: 154.13, cost: 270 }), CTX);
     expect(w.path).toEqual(['stock_items', 'zinc_anodes', 'receipts', 'idem-1']);
     expect(w.data).toMatchObject({ qty_received: 154.13, unit_cost: 270, cost_unit: 'per_kg', supplier_id: 'sup-1' });
+  });
+
+  test('litre-tracked stock (HCl, brighteners) prices per_liter, not per_kg', () => {
+    const w = recordToWrite(rec('stock_refill', { item: 'hcl', supplier: 'sup-aci', quantity: 660, cost: 12 }), CTX);
+    expect(w.data.cost_unit).toBe('per_liter');
   });
 
   test('refill missing cost or supplier is the documented rules skew — permanent', () => {
