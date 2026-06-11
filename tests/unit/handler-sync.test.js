@@ -19,8 +19,15 @@ describe('summarizeQueue()', () => {
 });
 
 describe('chipState()', () => {
-  test('rejected wins over everything', () => {
-    expect(chipState({ pending: 5, online: true, rejected: 1 }).state).toBe('rejected');
+  test('live queue truth outranks a stale rejected record', () => {
+    // A parked rejection persists until someone deals with it; it must not
+    // mask "Not sent (N)" / "Syncing (N)" for the records still in flight.
+    expect(chipState({ pending: 5, online: true, rejected: 1 }).state).toBe('syncing');
+    expect(chipState({ pending: 5, online: false, rejected: 1 }).state).toBe('offline');
+  });
+
+  test('rejected surfaces once the queue is clean', () => {
+    expect(chipState({ pending: 0, online: true, rejected: 1 }).state).toBe('rejected');
   });
 
   test('synced when nothing is pending', () => {

@@ -64,7 +64,7 @@ function renderHome() {
     ? recent.map((e) => `<div class="h-recent-row">
         <span class="h-recent-time">${new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         <span class="h-recent-text">${t(e.type)} · ${e.summary}</span>
-        <span class="h-recent-status">${e.status === 'queued' ? '⏳' : '✓'}</span>
+        <span class="h-recent-status">${e.status === 'queued' ? '⏳' : e.status === 'rejected' ? '🔴' : '✓'}</span>
       </div>`).join('')
     : `<div class="h-empty">${t('no_recent')}</div>`;
 
@@ -156,6 +156,12 @@ async function boot() {
   }, 60000);
   // Pre-flush confirmation if writes were left queued from a prior session.
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
+  // Track 2: ignite Firebase AFTER first render — dynamic import keeps the
+  // SDK in an async chunk so the shell stays instant + offline-first. If it
+  // fails (no signal, no config), Stage C behaviour holds: queue + honest chip.
+  import('./firebase-boot.js')
+    .then((m) => m.startFirebase({ onChange: refreshChip }))
+    .catch(() => {});
   // Keep the chip honest as connectivity changes.
   globalThis.addEventListener?.('online', refreshChip);
   globalThis.addEventListener?.('offline', refreshChip);

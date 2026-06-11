@@ -31,6 +31,8 @@ export const DICT = {
   offline_saved:    { hi: 'फ़ोन में सेव, अभी भेजा नहीं', en: 'Saved on phone, not yet sent' },
   not_sent:         { hi: 'भेजा नहीं',                 en: 'Not sent' },
   rejected:         { hi: 'सर्वर ने मना किया',     en: 'Rejected by server' },
+  discard_rejected: { hi: 'मना किए हुए हटाएं',     en: 'Discard rejected' },
+  requeue_rejected: { hi: 'फिर से भेजें',          en: 'Retry rejected' },
   sync_status:      { hi: 'सिंक स्थिति',           en: 'Sync status' },
   sync_now:         { hi: 'अभी भेजें',             en: 'Sync now' },
   hold:             { hi: 'रुकें',                 en: 'Hold' },
@@ -64,6 +66,7 @@ export const DICT = {
   f_customer:       { hi: 'ग्राहक',                en: 'Customer' },
   f_weight:         { hi: 'वज़न (किग्रा)',         en: 'Weight (kg)' },
   f_dft_micron:     { hi: 'डीएफटी (माइक्रोन)',     en: 'DFT (micron)' },
+  f_outcome:        { hi: 'नतीजा',                en: 'Outcome' },
   f_item:           { hi: 'सामान',                 en: 'Item' },
   f_supplier:       { hi: 'सप्लायर',               en: 'Supplier' },
   f_cost:           { hi: 'कीमत (₹)',              en: 'Cost (₹)' },
@@ -83,6 +86,8 @@ export const DICT = {
   opt_down:         { hi: 'खराब',                 en: 'Down' },
   opt_in:           { hi: 'आना',                  en: 'In' },
   opt_out:          { hi: 'जाना',                 en: 'Out' },
+  opt_pass:         { hi: 'पास',                  en: 'Pass' },
+  opt_fail_rework:  { hi: 'फेल — दोबारा',         en: 'Fail — rework' },
 
   // Actions / dialogs
   back:             { hi: 'वापस',                  en: 'Back' },

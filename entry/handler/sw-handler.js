@@ -5,7 +5,7 @@
 // writes with no signal. Best-effort install (Promise.allSettled) so a
 // blocked font CDN never tanks registration — same hardening as sw.js.
 
-const CACHE_NAME = 'sep-handler-2.1.0-alpha.1';
+const CACHE_NAME = 'sep-handler-2.1.0-alpha.2';
 const BASE = '/sep-dashboard/';
 const ASSETS = [
   BASE + 'entry/handler/',
@@ -38,5 +38,25 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request)));
+  // Cache-first, then network — and runtime-cache same-origin dist/ assets
+  // on the way through. The Firebase SDK lives in a HASHED async chunk
+  // (dist/chunks/*) that can't be pre-listed above; caching it on first
+  // successful fetch keeps Track 2 sync available offline-first.
+  e.respondWith(caches.match(e.request).then((r) => {
+    if (r) return r;
+    return fetch(e.request).then((resp) => {
+      const url = new URL(e.request.url);
+      // Hashed chunks ONLY (dist/chunks/*-HASH.js): immutable by construction,
+      // safe to pin. The non-hashed entry bundles (dist/handler.js) must stay
+      // network-fresh when absent from the install snapshot — runtime-pinning
+      // them would freeze a build past its CACHE_NAME version.
+      if (resp.ok && e.request.method === 'GET'
+          && url.origin === self.location.origin
+          && url.pathname.startsWith(BASE + 'dist/chunks/')) {
+        const copy = resp.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(e.request, copy)).catch(() => {});
+      }
+      return resp;
+    });
+  }));
 });

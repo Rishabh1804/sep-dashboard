@@ -312,3 +312,67 @@ test('every job from the synthetic-fixture import passes the jobs create rule', 
     }));
   }
 });
+
+// ---- transport parity: rules must accept what the handler transport produces ----
+// recordToWrite() is the client's pure record→doc mapper (src/handler/transport.js).
+// Every form type it can send must pass the corresponding create rule with plain
+// handler claims — the client↔rules counterpart of the importer-parity test above.
+
+const TCTX = () => ({ uid: 'u-t-handler', build: 999, serverTimestamp });
+
+function transportRec(type, fields, idem) {
+  return { type, idempotencyKey: idem, ts: Date.now(), fields };
+}
+
+test('transport parity: every mappable handler form passes its create rule', async () => {
+  const { recordToWrite } = await import('../../src/handler/transport.js');
+  const db = ctxFor(HANDLER);
+  const cases = [
+    transportRec('production', { job: 'sep-501', machine: 'vat_a1', worker: 'w-floor-1', quantity: 450 }, 'tp-prod-vat'),
+    transportRec('production', { job: 'sep-501', machine: 'barrel', worker: 'w-floor-2', quantity: 32.5, notes: '2 jhuri' }, 'tp-prod-bar'),
+    transportRec('production', { job: 'sep-501', machine: 'pickle_vat', worker: 'w-floor-3', quantity: 100 }, 'tp-prod-pkl'),
+    transportRec('job_receipt', { customer: 'cust-7', weight: 120.5 }, 'tp-job'),
+    transportRec('dft', { job: 'sep-501', dft_micron: 10 }, 'tp-dft'),
+    transportRec('dft', { job: 'sep-501', dft_micron: 14 }, 'tp-dft-fail'),
+    transportRec('dispatch', { job: 'sep-501', weight: 293.4 }, 'tp-disp'),
+    transportRec('stock_refill', { item: 'zinc_anodes', supplier: 'sup-1', quantity: 154.13, cost: 270 }, 'tp-refill'),
+    transportRec('stock_deplete', { item: 'hcl', quantity: 150 }, 'tp-deplete'),
+    transportRec('machine_state', { machine: 'vat_a2', state: 'down', notes: 'rectifier' }, 'tp-state'),
+    transportRec('check_in', { worker: 'w-floor-1', direction: 'in' }, 'tp-checkin'),
+    transportRec('note', { note_kind: 'machine', note_text: 'T2 leak check tomorrow' }, 'tp-note'),
+  ];
+  for (const r of cases) {
+    const w = recordToWrite(r, TCTX());
+    await assertSucceeds(setDoc(doc(db, ...w.path), w.data));
+  }
+});
+
+test('transport parity: mapper pre-rejections mirror actual rules denials', async () => {
+  const { recordToWrite, PermanentRejection } = await import('../../src/handler/transport.js');
+  const db = ctxFor(HANDLER);
+
+  // station 'passivation' — the mapper throws PermanentRejection…
+  let threw = null;
+  try {
+    recordToWrite(transportRec('production',
+      { job: 'j', machine: 'vat_a1', worker: 'w', quantity: 1, station: 'passivation' }, 'tp-skew-1'), TCTX());
+  } catch (e) { threw = e; }
+  if (!(threw instanceof PermanentRejection)) throw new Error('expected PermanentRejection for passivation');
+  // …and the rules would indeed deny the same doc if it were sent anyway.
+  await assertFails(setDoc(doc(db, 'production_entries', 'tp-skew-1'), {
+    author_user_id: 'u-t-handler', created_at: serverTimestamp(), app_version: '999',
+    job_id: 'j', machine_id: 'vat_a1', worker_id: 'w', qty_pcs: 1, station: 'passivation',
+  }));
+
+  // stock receipt without unit_cost/supplier — mapper throws…
+  threw = null;
+  try {
+    recordToWrite(transportRec('stock_refill', { item: 'hcl', quantity: 100 }, 'tp-skew-2'), TCTX());
+  } catch (e) { threw = e; }
+  if (!(threw instanceof PermanentRejection)) throw new Error('expected PermanentRejection for costless refill');
+  // …and the rules deny it too.
+  await assertFails(setDoc(doc(db, 'stock_items', 'hcl', 'receipts', 'tp-skew-2'), {
+    author_user_id: 'u-t-handler', created_at: serverTimestamp(), app_version: '999',
+    qty_received: 100,
+  }));
+});

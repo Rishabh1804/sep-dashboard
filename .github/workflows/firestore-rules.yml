@@ -26,6 +26,10 @@ on:
       - 'src/shared/types/**'
       - 'src/shared/validation/**'
       - 'src/shared/import/**'
+      # transport-parity tests import the handler mapper + its config deps —
+      # mapper or area/build-config drift genuinely alters rules-CI outcomes.
+      - 'src/handler/transport.js'
+      - 'src/shared/config/**'
       - '.github/workflows/firestore-rules.yml'
   push:
     branches: [main]
@@ -37,6 +41,10 @@ on:
       - 'src/shared/types/**'
       - 'src/shared/validation/**'
       - 'src/shared/import/**'
+      # transport-parity tests import the handler mapper + its config deps —
+      # mapper or area/build-config drift genuinely alters rules-CI outcomes.
+      - 'src/handler/transport.js'
+      - 'src/shared/config/**'
       - '.github/workflows/firestore-rules.yml'
 
 concurrency:

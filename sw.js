@@ -2,7 +2,10 @@
 // Bumped CACHE_NAME forces re-cache when v2.1 single-file users
 // receive the update.
 
-const CACHE_NAME = 'sep-v2.1.0-alpha.1';
+// alpha.2: dist/dashboard.js + shared chunk hashes changed (Track 2 Firebase
+// wiring). Without this bump, installed clients keep the cached old
+// dashboard.js whose imports point at chunk hashes that no longer exist.
+const CACHE_NAME = 'sep-v2.1.0-alpha.2';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',
@@ -34,5 +37,21 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request)));
+  // Cache-first, plus runtime caching for the build's HASHED chunks
+  // (dist/chunks/* — immutable by construction, produced by esbuild
+  // splitting). The non-hashed dashboard.js stays install-snapshot-only so
+  // a CACHE_NAME bump always refreshes it.
+  e.respondWith(caches.match(e.request).then((r) => {
+    if (r) return r;
+    return fetch(e.request).then((resp) => {
+      const url = new URL(e.request.url);
+      if (resp.ok && e.request.method === 'GET'
+          && url.origin === self.location.origin
+          && url.pathname.startsWith('/sep-dashboard/dist/chunks/')) {
+        const copy = resp.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(e.request, copy)).catch(() => {});
+      }
+      return resp;
+    });
+  }));
 });
