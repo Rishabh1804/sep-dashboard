@@ -763,3 +763,43 @@ Stage B: Firebase project + Firestore schema + security rules + Zod at the stora
 
 *Stage C documented 9 June 2026 by Aurelius (Claude Code Session 13).*
 
+
+---
+
+## Session 14: Stage B Lands + Track 2 Ignition (10-12 June 2026)
+
+### What Shipped
+
+The backend went from design to **live**. Three arcs across PRs #16-#20, all merged:
+
+**Arc 1 — Stage B Track 1 (PR #16, 10 Jun):** sep-internal ground truth wired into the Phase 2 data model. Schema v2 ratified (challan = 1 Job + `job_lines[]` subcollection — v1's one-job-one-item didn't survive multi-line challans); pure idempotent sep-invoicing→Firestore importer with challan-collision stats; Zod v2 schemas at the write boundary; pure cross-doc validators; CF skeletons; picker-cache seam replacing Stage C's placeholder lists.
+
+**Arc 2 — Rules harness (PR #17, 10 Jun):** Firestore rules emulator test package (`tests/rules/`, standalone npm pkg), isolated path-filtered CI, v2 alignment + hardening — caught a spoofable job author, a bypassable DFT re-validation, and a lexicographic version compare silently defeating stale-build rejection.
+
+**Arc 3 — Track 2 ignition (PRs #18-#20, 11-12 Jun, this session):** staging project created by Rishabh (`sep-dashboard-staging`, asia-south1, production-mode); client wiring (env-keyed config, dynamic-import `firebase-boot.js`, `transport.js` pure record→doc mapper, `setTransport()` injection, picker hydration via listeners, queue hardening with a rejected-record store); admin plane as a `workflow_dispatch` GitHub Actions workflow consuming the `FIREBASE_SERVICE_ACCOUNT_STAGING` repo secret (deploy-rules / mint-token / seed-dry-run / seed-fixture / verify-e2e); hardened rules published; fixture seeded; Authentication initialized; **live end-to-end verification green** — self-mint → sign-in → real transport write accepted by the deployed rules → read-back → idempotent replay correctly denied by rules and resolved by the transport.
+
+### The Review Pass (workflow convention upheld)
+
+7-angle `/code-review` (3 correctness + reuse/simplification/efficiency/altitude) before merge: ~36 candidates → 16 findings folded. Highest-severity: server `permission-denied` wrongly classified permanent (data-loss path — rules read mutable state, so a token rotation would have swept a day's queue into a discard-only store); dead challan-collision guard in the seed (`jobIdCollisions` is a count, not an array); dashboard `sw.js` cache not bumped while chunk hashes changed (would have bricked installed dashboards on deploy); GitHub Actions script injection via `${{ inputs }}` in a secret-bearing job. Full detail in `docs/architecture/DECISION_LOG.md` §10-12 June.
+
+### Test Results (Session 14 close)
+
+- **Unit (Jest):** 114 · **E2E (Playwright):** 37 · **Rules (emulator):** 27 (incl. importer-parity + transport-parity) — all green
+- **Live:** `verify-e2e` workflow run green against staging (run 27410465556)
+
+### Operational State
+
+| Item | Status |
+|---|---|
+| Staging Firestore + hardened rules + Auth | ✅ LIVE |
+| Seed/mint/verify one-click via Actions | ✅ |
+| `deploy-rules` via Actions | 🔶 needs IAM roles on the SA (Rules Admin + Service Usage Consumer); console-publish used this round |
+| Real 508-challan seed | ⏳ awaits fresh sep-invoicing export from Rishabh |
+| Prod project | ⏳ not created (same runbook as staging) |
+| First provisioning (Champai, T-CH in soma-internal) | ⏳ needs Android device + QR from `mint-token` |
+
+### Next Session
+
+Stage D form completion in the **soma-internal evidence order** (OT/check-in → production rounds → pickling/IM → chemistry → power-cut; see Vesta's cadence brief, 11 Jun) + Stage F minimal viewer (activity stream + the `reports/daily/*` KPI strip + NIL/overdue warnings). App name decision: **SEP Dashboard / SEP Handler confirmed** (Rishabh, 11 Jun).
+
+*Session 14 documented 12 June 2026 by Aurelius (Claude Code).*
