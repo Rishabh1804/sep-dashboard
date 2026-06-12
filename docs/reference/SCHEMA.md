@@ -77,7 +77,7 @@ interface Item {
 ```typescript
 interface Job {
   __schema_version: number;                 // v2: item_id now OPTIONAL — see job_lines
-  id: string;                               // format: J-{YYYY}-{nnnn}, OR sep-{challanNo} for imported challans
+  id: string;                               // format: J-{YYYY}-{nnnn}, OR sep-{IM source id} for imported challans (12 Jun 2026: challanNo is customer-issued + non-unique — 107/508 collisions in the real export; the source row id is the identity)
   customer_id: string;                      // FK
   item_id?: string;                         // v2: OPTIONAL. Single-item convenience FK; the
                                             //     authoritative per-part breakdown lives in
