@@ -57,9 +57,12 @@ export function itemToPickerItem(it) {
 }
 
 export function jobToPickerItem(j) {
+  // challan_no = captured at receipt by the handler (Stage D);
+  // sep_invoicing_challan_no = the importer's legacy cross-ref field.
+  const challan = j.challan_no || j.sep_invoicing_challan_no;
   return {
     id: j.id,
-    primary: j.sep_invoicing_challan_no ? `Challan ${j.sep_invoicing_challan_no}` : j.id,
+    primary: challan ? `Challan ${challan}` : j.id,
     sub: j.customer_id,
     method: j.current_status === 'dispatched' ? '✓' : '•',
   };

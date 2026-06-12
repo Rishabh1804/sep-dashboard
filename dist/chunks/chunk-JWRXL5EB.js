@@ -63,6 +63,14 @@ var DICT = {
   f_note_text: { hi: "\u0915\u094D\u092F\u093E \u0932\u093F\u0916\u0928\u093E \u0939\u0948", en: "What to note" },
   f_note_kind: { hi: "\u0915\u093F\u0938 \u092C\u093E\u0930\u0947 \u092E\u0947\u0902", en: "About" },
   f_self: { hi: "\u0916\u0941\u0926", en: "self" },
+  f_rounds: { hi: "\u0930\u093E\u0909\u0902\u0921 (\u0935\u0948\u0915\u0932\u094D\u092A\u093F\u0915)", en: "Rounds (optional)" },
+  f_round_size: { hi: "\u0939\u0930 \u0930\u093E\u0909\u0902\u0921 \u092E\u0947\u0902 \u0915\u093F\u0924\u0928\u093E", en: "Per-round count" },
+  f_challan: { hi: "\u091A\u093E\u0932\u093E\u0928 \u0928\u0902\u092C\u0930", en: "Challan no." },
+  f_pcs: { hi: "\u092A\u0940\u0938 (NOS)", en: "Pieces (NOS)" },
+  f_reason: { hi: "\u0915\u093E\u0930\u0923", en: "Reason" },
+  f_level_after: { hi: "\u0905\u092C \u0915\u093F\u0924\u0928\u093E \u092C\u091A\u093E", en: "Level left after" },
+  f_slot: { hi: "\u0915\u094C\u0928 \u0938\u0940 \u092A\u093E\u0930\u0940", en: "Slot" },
+  f_priority: { hi: "\u0915\u093F\u0924\u0928\u093E \u091C\u093C\u0930\u0942\u0930\u0940", en: "Priority" },
   // Station / state option values
   opt_pickling: { hi: "\u092A\u093F\u0915\u0932\u093F\u0902\u0917", en: "Pickling" },
   opt_plating: { hi: "\u092A\u094D\u0932\u0947\u091F\u093F\u0902\u0917", en: "Plating" },
@@ -75,6 +83,18 @@ var DICT = {
   opt_out: { hi: "\u091C\u093E\u0928\u093E", en: "Out" },
   opt_pass: { hi: "\u092A\u093E\u0938", en: "Pass" },
   opt_fail_rework: { hi: "\u092B\u0947\u0932 \u2014 \u0926\u094B\u092C\u093E\u0930\u093E", en: "Fail \u2014 rework" },
+  opt_morning_ot: { hi: "\u0938\u0941\u092C\u0939 \u0913\u091F\u0940 (6 \u092C\u091C\u0947)", en: "Morning OT (6 AM)" },
+  opt_regular: { hi: "\u0926\u093F\u0928 \u0915\u0940 \u092A\u093E\u0930\u0940", en: "Regular shift" },
+  opt_evening_ot: { hi: "\u0936\u093E\u092E \u0913\u091F\u0940 (5 \u092C\u091C\u0947 \u092C\u093E\u0926)", en: "Evening OT (post-5)" },
+  opt_use: { hi: "\u0915\u093E\u092E \u092E\u0947\u0902 \u0932\u0917\u093E", en: "Production use" },
+  opt_waste: { hi: "\u092C\u0930\u094D\u092C\u093E\u0926", en: "Waste" },
+  opt_spill: { hi: "\u0917\u093F\u0930 \u0917\u092F\u093E", en: "Spillage" },
+  opt_theft: { hi: "\u091A\u094B\u0930\u0940", en: "Theft" },
+  opt_other: { hi: "\u0914\u0930 \u0915\u0941\u091B", en: "Other" },
+  opt_normal: { hi: "\u0938\u093E\u092E\u093E\u0928\u094D\u092F", en: "Normal" },
+  opt_urgent: { hi: "\u091C\u093C\u0930\u0942\u0930\u0940", en: "Urgent" },
+  opt_power_cut: { hi: "\u092C\u093F\u091C\u0932\u0940 \u0915\u091F\u0940", en: "Power cut" },
+  opt_incident: { hi: "\u0918\u091F\u0928\u093E", en: "Incident" },
   // Actions / dialogs
   back: { hi: "\u0935\u093E\u092A\u0938", en: "Back" },
   cancel: { hi: "\u0930\u0926\u094D\u0926 \u0915\u0930\u0947\u0902", en: "Cancel" },
@@ -497,9 +517,10 @@ function itemToPickerItem(it) {
   };
 }
 function jobToPickerItem(j) {
+  const challan = j.challan_no || j.sep_invoicing_challan_no;
   return {
     id: j.id,
-    primary: j.sep_invoicing_challan_no ? `Challan ${j.sep_invoicing_challan_no}` : j.id,
+    primary: challan ? `Challan ${challan}` : j.id,
     sub: j.customer_id,
     method: j.current_status === "dispatched" ? "\u2713" : "\u2022"
   };
@@ -536,4 +557,4 @@ export {
   itemsToPickerItems,
   jobsToPickerItems
 };
-//# sourceMappingURL=chunk-JM3BSFQS.js.map
+//# sourceMappingURL=chunk-JWRXL5EB.js.map

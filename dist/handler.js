@@ -22,12 +22,12 @@ import {
   showModal,
   speak,
   t
-} from "./chunks/chunk-JM3BSFQS.js";
+} from "./chunks/chunk-JWRXL5EB.js";
 import {
   APP_VERSION,
   DEF_AREAS,
   DEF_STOCK
-} from "./chunks/chunk-GEIU5DZV.js";
+} from "./chunks/chunk-I5LOYBFW.js";
 
 // src/handler/feedback.js
 var MUTE_KEY = "sep_handler_mute";
@@ -127,6 +127,28 @@ var DIRECTION_OPTS = [
   { value: "in", labelKey: "opt_in" },
   { value: "out", labelKey: "opt_out" }
 ];
+var SLOT_OPTS = [
+  { value: "morning_ot", labelKey: "opt_morning_ot" },
+  { value: "regular", labelKey: "opt_regular" },
+  { value: "evening_ot", labelKey: "opt_evening_ot" }
+];
+var REASON_OPTS = [
+  { value: "production_use", labelKey: "opt_use" },
+  { value: "waste", labelKey: "opt_waste" },
+  { value: "spillage", labelKey: "opt_spill" },
+  { value: "theft", labelKey: "opt_theft" },
+  { value: "other", labelKey: "opt_other" }
+];
+var PRIORITY_OPTS = [
+  { value: "normal", labelKey: "opt_normal" },
+  { value: "urgent", labelKey: "opt_urgent" }
+];
+function inferSlot() {
+  const h = (/* @__PURE__ */ new Date()).getHours();
+  if (h < 9) return "morning_ot";
+  if (h < 17) return "regular";
+  return "evening_ot";
+}
 var PICKERS = {
   job: jobItems,
   machine: machineItems,
@@ -137,7 +159,10 @@ var PICKERS = {
   supplier: supplierItems
 };
 var posNumber = (v) => Number(v) > 0 ? null : "> 0";
+var nonNegNumber = (v) => Number(v) >= 0 ? null : "\u2265 0";
 var dftRange = (v) => Number(v) > 50 ? "0\u201350 \xB5m" : Number(v) > 0 ? null : "> 0";
+var qtyUnlessRounds = (s) => !(Number(s.rounds) > 0 && Number(s.round_size) > 0);
+var kgUnlessPcs = (s) => !(Number(s.received_pcs) > 0);
 var FORMS = [
   {
     id: "production",
@@ -152,7 +177,12 @@ var FORMS = [
       { key: "part", labelKey: "f_part", kind: "picker", pickerKey: "part", icon: "\u{1F3F7}\uFE0F", remember: true },
       { key: "machine", labelKey: "f_machine", kind: "picker", pickerKey: "machine", icon: "\u{1F527}", required: true, remember: true },
       { key: "worker", labelKey: "f_worker", kind: "picker", pickerKey: "worker", icon: "\u{1F477}", required: true, remember: true },
-      { key: "quantity", labelKey: "f_quantity", kind: "number", icon: "\u{1F522}", required: true, validate: posNumber },
+      // The register's native grain is rounds: "108-round" VAT days, "25×6"
+      // batches. Either enter the total, or rounds × per-round size — the
+      // transport derives the total when only rounds are given.
+      { key: "rounds", labelKey: "f_rounds", kind: "number", icon: "\u{1F501}", validate: posNumber },
+      { key: "round_size", labelKey: "f_round_size", kind: "number", icon: "\u2716\uFE0F", validate: posNumber },
+      { key: "quantity", labelKey: "f_quantity", kind: "number", icon: "\u{1F522}", required: qtyUnlessRounds, validate: posNumber },
       { key: "station", labelKey: "f_station", kind: "select", icon: "\u{1F4CD}", options: STATION_OPTS, remember: true },
       { key: "notes", labelKey: "f_notes", kind: "notes" }
     ]
@@ -165,7 +195,12 @@ var FORMS = [
     pickers: PICKERS,
     fields: [
       { key: "customer", labelKey: "f_customer", kind: "picker", pickerKey: "customer", icon: "\u{1F3E2}", required: true },
-      { key: "weight", labelKey: "f_weight", kind: "number", icon: "\u2696\uFE0F", required: true, validate: posNumber },
+      // The customer's paperwork number — a label, not a key (the 107-
+      // collision ruling, SCHEMA_CHANGELOG v2.1). Cross-reference only.
+      { key: "challan_no", labelKey: "f_challan", kind: "text", icon: "\u{1F9FE}" },
+      { key: "weight", labelKey: "f_weight", kind: "number", icon: "\u2696\uFE0F", required: kgUnlessPcs, validate: posNumber },
+      // NOS-only challans (clamps/brackets counted in pieces) carry no kg.
+      { key: "received_pcs", labelKey: "f_pcs", kind: "number", icon: "\u{1F522}", validate: posNumber },
       { key: "notes", labelKey: "f_notes", kind: "notes" }
     ]
   },
@@ -222,6 +257,11 @@ var FORMS = [
     fields: [
       { key: "item", labelKey: "f_item", kind: "picker", pickerKey: "item", icon: "\u{1F4E6}", required: true },
       { key: "quantity", labelKey: "f_quantity", kind: "number", icon: "\u{1F522}", required: true, validate: posNumber },
+      { key: "reason", labelKey: "f_reason", kind: "select", icon: "\u2753", options: REASON_OPTS, default: "production_use", required: true },
+      // The chemistry stock-take companion: how much is LEFT after this
+      // draw. 0 = Shyam's "NIL" — surfaces as a reorder alert in the
+      // dashboard's Live view. Optional; most floor draws skip it.
+      { key: "level_after", labelKey: "f_level_after", kind: "number", icon: "\u{1F4CF}", validate: nonNegNumber },
       { key: "notes", labelKey: "f_notes", kind: "notes" }
     ]
   },
@@ -245,7 +285,11 @@ var FORMS = [
     pickers: PICKERS,
     fields: [
       { key: "worker", labelKey: "f_worker", kind: "picker", pickerKey: "worker", icon: "\u{1F477}", required: true },
-      { key: "direction", labelKey: "f_direction", kind: "select", icon: "\u2194\uFE0F", options: DIRECTION_OPTS, required: true }
+      { key: "direction", labelKey: "f_direction", kind: "select", icon: "\u2194\uFE0F", options: DIRECTION_OPTS, required: true },
+      // T-CH: the slot tag makes each in/out decompose straight into the
+      // payroll OT model (morning 6–8:30 = 3 hr convention; evening post-5).
+      // Defaults from the clock; overriding stays one tap.
+      { key: "slot", labelKey: "f_slot", kind: "select", icon: "\u{1F555}", options: SLOT_OPTS, default: inferSlot, required: true }
     ]
   },
   {
@@ -259,9 +303,14 @@ var FORMS = [
         { value: "machine", labelKey: "f_machine" },
         { value: "job", labelKey: "f_job" },
         { value: "worker", labelKey: "f_worker" },
-        { value: "item", labelKey: "f_item" }
+        { value: "item", labelKey: "f_item" },
+        // First-class incident kinds (codex power-cut-log evidence): a
+        // power cut is a note today; the viewer surfaces urgent ones.
+        { value: "power_cut", labelKey: "opt_power_cut" },
+        { value: "incident", labelKey: "opt_incident" }
       ] },
-      { key: "note_text", labelKey: "f_note_text", kind: "notes", icon: "\u{1F4DD}", required: true }
+      { key: "note_text", labelKey: "f_note_text", kind: "notes", icon: "\u{1F4DD}", required: true },
+      { key: "priority", labelKey: "f_priority", kind: "select", icon: "\u{1F6A8}", options: PRIORITY_OPTS, default: "normal" }
     ]
   }
 ];
@@ -433,6 +482,9 @@ async function renderForm(host, def, ctx = {}) {
       hint.className = "h-prefill-hint";
       hint.textContent = t("still_same");
       wrap.appendChild(hint);
+    } else if (f.default != null) {
+      const dv = typeof f.default === "function" ? f.default() : f.default;
+      if (dv != null && dv !== "") fieldApi[f.key].setValue(dv);
     }
   }
   const scheduleDraft = debounce(() => {
@@ -482,7 +534,8 @@ function validate(def, state, fieldsEl) {
     const wrap = fieldsEl.querySelector(`.h-field[data-key="${f.key}"]`);
     const val = state[f.key];
     let err = null;
-    if (f.required && (val == null || String(val).trim() === "")) err = t("required");
+    const required = typeof f.required === "function" ? f.required(state) : f.required;
+    if (required && (val == null || String(val).trim() === "")) err = t("required");
     else if (f.validate && val != null && String(val).trim() !== "") err = f.validate(val);
     if (err) {
       wrap.classList.add("h-invalid");
@@ -687,7 +740,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-WHCS6W4H.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-PFATODN4.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

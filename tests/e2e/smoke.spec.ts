@@ -8,6 +8,7 @@ const TABS = [
   { slug: 'invoice', label: 'Invoice' },
   { slug: 'stock', label: 'Stock' },
   { slug: 'history', label: 'History' },
+  { slug: 'live', label: 'Live' },
 ];
 
 // sw.js does `cache.addAll(ASSETS)` on install, where ASSETS includes the
@@ -29,7 +30,7 @@ test.beforeEach(async ({ context }) => {
 });
 
 test.describe('sep-dashboard baseline smoke @smoke', () => {
-  test('1. dashboard renders at /sep-dashboard/ with all 7 tabs visible', async ({ page }) => {
+  test('1. dashboard renders at /sep-dashboard/ with all 8 tabs visible', async ({ page }) => {
     await page.goto('./', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveTitle(/SEP Dashboard/);
     const tabBar = page.locator('#tabBar');
@@ -90,5 +91,20 @@ test.describe('sep-dashboard baseline smoke @smoke', () => {
       ).toBeVisible();
     }
     expect(errors, `no page errors or console errors during tab tour; saw:\n${errors.join('\n')}`).toEqual([]);
+  });
+});
+
+// Stage F minimal viewer: the Live tab must render an honest state — either
+// the sign-in instructions (no #token in the URL) or a connect/error notice —
+// never a blank panel or a fake "connected" claim.
+test.describe('live tab @smoke', () => {
+  test('Live tab renders a state card without page errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+    await page.goto('./', { waitUntil: 'domcontentloaded' });
+    await page.locator('.tab-btn[data-tab="live"]').click();
+    await expect(page.locator('#tab-live.active')).toBeVisible();
+    await expect(page.locator('#liveRoot .lv-state')).toBeVisible({ timeout: 15000 });
+    expect(errors).toEqual([]);
   });
 });

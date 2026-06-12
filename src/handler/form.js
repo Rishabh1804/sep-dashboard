@@ -130,6 +130,12 @@ export async function renderForm(host, def, ctx = {}) {
       hint.className = 'h-prefill-hint';
       hint.textContent = t('still_same');
       wrap.appendChild(hint);
+    } else if (f.default != null) {
+      // Declared default (value or fn of now) — e.g. the check-in slot
+      // inferred from the clock. No prefill hint: this is the form's own
+      // suggestion, not a memory of the last entry.
+      const dv = typeof f.default === 'function' ? f.default() : f.default;
+      if (dv != null && dv !== '') fieldApi[f.key].setValue(dv);
     }
   }
 
@@ -180,7 +186,10 @@ function validate(def, state, fieldsEl) {
     const wrap = fieldsEl.querySelector(`.h-field[data-key="${f.key}"]`);
     const val = state[f.key];
     let err = null;
-    if (f.required && (val == null || String(val).trim() === '')) err = t('required');
+    // `required` may be a function of the whole form state — e.g. production
+    // quantity is required unless rounds × round_size carries the count.
+    const required = typeof f.required === 'function' ? f.required(state) : f.required;
+    if (required && (val == null || String(val).trim() === '')) err = t('required');
     else if (f.validate && val != null && String(val).trim() !== '') err = f.validate(val);
     if (err) {
       wrap.classList.add('h-invalid');

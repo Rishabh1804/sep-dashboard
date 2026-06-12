@@ -4,6 +4,12 @@
 // Schema reference: docs/reference/SCHEMA.md
 // Last updated: 2026-06-10 (v2 alignment + hardening: jobs authoredBySelf,
 //   DFT update re-validation, numeric buildSupported, optional-field checks)
+// 2026-06-12 (Stage D): stock receipt cost/supplier now OPTIONAL, validated
+//   when present (codex evidence: material arrives on unpriced challans —
+//   zinc PO #70 — and the priced invoice follows days later); depletion
+//   level_after validated when present (0 = NIL stock-take signal);
+//   collection-group reads opened for shifts + depletions (Live viewer:
+//   check-in stream + NIL alerts read across parents).
 
 rules_version = '2';
 service cloud.firestore {
@@ -151,15 +157,22 @@ service cloud.firestore {
     }
 
     function isValidStockReceipt(data) {
+      // unit_cost + supplier are optional, validated when present (Stage D
+      // ruling 2026-06-12): receipts routinely precede the priced invoice.
+      // cost_unit must accompany unit_cost so a bare price is never ambiguous.
       return data.qty_received is number && data.qty_received > 0
-          && data.unit_cost is number && data.unit_cost > 0
-          && data.cost_unit in ['per_kg', 'per_bag', 'per_liter']
-          && data.supplier_id is string;
+          && (!('unit_cost' in data)
+              || (data.unit_cost is number && data.unit_cost > 0
+                  && data.cost_unit in ['per_kg', 'per_bag', 'per_liter']))
+          && (!('cost_unit' in data) || 'unit_cost' in data)
+          && (!('supplier_id' in data) || data.supplier_id is string);
     }
 
     function isValidStockDepletion(data) {
       return data.qty_depleted is number && data.qty_depleted > 0
-          && data.reason in ['production_use', 'waste', 'spillage', 'theft', 'other'];
+          && data.reason in ['production_use', 'waste', 'spillage', 'theft', 'other']
+          // level_after: stock remaining after the draw, 0 = NIL stock-take.
+          && (!('level_after' in data) || (data.level_after is number && data.level_after >= 0));
     }
 
     // ===== Top-level collections =====
@@ -470,6 +483,23 @@ service cloud.firestore {
                    && buildSupported()
                    && isValidStockDepletion(request.resource.data);
       allow update, delete: if isAdmin();
+    }
+
+    // ===== Collection-group reads (Live viewer) =====
+    // The dashboard's check-in stream and NIL stock alerts query across
+    // parents (collectionGroup('shifts') / collectionGroup('depletions')),
+    // which path-scoped matches don't cover. Read-only; writes still go
+    // through the path-scoped create rules above. Scope note: this grants
+    // read on ANY subcollection with these names — today that's only the
+    // worker/stock paths above (and any CF-written backup mirrors, whose
+    // docs are already readable at their primary paths).
+
+    match /{path=**}/shifts/{sid} {
+      allow read: if isAuthenticated();
+    }
+
+    match /{path=**}/depletions/{did} {
+      allow read: if isAuthenticated();
     }
 
     // ===== Default deny =====

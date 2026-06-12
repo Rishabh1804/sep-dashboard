@@ -204,3 +204,67 @@ Conducted in single session: 8 phases ratified, 5 adversarial probes run (Phases
 **Known blocked:** workflow `deploy-rules` needs IAM roles on the service account (Firebase Rules Admin + Service Usage Consumer); rules were published via console this round. Real 508-challan seed awaits the fresh sep-invoicing export. Prod project not yet created.
 
 **Lock files:** `docs/reference/SCHEMA.md` (v2), `SCHEMA_CHANGELOG.md`, `docs/reference/FIRESTORE_RULES.ref.txt` (deployed), `tests/rules/` (27 emulator tests incl. importer- and transport-parity)
+
+## 12 June 2026 (late) — Stage D field completion + Stage F minimal viewer (Claude Code, Session 15)
+
+**Context:** Track 2 live + seeded. The session's build target (T-CN ③ in
+soma-internal): complete the handler forms to Stage D field level in the
+codex evidence order, then stand up the minimal dashboard viewer.
+
+**Stage D — forms completed in evidence order:**
+1. **Check-in (T-CH first):** + `slot` (morning_ot / regular / evening_ot),
+   clock-inferred default, one-tap override. Each in/out now lands directly
+   on the payroll OT decomposition (morning 6–8:30 = 3 hr; evening post-5).
+2. **Production:** + `rounds` / `round_size` (register grain: "108-round",
+   "25×6"); total derivable (rounds × size) when not entered; explicit total
+   wins; rounds persist as the productivity denominator.
+3. **Job receipt (IM):** + `challan_no` (customer label, not key) +
+   `received_pcs` (NOS-only challans); kg required unless pcs present.
+4. **Stock depletion (chemistry):** + `reason` selector (rules enum) +
+   `level_after` (0 = NIL stock-take → Live reorder alert).
+5. **Note (power-cut):** + `power_cut` / `incident` kinds + `priority`
+   (normal/urgent).
+
+**Skew rulings (both sides documented in SCHEMA_CHANGELOG v2.2):**
+- **stock_refill cost/supplier → rules relax** (optional, validated when
+  present; `cost_unit` must accompany `unit_cost`). Evidence: zinc PO #70
+  arrived unpriced 9 Jun, priced copy due 13 Jun — receipt-time cost is
+  routinely unknown; a forced fake cost would corrupt the weighted-average
+  rollup. The mapper's pre-rejection is removed; until the relaxed rules
+  deploy (IAM-gated), costless refills queue as TRANSIENT denials and drain
+  on deploy — eventual consistency, not the rejected-store.
+- **passivation station** — confirmed resolved form-side (folded into
+  plating per the locked v2 schema); the transport guard stays.
+
+**Form-engine extensions:** `required` may be a function of form state
+(quantity-unless-rounds, kg-unless-pcs); fields may declare a `default`
+(value or function — the clock-inferred slot).
+
+**Stage F — Live tab (dashboard):** minimal viewer per the 12 Jun targets,
+not the full DASHBOARD_VIEWER.md surface: activity stream (merged
+production / jobs / DFT / dispatch / notes + CG shifts / depletions),
+today's KPI strip (entries · NOS · kg · jobs in · dispatches · DFT pass ·
+check-ins), NIL-stock + overdue-job warnings (12 h Ready loiter / 24 h SLA).
+Firebase loads via the shared dynamic-import session boot
+(`src/shared/firebase-session.js`, extracted from the handler's verified
+firebase-boot path); sign-in = mint-token `#token` fragment on the
+dashboard URL. Honest empty states: not-signed-in instructions; a hint
+when CG reads are denied pre-rules-deploy.
+
+**Rules additions:** collection-group READ matches for `shifts` +
+`depletions` (Live's check-in stream + NIL alerts; writes stay
+path-scoped). CG queries are issued without orderBy so no composite index
+is required; client sorts.
+
+**Versioning:** BUILD 1 → 2 (`min_supported_build` stays 1 — no fleet
+break); APP_VERSION 2.1.0-alpha.3; both SW caches bumped.
+
+**Verification:** unit 124 · e2e 38 (Live-tab smoke added; tab tour now
+covers 8 tabs) · rules-emulator 30 (receipt relax + level_after + CG-read
+coverage; transport-parity extended to the six new record shapes) — all
+green locally.
+
+**Known blocked (unchanged):** workflow `deploy-rules` re-run this session
+still 403s on serviceusage — the IAM grant (Firebase Rules Admin + Service
+Usage Consumer on the staging SA) remains with the Architect. The relaxed
+rules + CG reads are code-complete and deploy with one click once granted.

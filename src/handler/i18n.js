@@ -75,6 +75,14 @@ export const DICT = {
   f_note_text:      { hi: 'क्या लिखना है',         en: 'What to note' },
   f_note_kind:      { hi: 'किस बारे में',          en: 'About' },
   f_self:           { hi: 'खुद',                   en: 'self' },
+  f_rounds:         { hi: 'राउंड (वैकल्पिक)',      en: 'Rounds (optional)' },
+  f_round_size:     { hi: 'हर राउंड में कितना',    en: 'Per-round count' },
+  f_challan:        { hi: 'चालान नंबर',            en: 'Challan no.' },
+  f_pcs:            { hi: 'पीस (NOS)',             en: 'Pieces (NOS)' },
+  f_reason:         { hi: 'कारण',                  en: 'Reason' },
+  f_level_after:    { hi: 'अब कितना बचा',          en: 'Level left after' },
+  f_slot:           { hi: 'कौन सी पारी',           en: 'Slot' },
+  f_priority:       { hi: 'कितना ज़रूरी',          en: 'Priority' },
 
   // Station / state option values
   opt_pickling:     { hi: 'पिकलिंग',              en: 'Pickling' },
@@ -88,6 +96,18 @@ export const DICT = {
   opt_out:          { hi: 'जाना',                 en: 'Out' },
   opt_pass:         { hi: 'पास',                  en: 'Pass' },
   opt_fail_rework:  { hi: 'फेल — दोबारा',         en: 'Fail — rework' },
+  opt_morning_ot:   { hi: 'सुबह ओटी (6 बजे)',     en: 'Morning OT (6 AM)' },
+  opt_regular:      { hi: 'दिन की पारी',          en: 'Regular shift' },
+  opt_evening_ot:   { hi: 'शाम ओटी (5 बजे बाद)',  en: 'Evening OT (post-5)' },
+  opt_use:          { hi: 'काम में लगा',           en: 'Production use' },
+  opt_waste:        { hi: 'बर्बाद',                en: 'Waste' },
+  opt_spill:        { hi: 'गिर गया',               en: 'Spillage' },
+  opt_theft:        { hi: 'चोरी',                  en: 'Theft' },
+  opt_other:        { hi: 'और कुछ',                en: 'Other' },
+  opt_normal:       { hi: 'सामान्य',               en: 'Normal' },
+  opt_urgent:       { hi: 'ज़रूरी',                en: 'Urgent' },
+  opt_power_cut:    { hi: 'बिजली कटी',             en: 'Power cut' },
+  opt_incident:     { hi: 'घटना',                  en: 'Incident' },
 
   // Actions / dialogs
   back:             { hi: 'वापस',                  en: 'Back' },

@@ -331,15 +331,27 @@ test('transport parity: every mappable handler form passes its create rule', asy
     transportRec('production', { job: 'sep-501', machine: 'vat_a1', worker: 'w-floor-1', quantity: 450 }, 'tp-prod-vat'),
     transportRec('production', { job: 'sep-501', machine: 'barrel', worker: 'w-floor-2', quantity: 32.5, notes: '2 jhuri' }, 'tp-prod-bar'),
     transportRec('production', { job: 'sep-501', machine: 'pickle_vat', worker: 'w-floor-3', quantity: 100 }, 'tp-prod-pkl'),
+    // Stage D: rounds × round size carries the count (no explicit total).
+    transportRec('production', { job: 'sep-501', machine: 'vat_a1', worker: 'w-floor-1', rounds: 108, round_size: 18 }, 'tp-prod-rounds'),
     transportRec('job_receipt', { customer: 'cust-7', weight: 120.5 }, 'tp-job'),
+    // Stage D: NOS-only challan (no kg) with the customer's challan number.
+    transportRec('job_receipt', { customer: 'cust-7', received_pcs: 2000, challan_no: '506' }, 'tp-job-nos'),
     transportRec('dft', { job: 'sep-501', dft_micron: 10 }, 'tp-dft'),
     transportRec('dft', { job: 'sep-501', dft_micron: 14 }, 'tp-dft-fail'),
     transportRec('dispatch', { job: 'sep-501', weight: 293.4 }, 'tp-disp'),
     transportRec('stock_refill', { item: 'zinc_anodes', supplier: 'sup-1', quantity: 154.13, cost: 270 }, 'tp-refill'),
+    // Stage D ruling: receipt on an unpriced challan — no cost, no supplier.
+    transportRec('stock_refill', { item: 'hcl', quantity: 100 }, 'tp-refill-unpriced'),
     transportRec('stock_deplete', { item: 'hcl', quantity: 150 }, 'tp-deplete'),
+    // Stage D: chemistry stock-take hitting NIL (level_after 0) + reason.
+    transportRec('stock_deplete', { item: 'sodium_cyanide', quantity: 5, reason: 'waste', level_after: 0 }, 'tp-deplete-nil'),
     transportRec('machine_state', { machine: 'vat_a2', state: 'down', notes: 'rectifier' }, 'tp-state'),
     transportRec('check_in', { worker: 'w-floor-1', direction: 'in' }, 'tp-checkin'),
+    // Stage D: slot-tagged OT check-in (T-CH payload).
+    transportRec('check_in', { worker: 'w-floor-1', direction: 'in', slot: 'morning_ot' }, 'tp-checkin-ot'),
     transportRec('note', { note_kind: 'machine', note_text: 'T2 leak check tomorrow' }, 'tp-note'),
+    // Stage D: power-cut note, urgent.
+    transportRec('note', { note_kind: 'power_cut', note_text: 'cut #32, 4:00 PM', priority: 'urgent' }, 'tp-note-cut'),
   ];
   for (const r of cases) {
     const w = recordToWrite(r, TCTX());
@@ -364,15 +376,65 @@ test('transport parity: mapper pre-rejections mirror actual rules denials', asyn
     job_id: 'j', machine_id: 'vat_a1', worker_id: 'w', qty_pcs: 1, station: 'passivation',
   }));
 
-  // stock receipt without unit_cost/supplier — mapper throws…
+  // production with neither a total nor rounds × round size — mapper throws…
   threw = null;
   try {
-    recordToWrite(transportRec('stock_refill', { item: 'hcl', quantity: 100 }, 'tp-skew-2'), TCTX());
+    recordToWrite(transportRec('production', { job: 'j', machine: 'vat_a1', worker: 'w' }, 'tp-skew-2'), TCTX());
   } catch (e) { threw = e; }
-  if (!(threw instanceof PermanentRejection)) throw new Error('expected PermanentRejection for costless refill');
-  // …and the rules deny it too.
-  await assertFails(setDoc(doc(db, 'stock_items', 'hcl', 'receipts', 'tp-skew-2'), {
+  if (!(threw instanceof PermanentRejection)) throw new Error('expected PermanentRejection for quantity-less production');
+  // …and the rules deny the quantity-less doc too (isValidProductionEntry).
+  await assertFails(setDoc(doc(db, 'production_entries', 'tp-skew-2'), {
     author_user_id: 'u-t-handler', created_at: serverTimestamp(), app_version: '999',
-    qty_received: 100,
+    job_id: 'j', machine_id: 'vat_a1', worker_id: 'w', station: 'plating',
   }));
+});
+
+test('stock receipt: cost validated when present; bare cost_unit rejected', async () => {
+  const db = ctxFor(HANDLER);
+  const base = () => ({
+    author_user_id: 'u-t-handler', created_at: serverTimestamp(), app_version: '999',
+    qty_received: 50,
+  });
+  // Negative / zero cost still rejected when supplied.
+  await assertFails(setDoc(doc(db, 'stock_items', 'hcl', 'receipts', 'rc-badcost'), {
+    ...base(), unit_cost: 0, cost_unit: 'per_kg',
+  }));
+  // cost_unit without unit_cost is ambiguous — rejected.
+  await assertFails(setDoc(doc(db, 'stock_items', 'hcl', 'receipts', 'rc-bareunit'), {
+    ...base(), cost_unit: 'per_kg',
+  }));
+  // Priced receipt with a bogus cost_unit rejected.
+  await assertFails(setDoc(doc(db, 'stock_items', 'hcl', 'receipts', 'rc-badunit'), {
+    ...base(), unit_cost: 12, cost_unit: 'per_tola',
+  }));
+});
+
+test('stock depletion: level_after validated when present (0 = NIL allowed)', async () => {
+  const db = ctxFor(HANDLER);
+  const base = () => ({
+    author_user_id: 'u-t-handler', created_at: serverTimestamp(), app_version: '999',
+    qty_depleted: 5, reason: 'production_use',
+  });
+  await assertSucceeds(setDoc(doc(db, 'stock_items', 'hcl', 'depletions', 'dp-nil'), {
+    ...base(), level_after: 0,
+  }));
+  await assertFails(setDoc(doc(db, 'stock_items', 'hcl', 'depletions', 'dp-neg'), {
+    ...base(), level_after: -1,
+  }));
+});
+
+test('collection-group reads: shifts + depletions readable when authenticated, denied anonymous (Live viewer)', async () => {
+  const { collectionGroup, getDocs, query, limit } = await import('firebase/firestore');
+  // Seed one shift + one depletion through the back door.
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'workers', 'w-cg', 'shifts', 's1'), { direction: 'in', slot: 'morning_ot' });
+    await setDoc(doc(db, 'stock_items', 'hcl', 'depletions', 'd1'), { qty_depleted: 5, reason: 'waste', level_after: 0 });
+  });
+  const db = ctxFor(HANDLER);
+  await assertSucceeds(getDocs(query(collectionGroup(db, 'shifts'), limit(10))));
+  await assertSucceeds(getDocs(query(collectionGroup(db, 'depletions'), limit(10))));
+  const anon = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDocs(query(collectionGroup(anon, 'shifts'), limit(10))));
+  await assertFails(getDocs(query(collectionGroup(anon, 'depletions'), limit(10))));
 });

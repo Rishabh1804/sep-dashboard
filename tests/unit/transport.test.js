@@ -47,10 +47,30 @@ describe('production', () => {
     expect(w.data.station).toBe('pickling');
   });
 
-  test("station 'passivation' is a documented rules skew — pre-rejected as permanent", () => {
+  test("station 'passivation' is folded into plating — a stale value is still pre-rejected", () => {
     expect(() => recordToWrite(
       rec('production', { job: 'j', machine: 'vat_a1', worker: 'w', quantity: 1, station: 'passivation' }), CTX,
     )).toThrow(PermanentRejection);
+  });
+
+  test('rounds × round size derives the quantity when no total is given', () => {
+    const w = recordToWrite(rec('production', { job: 'j', machine: 'vat_a1', worker: 'w', rounds: '108', round_size: '18' }), CTX);
+    expect(w.data.qty_pcs).toBe(108 * 18);
+    expect(w.data.rounds).toBe(108);
+    expect(w.data.round_size).toBe(18);
+  });
+
+  test('an explicit total wins over rounds × round size; rounds still recorded', () => {
+    const w = recordToWrite(rec('production', { job: 'j', machine: 'vat_a1', worker: 'w', quantity: 1900, rounds: 108, round_size: 18 }), CTX);
+    expect(w.data.qty_pcs).toBe(1900);
+    expect(w.data.rounds).toBe(108);
+  });
+
+  test('neither total nor rounds — pre-rejected as permanent', () => {
+    expect(() => recordToWrite(rec('production', { job: 'j', machine: 'vat_a1', worker: 'w' }), CTX))
+      .toThrow(PermanentRejection);
+    expect(() => recordToWrite(rec('production', { job: 'j', machine: 'vat_a1', worker: 'w', rounds: 5 }), CTX))
+      .toThrow(PermanentRejection);
   });
 
   test('part picker maps to item_id + part_number label', () => {
@@ -70,6 +90,13 @@ describe('job_receipt → jobs', () => {
       __schema_version: 2, customer_id: 'cust-7', received_kg: 120.5,
       route: 'standard', current_status: 'in-flight',
     });
+  });
+
+  test('NOS-only challan: received_kg 0, count in received_pcs, challan_no kept as label', () => {
+    const w = recordToWrite(rec('job_receipt', { customer: 'cust-7', received_pcs: '2000', challan_no: ' 506 ' }), CTX);
+    expect(w.data.received_kg).toBe(0);
+    expect(w.data.received_pcs).toBe(2000);
+    expect(w.data.challan_no).toBe('506');
   });
 });
 
@@ -101,15 +128,31 @@ describe('stock forms', () => {
     expect(w.data.cost_unit).toBe('per_liter');
   });
 
-  test('refill missing cost or supplier is the documented rules skew — permanent', () => {
-    expect(() => recordToWrite(rec('stock_refill', { item: 'hcl', quantity: 100 }), CTX)).toThrow(PermanentRejection);
-    expect(() => recordToWrite(rec('stock_refill', { item: 'hcl', quantity: 100, cost: 12 }), CTX)).toThrow(PermanentRejection);
+  test('unpriced refill (Stage D ruling): no cost/supplier fields, no rejection', () => {
+    const w = recordToWrite(rec('stock_refill', { item: 'hcl', quantity: 100 }), CTX);
+    expect(w.data.qty_received).toBe(100);
+    expect(w.data.unit_cost).toBeUndefined();
+    expect(w.data.cost_unit).toBeUndefined();
+    expect(w.data.supplier_id).toBeUndefined();
+  });
+
+  test('cost without unit never ships bare: cost_unit accompanies unit_cost', () => {
+    const w = recordToWrite(rec('stock_refill', { item: 'hcl', quantity: 100, cost: 12 }), CTX);
+    expect(w.data.unit_cost).toBe(12);
+    expect(w.data.cost_unit).toBe('per_liter');
   });
 
   test('depletion defaults reason to production_use', () => {
     const w = recordToWrite(rec('stock_deplete', { item: 'hcl', quantity: 150 }), CTX);
     expect(w.path).toEqual(['stock_items', 'hcl', 'depletions', 'idem-1']);
     expect(w.data).toMatchObject({ qty_depleted: 150, reason: 'production_use' });
+    expect(w.data.level_after).toBeUndefined();
+  });
+
+  test('stock-take NIL: explicit reason + level_after 0 survive the mapping', () => {
+    const w = recordToWrite(rec('stock_deplete', { item: 'sodium_cyanide', quantity: 5, reason: 'waste', level_after: 0 }), CTX);
+    expect(w.data.reason).toBe('waste');
+    expect(w.data.level_after).toBe(0);
   });
 });
 
@@ -124,6 +167,12 @@ describe('subcollection + note writes', () => {
     const w = recordToWrite(rec('check_in', { worker: 'suklal', direction: 'in' }), CTX);
     expect(w.path).toEqual(['workers', 'suklal', 'shifts', 'idem-1']);
     expect(w.data.direction).toBe('in');
+    expect(w.data.slot).toBeUndefined(); // pre-slot builds stay valid
+  });
+
+  test('check_in carries the T-CH slot tag when present', () => {
+    const w = recordToWrite(rec('check_in', { worker: 'champai', direction: 'in', slot: 'morning_ot' }), CTX);
+    expect(w.data.slot).toBe('morning_ot');
   });
 
   test('note uses created_by.uid, 120-char summary, non-empty topic_refs (isValidNote)', () => {
@@ -134,6 +183,14 @@ describe('subcollection + note writes', () => {
     expect(w.data.summary).toHaveLength(120);
     expect(w.data.body).toHaveLength(300);
     expect(w.data.status).toBe('active');
+    expect(w.data.priority).toBe('normal');
     expect(w.data.topic_refs).toEqual(['machine']);
+  });
+
+  test('power-cut note carries kind + urgent priority (codex power-cut-log evidence)', () => {
+    const w = recordToWrite(rec('note', { note_kind: 'power_cut', note_text: 'cut #32 16:00', priority: 'urgent' }), CTX);
+    expect(w.data.kind).toBe('power_cut');
+    expect(w.data.priority).toBe('urgent');
+    expect(w.data.topic_refs).toEqual(['power_cut']);
   });
 });

@@ -47,6 +47,7 @@
   <button class="tab-btn" data-tab="invoice">Invoice</button>
   <button class="tab-btn" data-tab="stock">Stock</button>
   <button class="tab-btn" data-tab="history">History</button>
+  <button class="tab-btn" data-tab="live">Live</button>
 </nav>
 
 <main class="tab-content">
@@ -308,6 +309,13 @@
           <div class="empty-state-sub">Historical data will appear here</div>
         </div></div>
       </div>
+    </div>
+  </div>
+
+  <!-- LIVE TAB (Stage F minimal viewer — Firestore activity + KPIs + alerts) -->
+  <div class="tab-panel" id="tab-live">
+    <div class="section-zone">
+      <div id="liveRoot"></div>
     </div>
   </div>
 
