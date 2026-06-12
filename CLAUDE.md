@@ -794,12 +794,18 @@ The backend went from design to **live**. Three arcs across PRs #16-#20, all mer
 | Staging Firestore + hardened rules + Auth | ✅ LIVE |
 | Seed/mint/verify one-click via Actions | ✅ |
 | `deploy-rules` via Actions | 🔶 needs IAM roles on the SA (Rules Admin + Service Usage Consumer); console-publish used this round |
-| Real 508-challan seed | ⏳ awaits fresh sep-invoicing export from Rishabh |
+| Real 508-challan seed | ✅ **LIVE (12 Jun)** — 2,494 docs (21 customers · 729 items · 508 jobs · 1,236 job lines) via soma-internal's `seed-staging` workflow (private-data/public-code split); dry run caught 107 challan collisions → job-id ruling `sep-{IM source id}` (PR #22, SCHEMA_CHANGELOG v2.1) |
 | Prod project | ⏳ not created (same runbook as staging) |
-| First provisioning (Champai, T-CH in soma-internal) | ⏳ needs Android device + QR from `mint-token` |
+| First provisioning (Champai, T-CH in soma-internal) | 🔶 device IN HAND (12 Jun); dry-run on Rishabh's own device first — `mint-token` → QR → install → chip green → seeded pickers → one round-trip entry |
 
-### Next Session
+### Addendum (12 Jun, late session): the real seed landed
 
-Stage D form completion in the **soma-internal evidence order** (OT/check-in → production rounds → pickling/IM → chemistry → power-cut; see Vesta's cadence brief, 11 Jun) + Stage F minimal viewer (activity stream + the `reports/daily/*` KPI strip + NIL/overdue warnings). App name decision: **SEP Dashboard / SEP Handler confirmed** (Rishabh, 11 Jun).
+PRs #21-#22 + soma-internal #52-#53 closed the day: the **full FY27 seed is live in staging** (2,494 docs, counts reconcile exactly; `min_supported_build` untouched by the create-only guard — fleet-safe re-seeds proven). The dry-run-first discipline paid twice: the collision guard (dead code before the review pass) caught **107 customer-challan collisions** → `Job.id` = `sep-{IM source id}` ruling; one blank form row skipped + counted. Seed infra: the export lives in private soma-internal, whose `seed-staging` workflow checks out this public repo for code — business data never enters this repo.
 
-*Session 14 documented 12 June 2026 by Aurelius (Claude Code).*
+### Next Session (targets set by Rishabh, 12 Jun — in order)
+
+1. **IAM roles** on the staging service account (Firebase Rules Admin + Service Usage Consumer) → re-run `deploy-rules` → the admin plane's last console-manual gap closes.
+2. **Provisioning dry-run on Rishabh's own Android first** (Champai's device already in hand): `mint-token` → `#token=` URL on-device → install SEP Handler → sync chip green → pickers hydrate from the seed → one entry round-trips.
+3. **Build:** Stage D form completion in the soma-internal evidence order (OT/check-in → production rounds → pickling/IM → chemistry → power-cut; Vesta's cadence brief, 11 Jun) + Stage F minimal viewer (activity stream + `reports/daily/*` KPI strip + NIL/overdue warnings). Known Stage D skews: stock-refill cost/supplier requiredness; `passivation` station modelling. App names locked: **SEP Dashboard / SEP Handler** (Rishabh, 11 Jun).
+
+*Session 14 documented 12 June 2026 by Aurelius (Claude Code); addendum same day at close.*
