@@ -10,7 +10,10 @@
 #   mint-token   — provision a worker + print the handler sign-in URL
 #                  (custom token, 1h validity; run logs are private-repo)
 #   seed-dry-run — transform + Zod-validate the FIXTURE export, no writes
-#                  (the real 508-challan seed runs locally with the export file)
+#   seed-fixture — FULL seed of the synthetic fixture into staging (creates
+#                  config/min_supported_build + sample customers/items/jobs;
+#                  staging-only smoke data — the real 508-challan seed runs
+#                  locally with the actual export file)
 
 name: firebase-admin
 
@@ -21,7 +24,7 @@ on:
         description: 'Operation'
         required: true
         type: choice
-        options: [deploy-rules, mint-token, seed-dry-run]
+        options: [deploy-rules, mint-token, seed-dry-run, seed-fixture]
       uid:
         description: 'mint-token: worker uid (e.g. champai)'
         required: false
@@ -35,6 +38,11 @@ on:
         required: false
         default: 'handler'
         type: string
+      admin:
+        description: 'mint-token: grant is_admin claim'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   admin:
@@ -71,8 +79,13 @@ jobs:
           IN_UID: ${{ inputs.uid }}
           IN_NAME: ${{ inputs.name }}
           IN_ROLES: ${{ inputs.roles }}
-        run: node scripts/mint-token.mjs --uid "$IN_UID" --name "${IN_NAME:-$IN_UID}" --roles "$IN_ROLES"
+          IN_ADMIN: ${{ inputs.admin }}
+        run: node scripts/mint-token.mjs --uid "$IN_UID" --name "${IN_NAME:-$IN_UID}" --roles "$IN_ROLES" $([ "$IN_ADMIN" = "true" ] && echo --admin)
 
       - name: Seed dry-run (fixture)
         if: inputs.action == 'seed-dry-run'
         run: node scripts/seed-staging.mjs --export tests/fixtures/invoicing-sample.json --dry-run
+
+      - name: Seed fixture (full write to staging)
+        if: inputs.action == 'seed-fixture'
+        run: node scripts/seed-staging.mjs --export tests/fixtures/invoicing-sample.json
