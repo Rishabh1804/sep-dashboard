@@ -6,7 +6,7 @@ import {
   APP_VERSION,
   DEF_AREAS,
   DEF_STOCK
-} from "./chunks/chunk-I5LOYBFW.js";
+} from "./chunks/chunk-H246LUTF.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();

@@ -5,7 +5,7 @@
 // writes with no signal. Best-effort install (Promise.allSettled) so a
 // blocked font CDN never tanks registration — same hardening as sw.js.
 
-const CACHE_NAME = 'sep-handler-2.1.0-alpha.3';
+const CACHE_NAME = 'sep-handler-2.1.0-alpha.4';
 const BASE = '/sep-dashboard/';
 const ASSETS = [
   BASE + 'entry/handler/',

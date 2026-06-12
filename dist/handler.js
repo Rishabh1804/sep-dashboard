@@ -22,12 +22,12 @@ import {
   showModal,
   speak,
   t
-} from "./chunks/chunk-JWRXL5EB.js";
+} from "./chunks/chunk-UKVVHALL.js";
 import {
   APP_VERSION,
   DEF_AREAS,
   DEF_STOCK
-} from "./chunks/chunk-I5LOYBFW.js";
+} from "./chunks/chunk-H246LUTF.js";
 
 // src/handler/feedback.js
 var MUTE_KEY = "sep_handler_mute";
@@ -740,7 +740,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-PFATODN4.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-U4JLKNJ4.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

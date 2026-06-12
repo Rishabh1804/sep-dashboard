@@ -6,12 +6,12 @@ import {
   jobsToPickerItems,
   setCache,
   setTransport
-} from "./chunk-JWRXL5EB.js";
+} from "./chunk-UKVVHALL.js";
 import {
   BUILD,
   DEF_AREAS,
   DEF_STOCK
-} from "./chunk-I5LOYBFW.js";
+} from "./chunk-H246LUTF.js";
 import {
   bootFirebaseSession
 } from "./chunk-ZSA5E46Q.js";
@@ -222,18 +222,33 @@ function startPickerListeners({ db, fs, onChange }) {
   const docs = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   const onErr = () => {
   };
+  let lastCustomers = [];
+  let lastJobs = [];
+  const tsOf = (j) => j.created_at?.toMillis?.() ?? 0;
+  const recomputeJobs = () => {
+    const names = Object.fromEntries(lastCustomers.map((c) => [c.id, c.name]));
+    const recentFirst = [...lastJobs].sort((a, b) => tsOf(b) - tsOf(a));
+    setCache("job", jobsToPickerItems(recentFirst, names));
+    onChange?.();
+  };
+  const openJobsQ = fs.query(
+    fs.collection(db, "jobs"),
+    fs.where("current_status", "in", ["in-flight", "ready"]),
+    fs.limit(PICKER_LIMIT)
+  );
   return [
     fs.onSnapshot(q("customers"), (s) => {
-      setCache("customer", customersToPickerItems(docs(s)));
-      onChange?.();
+      lastCustomers = docs(s);
+      setCache("customer", customersToPickerItems(lastCustomers));
+      recomputeJobs();
     }, onErr),
     fs.onSnapshot(q("items"), (s) => {
       setCache("part", itemsToPickerItems(docs(s)));
       onChange?.();
     }, onErr),
-    fs.onSnapshot(q("jobs"), (s) => {
-      setCache("job", jobsToPickerItems(docs(s)));
-      onChange?.();
+    fs.onSnapshot(openJobsQ, (s) => {
+      lastJobs = docs(s);
+      recomputeJobs();
     }, onErr),
     fs.onSnapshot(q("suppliers"), (s) => {
       setCache("supplier", docs(s).map((d) => ({ id: d.id, primary: d.name || d.id })));
@@ -244,4 +259,4 @@ function startPickerListeners({ db, fs, onChange }) {
 export {
   startFirebase
 };
-//# sourceMappingURL=firebase-boot-PFATODN4.js.map
+//# sourceMappingURL=firebase-boot-U4JLKNJ4.js.map

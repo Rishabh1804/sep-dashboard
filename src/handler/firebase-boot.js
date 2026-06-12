@@ -58,15 +58,43 @@ export async function startFirebase({ onChange } = {}) {
 // Live picker hydration: Firestore listeners → picker-cache (which persists
 // to IndexedDB, so the picker stays populated offline). Reads require
 // isAuthenticated() per the rules — only started post-sign-in.
+//
+// Job picker shape (dry-run feedback, 12 Jun): only jobs still on the floor
+// (in-flight / ready — the floor never runs production on dispatched work),
+// newest first, with the customer NAME resolved from the customers snapshot
+// instead of a raw id. Equality-only filter → no composite index needed;
+// recency sort happens client-side.
 function startPickerListeners({ db, fs, onChange }) {
   const q = (name) => fs.query(fs.collection(db, name), fs.limit(PICKER_LIMIT));
   const docs = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   const onErr = () => {}; // listener loss is non-fatal; cache snapshot persists
 
+  // Jobs join against customers; either snapshot may arrive first, so both
+  // listeners recompute the job cache from the latest pair.
+  let lastCustomers = [];
+  let lastJobs = [];
+  const tsOf = (j) => j.created_at?.toMillis?.() ?? 0;
+  const recomputeJobs = () => {
+    const names = Object.fromEntries(lastCustomers.map((c) => [c.id, c.name]));
+    const recentFirst = [...lastJobs].sort((a, b) => tsOf(b) - tsOf(a));
+    setCache('job', jobsToPickerItems(recentFirst, names));
+    onChange?.();
+  };
+
+  const openJobsQ = fs.query(
+    fs.collection(db, 'jobs'),
+    fs.where('current_status', 'in', ['in-flight', 'ready']),
+    fs.limit(PICKER_LIMIT),
+  );
+
   return [
-    fs.onSnapshot(q('customers'), (s) => { setCache('customer', customersToPickerItems(docs(s))); onChange?.(); }, onErr),
+    fs.onSnapshot(q('customers'), (s) => {
+      lastCustomers = docs(s);
+      setCache('customer', customersToPickerItems(lastCustomers));
+      recomputeJobs();
+    }, onErr),
     fs.onSnapshot(q('items'), (s) => { setCache('part', itemsToPickerItems(docs(s))); onChange?.(); }, onErr),
-    fs.onSnapshot(q('jobs'), (s) => { setCache('job', jobsToPickerItems(docs(s))); onChange?.(); }, onErr),
+    fs.onSnapshot(openJobsQ, (s) => { lastJobs = docs(s); recomputeJobs(); }, onErr),
     fs.onSnapshot(q('suppliers'), (s) => {
       setCache('supplier', docs(s).map((d) => ({ id: d.id, primary: d.name || d.id })));
       onChange?.();

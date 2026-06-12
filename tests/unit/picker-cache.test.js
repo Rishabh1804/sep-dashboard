@@ -31,9 +31,21 @@ describe('schema-doc → picker-item adapters', () => {
     expect(itemToPickerItem({ id: 'item-101', part_number: '188 CD', description: '188 CD', default_unit: 'NOS' }))
       .toMatchObject({ id: 'item-101', primary: '188 CD', method: 'NOS' });
   });
-  test('job shows challan + status glyph', () => {
-    expect(jobToPickerItem({ id: 'sep-2494', sep_invoicing_challan_no: '2494', customer_id: 'cust-1', current_status: 'in-flight' }))
-      .toMatchObject({ id: 'sep-2494', primary: 'Challan 2494', method: '•' });
+  test('job shows customer name primary, challan sub, status glyph (dry-run feedback)', () => {
+    expect(jobToPickerItem(
+      { id: 'sep-2494', sep_invoicing_challan_no: '2494', customer_id: 'cust-1', current_status: 'in-flight' },
+      'HIGHCO ENGINEERS',
+    )).toMatchObject({ id: 'sep-2494', primary: 'HIGHCO ENGINEERS', sub: 'Challan 2494', method: '•' });
+  });
+
+  test('job falls back to raw customer_id when the name is not yet hydrated', () => {
+    expect(jobToPickerItem({ id: 'sep-1', customer_id: 'cust-9', current_status: 'ready' }))
+      .toMatchObject({ primary: 'cust-9', sub: 'sep-1' });
+  });
+
+  test('handler-entered challan_no wins over the importer legacy field', () => {
+    expect(jobToPickerItem({ id: 'x', challan_no: '506', sep_invoicing_challan_no: '99', customer_id: 'c' }, 'DORABJI'))
+      .toMatchObject({ primary: 'DORABJI', sub: 'Challan 506' });
   });
 });
 
@@ -41,10 +53,13 @@ describe('importer → picker bridge (end to end)', () => {
   const fx = JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/invoicing-sample.json', import.meta.url)), 'utf8'));
   const out = importInvoicingExport(fx, { now: '2026-06-10T00:00:00.000Z' });
 
-  test('imported docs map cleanly into picker items', () => {
+  test('imported docs map cleanly into picker items (jobs joined to customer names)', () => {
     const custItems = customersToPickerItems(out.customers);
     expect(custItems.map((c) => c.primary)).toContain('ACME WEIGHTWORKS');
     expect(itemsToPickerItems(out.items).map((i) => i.primary)).toContain('188 CD');
-    expect(jobsToPickerItems(out.jobs).map((j) => j.primary)).toContain('Challan 2494');
+    const names = Object.fromEntries(out.customers.map((c) => [c.id, c.name]));
+    const jobs = jobsToPickerItems(out.jobs, names);
+    expect(jobs.map((j) => j.sub)).toContain('Challan 2494');
+    expect(jobs.map((j) => j.primary)).toContain('ACME WEIGHTWORKS');
   });
 });
