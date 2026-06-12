@@ -1,7 +1,8 @@
 import {
   DEF_CW,
-  DEF_PERM
-} from "./chunks/chunk-42434FVJ.js";
+  DEF_PERM,
+  esc
+} from "./chunks/chunk-Z27QHJP5.js";
 import {
   LANGS,
   enqueueWrite,
@@ -22,7 +23,7 @@ import {
   showModal,
   speak,
   t
-} from "./chunks/chunk-UKVVHALL.js";
+} from "./chunks/chunk-MKFO6Q76.js";
 import {
   APP_VERSION,
   DEF_AREAS,
@@ -344,11 +345,11 @@ function openPicker({ titleKey, items, onPick }) {
       card.dataset.id = it.id;
       if (it.tier) card.dataset.tier = it.tier;
       card.innerHTML = `
-        <span class="h-pcard-primary">${it.primary}</span>
-        ${it.sub ? `<span class="h-pcard-sub">${it.sub}</span>` : ""}
+        <span class="h-pcard-primary">${esc(it.primary)}</span>
+        ${it.sub ? `<span class="h-pcard-sub">${esc(it.sub)}</span>` : ""}
         ${it.tier || it.method ? `<span class="h-pcard-tags">
-          ${it.tier ? `<span class="h-tag">${it.tier}</span>` : ""}
-          ${it.method ? `<span class="h-tag">${it.method}</span>` : ""}
+          ${it.tier ? `<span class="h-tag">${esc(it.tier)}</span>` : ""}
+          ${it.method ? `<span class="h-tag">${esc(it.method)}</span>` : ""}
         </span>` : ""}`;
       card.addEventListener("click", () => {
         onPick(it);
@@ -649,7 +650,7 @@ function renderHome() {
   const recent = getRecent();
   const recentRows = recent.length ? recent.map((e) => `<div class="h-recent-row">
         <span class="h-recent-time">${new Date(e.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-        <span class="h-recent-text">${t(e.type)} \xB7 ${e.summary}</span>
+        <span class="h-recent-text">${t(e.type)} \xB7 ${esc(e.summary)}</span>
         <span class="h-recent-status">${e.status === "queued" ? "\u23F3" : e.status === "rejected" ? "\u{1F534}" : "\u2713"}</span>
       </div>`).join("") : `<div class="h-empty">${t("no_recent")}</div>`;
   root().innerHTML = topBar() + `<div class="h-body">
@@ -740,7 +741,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-U4JLKNJ4.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-YPE4PJJ3.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

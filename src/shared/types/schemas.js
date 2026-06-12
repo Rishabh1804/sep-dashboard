@@ -9,6 +9,7 @@
 // later don't fail validation. Required fields are the load-bearing ones.
 
 import { z } from 'zod';
+import { JOB_STATUSES } from './job-status.js';
 
 export const SCHEMA_VERSION = 2;
 
@@ -68,7 +69,7 @@ export const JobSchema = z.object({
   received_pcs: z.number().nonnegative().lt(1000000).optional(),
   client_tier_at_receipt: z.enum(['tier-1', 'tier-2', 'default']).optional(),
   route: z.enum(['standard', 'rework-active', 'rework-completed']),
-  current_status: z.enum(['in-flight', 'ready', 'dispatched']),
+  current_status: z.enum(JOB_STATUSES),
 }).passthrough().refine(
   (j) => j.received_kg > 0 || (j.received_pcs ?? 0) > 0,
   { message: 'at least one of received_kg / received_pcs must be > 0' },

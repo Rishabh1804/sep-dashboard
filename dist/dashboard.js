@@ -1,7 +1,12 @@
 import {
   DEF_CW,
-  DEF_PERM
-} from "./chunks/chunk-42434FVJ.js";
+  DEF_PERM,
+  esc
+} from "./chunks/chunk-Z27QHJP5.js";
+import {
+  OPEN_JOB_STATUSES,
+  eventMillis
+} from "./chunks/chunk-3NX3JH6O.js";
 import {
   APP_VERSION,
   DEF_AREAS,
@@ -395,11 +400,6 @@ function recalcExtra(prod, areas, cfg) {
   prod.totals.extraHours = totalExtraH;
   prod.totals.extraCost = totalExtraCost;
   prod.totals.snackCost = snackCost;
-}
-
-// src/shared/utils/format.js
-function esc(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // src/components/worker-picker.js
@@ -2869,6 +2869,7 @@ var COLLS = ["production_entries", "jobs", "dft_measurements", "dispatch_events"
 var docsByColl = {};
 var collErr = {};
 var inflightJobs = [];
+var customerNames = {};
 var $root = () => document.getElementById("liveRoot");
 function renderLive() {
   if (!$root()) return;
@@ -2943,7 +2944,7 @@ function startListeners() {
     onErr("depletions")
   ));
   unsubs.push(fs.onSnapshot(
-    fs.query(fs.collection(db, "jobs"), fs.where("current_status", "in", ["in-flight", "ready"]), fs.limit(200)),
+    fs.query(fs.collection(db, "jobs"), fs.where("current_status", "in", OPEN_JOB_STATUSES), fs.limit(200)),
     (s) => {
       inflightJobs = grab(s);
       delete collErr.inflight;
@@ -2951,12 +2952,17 @@ function startListeners() {
     },
     onErr("inflight")
   ));
+  unsubs.push(fs.onSnapshot(
+    fs.query(fs.collection(db, "customers"), fs.limit(250)),
+    (s) => {
+      customerNames = Object.fromEntries(s.docs.map((d) => [d.id, d.data().name]));
+      paint();
+    },
+    onErr("customers")
+  ));
 }
-function tsMs(doc) {
-  const t = doc.created_at;
-  if (t && typeof t.toMillis === "function") return t.toMillis();
-  return typeof doc.client_ts === "number" ? doc.client_ts : 0;
-}
+var tsMs = eventMillis;
+var custName = (id) => customerNames[id] || id || "?";
 function todayStart() {
   const d = /* @__PURE__ */ new Date();
   d.setHours(0, 0, 0, 0);
@@ -2997,7 +3003,7 @@ function overdueJobs() {
 function streamRows() {
   const label = {
     production_entries: ["\u{1F3ED}", (d) => `${d.machine_id || "?"} \xB7 ${d.qty_pcs ? d.qty_pcs + " NOS" : (d.qty_kg || 0) + " kg"}${d.rounds ? ` (${d.rounds}\xD7${d.round_size || "?"})` : ""} \xB7 ${d.worker_id || ""}`],
-    jobs: ["\u{1F4CB}", (d) => `Job in \xB7 ${d.customer_id || "?"}${d.challan_no ? ` \xB7 Ch ${d.challan_no}` : ""} \xB7 ${d.received_kg ? d.received_kg + " kg" : (d.received_pcs || 0) + " NOS"}`],
+    jobs: ["\u{1F4CB}", (d) => `Job in \xB7 ${custName(d.customer_id)}${d.challan_no ? ` \xB7 Ch ${d.challan_no}` : ""} \xB7 ${d.received_kg ? d.received_kg + " kg" : (d.received_pcs || 0) + " NOS"}`],
     dft_measurements: ["\u{1F52C}", (d) => `DFT ${d.micron_value} \xB5m \xB7 ${d.outcome}`],
     dispatch_events: ["\u{1F69A}", (d) => `Dispatch \xB7 ${d.job_id || ""}${d.weight_kg ? ` \xB7 ${d.weight_kg} kg` : ""}`],
     notes: ["\u{1F4DD}", (d) => `${d.priority === "urgent" ? "\u{1F6A8} " : ""}${d.kind}: ${d.summary || ""}`],
@@ -3011,9 +3017,6 @@ function streamRows() {
     }
   }
   return rows.sort((a, b) => b.ts - a.ts).slice(0, STREAM_LIMIT);
-}
-function esc2(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 function fmtTime(ms) {
   if (!ms) return "\u2014";
@@ -3056,7 +3059,7 @@ function paint() {
   const rows = streamRows();
   const cgBlocked = collErr.shifts || collErr.depletions;
   el.innerHTML = `
-    <div class="lv-signed">Signed in as <b>${esc2(user.uid)}</b> \xB7 staging</div>
+    <div class="lv-signed">Signed in as <b>${esc(user.uid)}</b> \xB7 staging</div>
 
     <div class="lv-kpis">
       ${kpi(k.entries, "entries today")}
@@ -3069,10 +3072,10 @@ function paint() {
     </div>
 
     <div class="lv-warnings">
-      ${nils.map((n) => `<div class="lv-warn lv-warn-red">\u26A0 NIL stock: <b>${esc2(n.name)}</b> (since ${fmtTime(n.since)})</div>`).join("")}
+      ${nils.map((n) => `<div class="lv-warn lv-warn-red">\u26A0 NIL stock: <b>${esc(n.name)}</b> (since ${fmtTime(n.since)})</div>`).join("")}
       ${overdue.map((j) => `<div class="lv-warn ${j.current_status === "ready" ? "lv-warn-red" : "lv-warn-amber"}">
           \u23F0 ${j.current_status === "ready" ? "Ready, not dispatched" : "Over SLA"}:
-          <b>${esc2(j.id)}</b> \xB7 ${esc2(j.customer_id || "")} \xB7 ${fmtAge(j.age)}</div>`).join("")}
+          <b>${esc(j.id)}</b> \xB7 ${esc(custName(j.customer_id))} \xB7 ${fmtAge(j.age)}</div>`).join("")}
       ${cgBlocked ? `<div class="lv-warn">\u2139 Check-in stream + NIL alerts need the 12 Jun rules deploy (IAM-gated) \u2014 sections stay empty until <code>deploy-rules</code> is green.</div>` : ""}
       ${!nils.length && !overdue.length && !cgBlocked ? `<div class="lv-warn lv-warn-ok">\u2713 No NIL stock, nothing overdue.</div>` : ""}
     </div>
@@ -3083,8 +3086,8 @@ function paint() {
         <div class="lv-row">
           <span class="lv-row-time">${fmtTime(r.ts)}</span>
           <span class="lv-row-icon">${r.icon}</span>
-          <span class="lv-row-text">${esc2(r.text)}</span>
-          <span class="lv-row-who">${esc2(r.author)}</span>
+          <span class="lv-row-text">${esc(r.text)}</span>
+          <span class="lv-row-who">${esc(r.author)}</span>
         </div>`).join("") : `<div class="lv-state">No activity yet \u2014 entries from the SEP Handler app appear here live.</div>`}
     </div>`;
 }

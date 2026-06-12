@@ -525,6 +525,9 @@ function jobToPickerItem(j, customerName) {
     method: j.current_status === "dispatched" ? "\u2713" : "\u2022"
   };
 }
+function customerNamesById(customers = []) {
+  return Object.fromEntries(customers.map((c) => [c.id, c.name]));
+}
 var customersToPickerItems = (cs = []) => cs.map(customerToPickerItem);
 var itemsToPickerItems = (its = []) => its.map(itemToPickerItem);
 var jobsToPickerItems = (js = [], namesById = {}) => js.map((j) => jobToPickerItem(j, namesById[j.customer_id]));
@@ -553,8 +556,9 @@ export {
   getCache,
   setCache,
   hydrateCaches,
+  customerNamesById,
   customersToPickerItems,
   itemsToPickerItems,
   jobsToPickerItems
 };
-//# sourceMappingURL=chunk-UKVVHALL.js.map
+//# sourceMappingURL=chunk-MKFO6Q76.js.map

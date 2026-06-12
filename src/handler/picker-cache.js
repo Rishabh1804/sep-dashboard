@@ -61,6 +61,11 @@ export function jobToPickerItem(j, customerName) {
   // so the resolved customer NAME is the primary line; the challan number —
   // captured at receipt (challan_no) or imported (sep_invoicing_challan_no) —
   // is the cross-reference sub-line. Raw customer_id only as a last resort.
+  //
+  // The '✓' glyph is unreachable through the live listener (firebase-boot
+  // filters to OPEN_JOB_STATUSES) — kept because this adapter is generic
+  // over job docs and pre-filter IndexedDB snapshots can still carry
+  // dispatched jobs until the first online refresh.
   const challan = j.challan_no || j.sep_invoicing_challan_no;
   return {
     id: j.id,
@@ -68,6 +73,12 @@ export function jobToPickerItem(j, customerName) {
     sub: challan ? `Challan ${challan}` : j.id,
     method: j.current_status === 'dispatched' ? '✓' : '•',
   };
+}
+
+// id → display-name map for the jobs join. Lives HERE (next to the consumer)
+// so tests exercise the production mapping instead of re-deriving it.
+export function customerNamesById(customers = []) {
+  return Object.fromEntries(customers.map((c) => [c.id, c.name]));
 }
 
 export const customersToPickerItems = (cs = []) => cs.map(customerToPickerItem);

@@ -11,6 +11,7 @@
 // then writes queue locally ("Saved on phone, not yet sent").
 
 import { APP_VERSION } from '../shared/config/app.js';
+import { esc } from '../shared/utils/format.js';
 import { t, getLang, setLang, LANGS, speak } from './i18n.js';
 import { isMuted, setMuted } from './feedback.js';
 import { renderChip, openSyncSheet, preFlushCheck, showModal } from './sync.js';
@@ -63,7 +64,7 @@ function renderHome() {
   const recentRows = recent.length
     ? recent.map((e) => `<div class="h-recent-row">
         <span class="h-recent-time">${new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-        <span class="h-recent-text">${t(e.type)} · ${e.summary}</span>
+        <span class="h-recent-text">${t(e.type)} · ${esc(e.summary)}</span>
         <span class="h-recent-status">${e.status === 'queued' ? '⏳' : e.status === 'rejected' ? '🔴' : '✓'}</span>
       </div>`).join('')
     : `<div class="h-empty">${t('no_recent')}</div>`;

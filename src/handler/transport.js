@@ -136,6 +136,12 @@ const MAPPERS = {
   },
 
   dispatch(f, record, ctx) {
+    // KNOWN GAP (12 Jun review): this only creates the dispatch_events doc —
+    // nothing flips jobs/{jid}.current_status to 'dispatched'. That is the
+    // Stage E aggregator CF's job (skeleton today), and the rules block a
+    // client-side flip on jobs outside the author's 24h edit window. Until
+    // the aggregator ships, handler-dispatched jobs stay 'in-flight' and
+    // keep appearing in the OPEN_JOB_STATUSES picker query.
     const data = { ...envelope(record, ctx), job_id: f.job };
     if (f.weight != null) data.weight_kg = num(f.weight);
     if (f.notes) data.notes = f.notes;

@@ -25,8 +25,14 @@ var DEF_CW = [
   { id: "tuklu", name: "Tuklu", inactive: false }
 ];
 
+// src/shared/utils/format.js
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export {
   DEF_PERM,
-  DEF_CW
+  DEF_CW,
+  esc
 };
-//# sourceMappingURL=chunk-42434FVJ.js.map
+//# sourceMappingURL=chunk-Z27QHJP5.js.map

@@ -12,13 +12,22 @@
 // fragment is scrubbed from the URL immediately after sign-in.
 
 import { bootFirebaseSession } from '../shared/firebase-session.js';
+import { eventMillis } from '../shared/utils/event-time.js';
+import { OPEN_JOB_STATUSES } from '../shared/types/job-status.js';
 import { setTransport, clearTransport, flush } from './sync.js';
 import { createTransport } from './transport.js';
 import {
   setCache, customersToPickerItems, itemsToPickerItems, jobsToPickerItems,
+  customerNamesById,
 } from './picker-cache.js';
 
 const PICKER_LIMIT = 250;
+// Jobs get a higher ceiling: the where-in query has NO orderBy (a composite
+// index is the 2.1 fix), so Firestore truncates by doc id BEFORE the client's
+// recency sort — a low limit would silently drop the newest receipts once
+// open jobs exceed it (the seed alone holds hundreds). 1000 covers any
+// realistic open book; revisit with the composite index.
+const JOBS_PICKER_LIMIT = 1000;
 
 export async function startFirebase({ onChange } = {}) {
   // Shared session boot (Stage F extraction): app + persistent-cache db +
@@ -70,27 +79,32 @@ function startPickerListeners({ db, fs, onChange }) {
   const onErr = () => {}; // listener loss is non-fatal; cache snapshot persists
 
   // Jobs join against customers; either snapshot may arrive first, so both
-  // listeners recompute the job cache from the latest pair.
-  let lastCustomers = [];
-  let lastJobs = [];
-  const tsOf = (j) => j.created_at?.toMillis?.() ?? 0;
+  // listeners recompute the job cache from the latest pair. lastJobs starts
+  // null (NOT []) — until the jobs snapshot has fired at least once, the job
+  // cache must not be written: the customers snapshot usually lands first
+  // (served from the SDK's local cache) and an unguarded recompute would
+  // persist [] over the offline snapshot hydrateCaches() just restored.
+  let lastNames = {};
+  let lastJobs = null;
   const recomputeJobs = () => {
-    const names = Object.fromEntries(lastCustomers.map((c) => [c.id, c.name]));
-    const recentFirst = [...lastJobs].sort((a, b) => tsOf(b) - tsOf(a));
-    setCache('job', jobsToPickerItems(recentFirst, names));
+    if (!lastJobs) return;
+    const recentFirst = [...lastJobs].sort((a, b) => eventMillis(b) - eventMillis(a));
+    setCache('job', jobsToPickerItems(recentFirst, lastNames));
     onChange?.();
   };
 
   const openJobsQ = fs.query(
     fs.collection(db, 'jobs'),
-    fs.where('current_status', 'in', ['in-flight', 'ready']),
-    fs.limit(PICKER_LIMIT),
+    fs.where('current_status', 'in', OPEN_JOB_STATUSES),
+    fs.limit(JOBS_PICKER_LIMIT),
   );
 
   return [
     fs.onSnapshot(q('customers'), (s) => {
-      lastCustomers = docs(s);
-      setCache('customer', customersToPickerItems(lastCustomers));
+      const customers = docs(s);
+      lastNames = customerNamesById(customers);
+      setCache('customer', customersToPickerItems(customers));
+      onChange?.();
       recomputeJobs();
     }, onErr),
     fs.onSnapshot(q('items'), (s) => { setCache('part', itemsToPickerItems(docs(s))); onChange?.(); }, onErr),

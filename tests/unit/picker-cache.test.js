@@ -2,6 +2,7 @@ import {
   getCache, setCache,
   customerToPickerItem, itemToPickerItem, jobToPickerItem,
   customersToPickerItems, itemsToPickerItems, jobsToPickerItems,
+  customerNamesById,
 } from '../../src/handler/picker-cache.js';
 import { importInvoicingExport } from '../../src/shared/import/invoicing-import.js';
 import { readFileSync } from 'node:fs';
@@ -57,8 +58,9 @@ describe('importer → picker bridge (end to end)', () => {
     const custItems = customersToPickerItems(out.customers);
     expect(custItems.map((c) => c.primary)).toContain('ACME WEIGHTWORKS');
     expect(itemsToPickerItems(out.items).map((i) => i.primary)).toContain('188 CD');
-    const names = Object.fromEntries(out.customers.map((c) => [c.id, c.name]));
-    const jobs = jobsToPickerItems(out.jobs, names);
+    // The same join the production listener performs (customerNamesById is
+    // the exported helper firebase-boot uses — not a test-local re-derivation).
+    const jobs = jobsToPickerItems(out.jobs, customerNamesById(out.customers));
     expect(jobs.map((j) => j.sub)).toContain('Challan 2494');
     expect(jobs.map((j) => j.primary)).toContain('ACME WEIGHTWORKS');
   });

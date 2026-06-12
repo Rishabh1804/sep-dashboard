@@ -51,6 +51,19 @@ jobs:
     env:
       FIREBASE_SERVICE_ACCOUNT_STAGING: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
     steps:
+      # PUBLIC-REPO GUARD for mint-token, FIRST — before checkout/install:
+      # it needs no dependencies, and failing here keeps a refused run at
+      # ~2s instead of a minute of pnpm install with the staging credential
+      # sitting in job env. mint-token prints a live sign-in token; public
+      # run logs are world-readable. scripts/mint-token.mjs carries its own
+      # CI refusal as the second line of defense (MINT_ALLOW_CI_LOGS).
+      - name: Refuse mint-token on a public repo
+        if: inputs.action == 'mint-token' && !github.event.repository.private
+        run: |
+          echo "::error::Refusing to print a live sign-in token into PUBLIC run logs."
+          echo "Run locally instead: GOOGLE_APPLICATION_CREDENTIALS=<sa.json> pnpm mint:token -- --uid <id> [--admin]"
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -72,12 +85,9 @@ jobs:
 
       - name: Mint provisioning token
         if: inputs.action == 'mint-token'
-        # PUBLIC-REPO GUARD (12 Jun dry-run finding): mint-token prints a
-        # live sign-in token, and run logs on a PUBLIC repo are world-
-        # readable — printing here would publish a 1h-valid credential.
-        # Refuse unless the repo is private; the supported path on a public
-        # repo is running the script locally:
-        #   GOOGLE_APPLICATION_CREDENTIALS=<sa.json> pnpm mint:token -- --uid <id> [--admin]
+        # Reaching this step means the first-step public-repo guard passed
+        # (repo is private) — MINT_ALLOW_CI_LOGS=1 tells the script's own
+        # CI refusal that log privacy was verified by the workflow.
         #
         # Inputs pass through env, never spliced into the command line —
         # ${{ }} interpolation in run: is shell injection in a job whose
@@ -87,14 +97,8 @@ jobs:
           IN_NAME: ${{ inputs.name }}
           IN_ROLES: ${{ inputs.roles }}
           IN_ADMIN: ${{ inputs.admin }}
-          REPO_IS_PRIVATE: ${{ github.event.repository.private }}
-        run: |
-          if [ "$REPO_IS_PRIVATE" != "true" ]; then
-            echo "::error::Refusing to print a live sign-in token into PUBLIC run logs."
-            echo "Run locally instead: GOOGLE_APPLICATION_CREDENTIALS=<sa.json> pnpm mint:token -- --uid <id> [--admin]"
-            exit 1
-          fi
-          node scripts/mint-token.mjs --uid "$IN_UID" --name "${IN_NAME:-$IN_UID}" --roles "$IN_ROLES" $([ "$IN_ADMIN" = "true" ] && echo --admin)
+          MINT_ALLOW_CI_LOGS: '1'
+        run: node scripts/mint-token.mjs --uid "$IN_UID" --name "${IN_NAME:-$IN_UID}" --roles "$IN_ROLES" $([ "$IN_ADMIN" = "true" ] && echo --admin)
 
       - name: Seed dry-run (fixture)
         if: inputs.action == 'seed-dry-run'
