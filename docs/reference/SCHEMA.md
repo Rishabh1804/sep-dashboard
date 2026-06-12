@@ -85,6 +85,9 @@ interface Job {
   invoice_id?: string;                      // FK to sep-invoicing (invoice doc)
   // --- sep-invoicing linkage (v2; canonical keys from the billing system of record) ---
   sep_invoicing_challan_no?: string;        // IM challan number (e.g. "2494") — the natural job key
+  challan_no?: string;                      // v2.2: customer challan as captured at receipt by the
+                                            //       handler — a LABEL, not a key (107-collision ruling);
+                                            //       readers check this OR sep_invoicing_challan_no
   sep_invoicing_challan_date?: string;      // YYYY-MM-DD
   sep_invoicing_customer_id?: number;       // numeric clientId (1..21) in sep-invoicing
   is_informal?: boolean;                    // cash/non-GST job (Siya, Himani, Ankit) — no invoice link
@@ -597,6 +600,9 @@ interface ShiftEvent {
   __schema_version: number;
   id: string;
   action: 'clock_in' | 'clock_out' | 'break_start' | 'break_end';
+  direction?: 'in' | 'out';                 // alpha handler writes this two-state form of `action`
+  slot?: 'morning_ot' | 'regular' | 'evening_ot';   // v2.2 (T-CH): maps the in/out onto the payroll
+                                            //       OT decomposition (morning 6–8:30 = 3 hr; post-5 PM)
   location: 'home_room' | 'specific_room' | 'in_transit' | 'off_premises';
   linked_machine_id?: string;
   reason?: string;
@@ -615,9 +621,11 @@ interface StockReceipt {
   id: string;
   qty_received: number;
   unit: 'kg' | 'L' | 'pcs' | 'units' | 'kWh';
-  unit_cost: number;
-  cost_unit: 'per_kg' | 'per_bag' | 'per_liter';
-  supplier_id: string;                      // FK
+  unit_cost?: number;                       // v2.2: OPTIONAL — material arrives on unpriced challans
+                                            //       (zinc PO #70); priced invoice follows. cost_unit
+                                            //       must accompany unit_cost when present.
+  cost_unit?: 'per_kg' | 'per_bag' | 'per_liter';
+  supplier_id?: string;                     // FK — v2.2: optional (informal suppliers)
   receipt_photo_url?: string;
   notes?: string;
   client_created_at: Timestamp;
@@ -635,6 +643,8 @@ interface StockDepletion {
   id: string;
   qty_depleted: number;
   reason: 'production_use' | 'waste' | 'spillage' | 'theft' | 'other';
+  level_after?: number;                     // v2.2: stock-take companion — level remaining after the
+                                            //       draw; 0 = NIL (drives the Live view reorder alert)
   linked_machine_id?: string;
   notes?: string;
   client_created_at: Timestamp;

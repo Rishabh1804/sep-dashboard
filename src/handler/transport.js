@@ -13,13 +13,16 @@
 // Doc IDs are the form's idempotencyKey, so a crash-between-send-and-dequeue
 // replays onto the same doc and is detected (getDoc → already exists → done).
 //
-// KNOWN RULES↔FORM SKEWS (Stage D decides which side moves; the mapper
-// pre-rejects these with err.permanent=true so one bad record lands in the
-// rejected store instead of wedging the whole queue):
-//   - production.station 'passivation' — form offers it, rules only allow
-//     pickling/plating/inspection/dispatch.
-//   - stock_refill without cost or supplier — rules require unit_cost > 0
-//     and supplier_id (isValidStockReceipt); the form has both optional.
+// STAGE D SKEW RULINGS (both resolved 12 Jun 2026):
+//   - production.station 'passivation' — RESOLVED form-side earlier: folded
+//     into 'plating' per the locked v2 schema; the form no longer offers it.
+//     The station guard below stays as a belt-and-braces check.
+//   - stock_refill cost/supplier — RESOLVED rules-side: optional, validated
+//     when present. Codex evidence (zinc PO #70, 9 Jun): material arrives on
+//     an unpriced challan, the priced invoice follows days later — receipt-
+//     time cost is routinely unknown. Until the relaxed rules deploy (IAM-
+//     gated), costless refills queue as transient denials and drain on
+//     deploy — by design, not data loss.
 
 import { DEF_AREAS } from '../shared/config/areas.js';
 import { DEF_STOCK } from '../shared/config/stock.js';
@@ -69,7 +72,17 @@ const MAPPERS = {
   production(f, record, ctx) {
     const station = f.station || defaultStation(f.machine);
     if (!RULE_STATIONS.includes(station)) {
-      throw new PermanentRejection(`station '${station}' not accepted by rules (Stage D skew)`);
+      throw new PermanentRejection(`station '${station}' not accepted by rules`);
+    }
+    // Register grain: total quantity, or rounds × per-round size ("108-round",
+    // "25×6"). When both are given the explicit total wins; rounds are kept
+    // on the doc either way — they're the productivity denominator.
+    const rounds = f.rounds != null ? num(f.rounds) : null;
+    const roundSize = f.round_size != null ? num(f.round_size) : null;
+    const qty = f.quantity != null ? num(f.quantity)
+      : (rounds > 0 && roundSize > 0 ? rounds * roundSize : NaN);
+    if (!(qty > 0)) {
+      throw new PermanentRejection('quantity missing: need a total or rounds × round size');
     }
     const data = {
       ...envelope(record, ctx),
@@ -77,8 +90,10 @@ const MAPPERS = {
       machine_id: f.machine,
       worker_id: f.worker,
       station,
-      [qtyFieldFor(f.machine)]: num(f.quantity),
+      [qtyFieldFor(f.machine)]: qty,
     };
+    if (rounds > 0) data.rounds = rounds;
+    if (roundSize > 0) data.round_size = roundSize;
     if (f.part) data.item_id = f.part;
     if (f.part__label) data.part_number = f.part__label;
     if (f.notes) data.notes = f.notes;
@@ -86,14 +101,19 @@ const MAPPERS = {
   },
 
   job_receipt(f, record, ctx) {
+    // NOS-only challans carry received_kg 0 with the count in received_pcs
+    // (isValidJob accepts either being positive).
     const data = {
       ...envelope(record, ctx),
       __schema_version: 2,
       customer_id: f.customer,
-      received_kg: num(f.weight),
+      received_kg: f.weight != null ? num(f.weight) : 0,
       route: 'standard',
       current_status: 'in-flight',
     };
+    if (f.received_pcs != null) data.received_pcs = num(f.received_pcs);
+    // Customer paperwork number — a label, not a key (107-collision ruling).
+    if (f.challan_no) data.challan_no = String(f.challan_no).trim();
     if (f.notes) data.notes = f.notes;
     return { path: ['jobs', record.idempotencyKey], data };
   },
@@ -123,19 +143,19 @@ const MAPPERS = {
   },
 
   stock_refill(f, record, ctx) {
-    if (f.cost == null || !(num(f.cost) > 0) || !f.supplier) {
-      throw new PermanentRejection('rules require unit_cost > 0 and supplier_id (Stage D skew)');
-    }
+    // Cost + supplier are OPTIONAL (Stage D ruling — material arrives on
+    // unpriced challans; the priced invoice follows). When cost is present,
+    // the unit follows the stock item's tracked unit (DEF_STOCK): litre-
+    // tracked chemistry per litre, everything else per kg.
     const data = {
       ...envelope(record, ctx),
       qty_received: num(f.quantity),
-      unit_cost: num(f.cost),
-      // Cost unit follows the stock item's tracked unit (DEF_STOCK): litre-
-      // tracked chemistry is priced per litre, everything else per kg. A
-      // per-piece tier lands with the universal stock model (Stage D+).
-      cost_unit: stockUnitFor(f.item) === 'L' ? 'per_liter' : 'per_kg',
-      supplier_id: f.supplier,
     };
+    if (f.cost != null && num(f.cost) > 0) {
+      data.unit_cost = num(f.cost);
+      data.cost_unit = stockUnitFor(f.item) === 'L' ? 'per_liter' : 'per_kg';
+    }
+    if (f.supplier) data.supplier_id = f.supplier;
     if (f.notes) data.notes = f.notes;
     return { path: ['stock_items', f.item, 'receipts', record.idempotencyKey], data };
   },
@@ -144,10 +164,11 @@ const MAPPERS = {
     const data = {
       ...envelope(record, ctx),
       qty_depleted: num(f.quantity),
-      // The form has no reason field yet; production use is the dominant
-      // case on the floor (chemistry draw). Stage D adds the selector.
-      reason: 'production_use',
+      reason: f.reason || 'production_use',
     };
+    // Stock-take companion: level remaining after the draw. 0 = NIL —
+    // the Live view's reorder alert keys on this.
+    if (f.level_after != null && num(f.level_after) >= 0) data.level_after = num(f.level_after);
     if (f.notes) data.notes = f.notes;
     return { path: ['stock_items', f.item, 'depletions', record.idempotencyKey], data };
   },
@@ -159,7 +180,10 @@ const MAPPERS = {
   },
 
   check_in(f, record, ctx) {
+    // slot (morning_ot / regular / evening_ot) is the T-CH payload — it maps
+    // each in/out straight onto the payroll OT decomposition.
     const data = { ...envelope(record, ctx), direction: f.direction };
+    if (f.slot) data.slot = f.slot;
     return { path: ['workers', f.worker, 'shifts', record.idempotencyKey], data };
   },
 
@@ -173,6 +197,7 @@ const MAPPERS = {
       body: text,
       kind: f.note_kind || 'general',
       status: 'active',
+      priority: f.priority === 'urgent' ? 'urgent' : 'normal',
       topic_refs: [f.note_kind || 'general'],
     };
     return { path: ['notes', record.idempotencyKey], data };

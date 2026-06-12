@@ -11,7 +11,7 @@
 // session in IndexedDB, so the one-shot token survives restarts; the
 // fragment is scrubbed from the URL immediately after sign-in.
 
-import { getFirebaseConfig } from '../shared/config/firebase.js';
+import { bootFirebaseSession } from '../shared/firebase-session.js';
 import { setTransport, clearTransport, flush } from './sync.js';
 import { createTransport } from './transport.js';
 import {
@@ -21,41 +21,12 @@ import {
 const PICKER_LIMIT = 250;
 
 export async function startFirebase({ onChange } = {}) {
-  const config = getFirebaseConfig();
-  if (!config) return null;
-
-  const [{ initializeApp }, fs, fbAuth] = await Promise.all([
-    import('firebase/app'),
-    import('firebase/firestore'),
-    import('firebase/auth'),
-  ]);
-
-  const app = initializeApp(config);
-  const db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache() });
-  const auth = fbAuth.getAuth(app);
-
-  // One-shot provisioning token in the URL fragment (never sent to servers,
-  // never logged in HTTP access logs — why fragment, not query).
-  const m = (globalThis.location?.hash || '').match(/[#&]token=([^&]+)/);
-  if (m) {
-    let scrub = true;
-    try {
-      await fbAuth.signInWithCustomToken(auth, decodeURIComponent(m[1]));
-    } catch (err) {
-      // Keep the still-valid token in the URL on TRANSIENT failures (factory
-      // wifi blips during QR provisioning) so a reload retries — only an
-      // actually bad token is consumed. Without this, every signal blip
-      // during rollout week means re-minting and re-QR-ing.
-      const code = err?.code || '';
-      scrub = code === 'auth/invalid-custom-token' || code === 'auth/custom-token-mismatch'
-           || code === 'auth/user-disabled';
-    }
-    if (scrub) {
-      try {
-        globalThis.history?.replaceState(null, '', globalThis.location.pathname + globalThis.location.search);
-      } catch { /* ignore */ }
-    }
-  }
+  // Shared session boot (Stage F extraction): app + persistent-cache db +
+  // auth + the #token URL-fragment sign-in, identical behaviour to the
+  // 12 Jun live-verified path. Null = no config — Stage C behaviour holds.
+  const session = await bootFirebaseSession();
+  if (!session) return null;
+  const { app, db, auth, fs, fbAuth } = session;
 
   let unsubscribers = [];
   let activeUid = null;

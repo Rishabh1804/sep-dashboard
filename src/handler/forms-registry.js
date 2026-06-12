@@ -1,13 +1,15 @@
-// The 9 handler forms (HANDLER_FORMS.md). Stage C defines each form's
-// shape — icon, title, mode, fields, picker sources — so the universal
-// engine can render all of them and the shell is a complete data-capture
-// surface. What Stage D adds on top: Zod schemas, the full pre-fill
-// defense bundle, sanity hard-blocks beyond the basic ones here, and
-// CF-mediated cross-doc validation for Production / DFT / Dispatch.
-//
-// Picker sources currently seed from local config + a small static job/
-// customer/supplier list. Stage B/D replaces these with the recent-first
-// IndexedDB cache hydrated from Firestore.
+// The 9 handler forms (HANDLER_FORMS.md), completed to Stage D field
+// level in the soma-internal evidence order (decisions/2026-06-12.md §2):
+//   1. Check-in — OT slot tagging (T-CH: morning 6 AM / evening post-5 PM
+//      slots are the independence-gap data Champai records).
+//   2. Production — rounds × round size (the register's native grain:
+//      "108-round", "25×6").
+//   3. Job receipt — challan number + NOS count (incoming-material log).
+//   4. Stock depletion — reason + level-after (chemistry stock-take; a
+//      level_after of 0 is Shyam's "NIL" and feeds the viewer's alert).
+//   5. Note — power-cut / incident kinds + urgency (power-cut log).
+// Still deferred: Zod at the form boundary, the full pre-fill defense
+// bundle, 2σ sanity prompts, CF-mediated cross-doc validation.
 
 import { DEF_PERM, DEF_CW } from '../shared/config/workers.js';
 import { DEF_AREAS } from '../shared/config/areas.js';
@@ -56,6 +58,32 @@ const DIRECTION_OPTS = [
   { value: 'in', labelKey: 'opt_in' },
   { value: 'out', labelKey: 'opt_out' },
 ];
+// OT slots per the codex convention (decisions/2026-06-10.md): morning OT
+// is the 6–8:30 AM slot (counted 3 hr), evening OT is post-5 PM.
+const SLOT_OPTS = [
+  { value: 'morning_ot', labelKey: 'opt_morning_ot' },
+  { value: 'regular', labelKey: 'opt_regular' },
+  { value: 'evening_ot', labelKey: 'opt_evening_ot' },
+];
+const REASON_OPTS = [
+  { value: 'production_use', labelKey: 'opt_use' },
+  { value: 'waste', labelKey: 'opt_waste' },
+  { value: 'spillage', labelKey: 'opt_spill' },
+  { value: 'theft', labelKey: 'opt_theft' },
+  { value: 'other', labelKey: 'opt_other' },
+];
+const PRIORITY_OPTS = [
+  { value: 'normal', labelKey: 'opt_normal' },
+  { value: 'urgent', labelKey: 'opt_urgent' },
+];
+
+// Smart default: infer the OT slot from the clock (override stays one tap).
+function inferSlot() {
+  const h = new Date().getHours();
+  if (h < 9) return 'morning_ot';
+  if (h < 17) return 'regular';
+  return 'evening_ot';
+}
 
 const PICKERS = {
   job: jobItems, machine: machineItems, worker: workerItems,
@@ -63,7 +91,13 @@ const PICKERS = {
 };
 
 const posNumber = (v) => (Number(v) > 0 ? null : '> 0');
+const nonNegNumber = (v) => (Number(v) >= 0 ? null : '≥ 0');
 const dftRange = (v) => (Number(v) > 50 ? '0–50 µm' : Number(v) > 0 ? null : '> 0');
+
+// Production quantity is required unless rounds × round size carries the
+// count; job-receipt weight is required unless the challan is NOS-only.
+const qtyUnlessRounds = (s) => !(Number(s.rounds) > 0 && Number(s.round_size) > 0);
+const kgUnlessPcs = (s) => !(Number(s.received_pcs) > 0);
 
 // --- Form definitions ---
 // `remember:true` fields pre-fill from the previous submission of the form.
@@ -78,7 +112,12 @@ export const FORMS = [
       { key: 'part', labelKey: 'f_part', kind: 'picker', pickerKey: 'part', icon: '🏷️', remember: true },
       { key: 'machine', labelKey: 'f_machine', kind: 'picker', pickerKey: 'machine', icon: '🔧', required: true, remember: true },
       { key: 'worker', labelKey: 'f_worker', kind: 'picker', pickerKey: 'worker', icon: '👷', required: true, remember: true },
-      { key: 'quantity', labelKey: 'f_quantity', kind: 'number', icon: '🔢', required: true, validate: posNumber },
+      // The register's native grain is rounds: "108-round" VAT days, "25×6"
+      // batches. Either enter the total, or rounds × per-round size — the
+      // transport derives the total when only rounds are given.
+      { key: 'rounds', labelKey: 'f_rounds', kind: 'number', icon: '🔁', validate: posNumber },
+      { key: 'round_size', labelKey: 'f_round_size', kind: 'number', icon: '✖️', validate: posNumber },
+      { key: 'quantity', labelKey: 'f_quantity', kind: 'number', icon: '🔢', required: qtyUnlessRounds, validate: posNumber },
       { key: 'station', labelKey: 'f_station', kind: 'select', icon: '📍', options: STATION_OPTS, remember: true },
       { key: 'notes', labelKey: 'f_notes', kind: 'notes' },
     ],
@@ -88,7 +127,12 @@ export const FORMS = [
     pickers: PICKERS,
     fields: [
       { key: 'customer', labelKey: 'f_customer', kind: 'picker', pickerKey: 'customer', icon: '🏢', required: true },
-      { key: 'weight', labelKey: 'f_weight', kind: 'number', icon: '⚖️', required: true, validate: posNumber },
+      // The customer's paperwork number — a label, not a key (the 107-
+      // collision ruling, SCHEMA_CHANGELOG v2.1). Cross-reference only.
+      { key: 'challan_no', labelKey: 'f_challan', kind: 'text', icon: '🧾' },
+      { key: 'weight', labelKey: 'f_weight', kind: 'number', icon: '⚖️', required: kgUnlessPcs, validate: posNumber },
+      // NOS-only challans (clamps/brackets counted in pieces) carry no kg.
+      { key: 'received_pcs', labelKey: 'f_pcs', kind: 'number', icon: '🔢', validate: posNumber },
       { key: 'notes', labelKey: 'f_notes', kind: 'notes' },
     ],
   },
@@ -133,6 +177,11 @@ export const FORMS = [
     fields: [
       { key: 'item', labelKey: 'f_item', kind: 'picker', pickerKey: 'item', icon: '📦', required: true },
       { key: 'quantity', labelKey: 'f_quantity', kind: 'number', icon: '🔢', required: true, validate: posNumber },
+      { key: 'reason', labelKey: 'f_reason', kind: 'select', icon: '❓', options: REASON_OPTS, default: 'production_use', required: true },
+      // The chemistry stock-take companion: how much is LEFT after this
+      // draw. 0 = Shyam's "NIL" — surfaces as a reorder alert in the
+      // dashboard's Live view. Optional; most floor draws skip it.
+      { key: 'level_after', labelKey: 'f_level_after', kind: 'number', icon: '📏', validate: nonNegNumber },
       { key: 'notes', labelKey: 'f_notes', kind: 'notes' },
     ],
   },
@@ -151,6 +200,10 @@ export const FORMS = [
     fields: [
       { key: 'worker', labelKey: 'f_worker', kind: 'picker', pickerKey: 'worker', icon: '👷', required: true },
       { key: 'direction', labelKey: 'f_direction', kind: 'select', icon: '↔️', options: DIRECTION_OPTS, required: true },
+      // T-CH: the slot tag makes each in/out decompose straight into the
+      // payroll OT model (morning 6–8:30 = 3 hr convention; evening post-5).
+      // Defaults from the clock; overriding stays one tap.
+      { key: 'slot', labelKey: 'f_slot', kind: 'select', icon: '🕕', options: SLOT_OPTS, default: inferSlot, required: true },
     ],
   },
   {
@@ -162,8 +215,13 @@ export const FORMS = [
         { value: 'job', labelKey: 'f_job' },
         { value: 'worker', labelKey: 'f_worker' },
         { value: 'item', labelKey: 'f_item' },
+        // First-class incident kinds (codex power-cut-log evidence): a
+        // power cut is a note today; the viewer surfaces urgent ones.
+        { value: 'power_cut', labelKey: 'opt_power_cut' },
+        { value: 'incident', labelKey: 'opt_incident' },
       ] },
       { key: 'note_text', labelKey: 'f_note_text', kind: 'notes', icon: '📝', required: true },
+      { key: 'priority', labelKey: 'f_priority', kind: 'select', icon: '🚨', options: PRIORITY_OPTS, default: 'normal' },
     ],
   },
 ];

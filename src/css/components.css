@@ -572,3 +572,53 @@
   color:var(--warning); background:rgba(138,107,8,.08);
   padding:var(--sp-2) var(--sp-8); border-radius:var(--r-sm);
 }
+
+/* === LIVE TAB (Stage F minimal viewer) === */
+.lv-state {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r-md); padding:var(--sp-16);
+  color:var(--text-muted); font-size:var(--fs-sm);
+}
+.lv-state code { font-family:var(--ff-mono); font-size:var(--fs-xs); }
+.lv-signed {
+  font-size:var(--fs-xs); color:var(--text-muted);
+  margin-bottom:var(--sp-8);
+}
+.lv-kpis {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr));
+  gap:var(--sp-8); margin-bottom:var(--sp-16);
+}
+.lv-kpi {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r-md); padding:var(--sp-8) var(--sp-12);
+  text-align:center;
+}
+.lv-kpi-v { font-family:var(--ff-mono); font-size:var(--fs-lg); font-weight:var(--fw-semi); }
+.lv-kpi-l { font-size:var(--fs-xs); color:var(--text-muted); }
+.lv-warnings { margin-bottom:var(--sp-16); }
+.lv-warn {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r-sm); padding:var(--sp-8) var(--sp-12);
+  font-size:var(--fs-sm); margin-bottom:var(--sp-4);
+}
+.lv-warn-red   { border-color:var(--danger);  color:var(--danger); }
+.lv-warn-amber { border-color:var(--warning); color:var(--warning); }
+.lv-warn-ok    { color:var(--attend); }
+.lv-stream-h {
+  font-size:var(--fs-xs); font-weight:var(--fw-semi);
+  text-transform:uppercase; letter-spacing:.06em;
+  color:var(--text-muted); margin-bottom:var(--sp-8);
+}
+.lv-stream {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r-md); overflow:hidden;
+}
+.lv-row {
+  display:flex; align-items:baseline; gap:var(--sp-8);
+  padding:var(--sp-8) var(--sp-12);
+  border-bottom:1px solid var(--border); font-size:var(--fs-sm);
+}
+.lv-row:last-child { border-bottom:none; }
+.lv-row-time { font-family:var(--ff-mono); font-size:var(--fs-xs); color:var(--text-muted); min-width:52px; }
+.lv-row-text { flex:1; min-width:0; }
+.lv-row-who  { font-size:var(--fs-xs); color:var(--text-muted); }

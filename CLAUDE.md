@@ -809,3 +809,53 @@ PRs #21-#22 + soma-internal #52-#53 closed the day: the **full FY27 seed is live
 3. **Build:** Stage D form completion in the soma-internal evidence order (OT/check-in → production rounds → pickling/IM → chemistry → power-cut; Vesta's cadence brief, 11 Jun) + Stage F minimal viewer (activity stream + `reports/daily/*` KPI strip + NIL/overdue warnings). Known Stage D skews: stock-refill cost/supplier requiredness; `passivation` station modelling. App names locked: **SEP Dashboard / SEP Handler** (Rishabh, 11 Jun).
 
 *Session 14 documented 12 June 2026 by Aurelius (Claude Code); addendum same day at close.*
+
+---
+
+## Session 15: Stage D Forms + Stage F Live Viewer (12 June 2026)
+
+### What Shipped
+
+The build leg of the 12 Jun next-session targets (T-CN ③ in soma-internal).
+**Stage D**: all five evidence-order form completions landed — check-in OT
+slot (T-CH), production rounds × round-size, job-receipt challan/NOS,
+stock-depletion reason + NIL level-after, power-cut/incident notes with
+priority. **Stage F**: a new **Live tab** on the dashboard — activity
+stream + today's KPI strip + NIL/overdue warnings, reading staging
+Firestore through the same #token sign-in path the handler uses.
+Both Stage D skews ruled and documented (SCHEMA_CHANGELOG v2.2): stock
+receipt cost/supplier now optional rules-side (zinc-PO evidence);
+passivation stays folded into plating.
+
+### Key Decisions
+
+- **Rules relax over form tighten** for stock receipts — receipt-time cost
+  is routinely unknown (unpriced challans); fake costs would corrupt the
+  weighted-average rollup. Costless refills queue as transient denials
+  until the relaxed rules deploy, then drain — no rejected-store sweep.
+- **Collection-group read matches** (`shifts`, `depletions`) added for the
+  Live viewer; writes stay path-scoped. No-orderBy CG queries avoid
+  composite indexes.
+- **`firebase-session.js` extracted to shared** — the handler's verified
+  boot + #token sign-in now serves both PWAs; firebase-boot.js consumes it.
+- **Form engine**: `required` may be state-dependent; fields may declare
+  defaults (clock-inferred check-in slot).
+- **`challan_no` on handler-entered jobs** (label, not key — 107-collision
+  ruling stands); job picker reads it or the importer's legacy field.
+
+### Test Results (Session 15 close)
+
+- **Unit (Jest):** 124 · **E2E (Playwright):** 38 (Live smoke added) ·
+  **Rules (emulator, run locally this session):** 30 — all green
+- **Build:** BUILD=2, APP_VERSION 2.1.0-alpha.3, both SW caches bumped
+
+### Operational State (delta from Session 14)
+
+| Item | Status |
+|---|---|
+| `deploy-rules` via Actions | 🔴 still 403 — IAM grant NOT yet applied (re-verified this session, run 27414658171); v2.2 rules await it |
+| Provisioning dry-run | ⏳ physical step — mint-token (1 h validity) when Rishabh is at the device; Live tab gives the dashboard-side proof surface |
+| Stage D forms | ✅ field-complete per evidence order; Zod-at-form-boundary, 2σ prompts, CF cross-doc validation still deferred |
+| Stage F viewer | ✅ minimal cut live in code (activity/KPI/alerts); full DASHBOARD_VIEWER.md surface remains 2.1 |
+
+*Session 15 documented 12 June 2026 by Aurelius (Claude Code).*

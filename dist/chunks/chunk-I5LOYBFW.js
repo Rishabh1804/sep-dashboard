@@ -75,8 +75,8 @@ var DEF_STOCK = [
 ];
 
 // src/shared/config/app.js
-var APP_VERSION = "2.1.0-alpha.1";
-var BUILD = 1;
+var APP_VERSION = "2.1.0-alpha.3";
+var BUILD = 2;
 
 export {
   DEF_AREAS,
@@ -84,4 +84,4 @@ export {
   APP_VERSION,
   BUILD
 };
-//# sourceMappingURL=chunk-GEIU5DZV.js.map
+//# sourceMappingURL=chunk-I5LOYBFW.js.map
