@@ -6,16 +6,36 @@
 // pushes one production-entry record through the deployed rules, and the
 // doc is read back. This is exactly what the handler PWA does on flush.
 //
-// Usage: node scripts/verify-e2e-staging.mjs --token "<custom token from mint-token>"
-// The minted worker must carry the 'handler' role (production-role holder).
+// Usage:
+//   node scripts/verify-e2e-staging.mjs --token "<custom token from mint-token>"
+//   node scripts/verify-e2e-staging.mjs --self-mint   (needs admin credentials;
+//     mints for uid 'e2e-rig' in-process — used by the firebase-admin workflow,
+//     where Actions' secret-masking hides any token printed to logs)
+// The worker must carry the 'handler' role (production-role holder).
 
-import { exit } from 'node:process';
-import { arg } from './lib/admin.mjs';
+import { argv, exit } from 'node:process';
+import { arg, initAdminApp } from './lib/admin.mjs';
 import { getFirebaseConfig } from '../src/shared/config/firebase.js';
 import { createTransport } from '../src/handler/transport.js';
 
-const token = arg('token');
-if (!token) { console.error('Usage: node scripts/verify-e2e-staging.mjs --token "<custom token>"'); exit(2); }
+let token = arg('token');
+if (!token && argv.includes('--self-mint')) {
+  const { getAuth: getAdminAuth } = await import('firebase-admin/auth');
+  const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
+  const { randomUUID } = await import('node:crypto');
+  const adminApp = await initAdminApp();
+  const uid = 'e2e-rig';
+  const tokenId = `t-${randomUUID().slice(0, 8)}`;
+  await getFirestore(adminApp).collection('workers').doc(uid).set({
+    name: 'E2E Rig', roles: ['handler'], active_token_id: tokenId,
+    token_reissued_at: FieldValue.serverTimestamp(), revoked_at: null,
+  }, { merge: true });
+  token = await getAdminAuth(adminApp).createCustomToken(uid, {
+    roles: ['handler'], token_id: tokenId, is_admin: false, is_steward: false,
+  });
+  console.log(`[e2e] self-minted token for uid=${uid} (token_id=${tokenId})`);
+}
+if (!token) { console.error('Usage: node scripts/verify-e2e-staging.mjs --token "<custom token>" | --self-mint'); exit(2); }
 
 const { initializeApp } = await import('firebase/app');
 const fs = await import('firebase/firestore');
