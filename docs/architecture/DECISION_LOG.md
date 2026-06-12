@@ -178,3 +178,29 @@ Conducted in single session: 8 phases ratified, 5 adversarial probes run (Phases
 ---
 
 *Decision log maintained by Aurelius. Append-only. Initialized 7 May 2026.*
+
+---
+
+## 10-12 June 2026 — Stage B execution + Track 2 ignition (Claude Code, Session 14)
+
+**Context:** First sessions with live resources. Stage B split into **Track 1** (code-only) and **Track 2** (live Firebase), executed across PRs #16-#20.
+
+**Decisions ratified (Rishabh, AskUserQuestion 2026-06-10, PR #16):**
+1. **Firestore is SoR for the floor; sep-invoicing feeds it** — the importer (`src/shared/import/invoicing-import.js`) is the deterministic bridge from the sep-invoicing JSON export.
+2. **Schema v2: challan = 1 Job + `jobs/{jid}/job_lines` subcollection** — the v1 one-job-one-item model didn't survive contact with multi-line challans. `Job.item_id` optional; production entries carry `part_number`/`rounds`/`round_size`; `machine_id` may be an area id in alpha.
+3. **Capture grain = line/area** (register reality: customer+SKU per round, per area).
+4. **Track 2 gated on live resources** — staging project `sep-dashboard-staging` (asia-south1, production-mode rules) created 2026-06-11 by Rishabh.
+
+**Decisions made in implementation (PR #18 + review pass, 2026-06-11/12):**
+1. **Server `permission-denied` is TRANSIENT, not permanent** — the rules read mutable state (`active_token_id`, `revoked_at`, `min_supported_build`), so a denial can be environmental; only content-deterministic mapper pre-rejections park in the rejected store (with retry + discard affordances). Prevents a token rotation from sweeping a day's queue into discard-land.
+2. **Idempotency = doc id = idempotency key; existence check on the failure path only** — happy path costs 1 write 0 reads; crash/concurrent replay detected via the rules' own pinning denial → getDoc → treat-as-synced.
+3. **Numeric `BUILD` counter in Layer 3** stamped as `app_version` per the hardened `buildSupported()`; `min_supported_build` is **create-only on seed** (raising the gate is a deliberate admin action, never a side effect of reseeding).
+4. **DFT outcome is an explicit form field** (inspector judgment is a field, not a formula); 8-12 µm derivation survives only as a flagged fallback for pre-field queued records. `passivation` removed from station options (rules don't model it — silent reject trap).
+5. **Both SWs runtime-cache hashed `dist/chunks/*` only** — never non-hashed entry bundles (would freeze builds past their CACHE_NAME version).
+6. **Admin plane = GitHub Actions** (`firebase-admin.yml` workflow_dispatch: deploy-rules / mint-token / seed-dry-run / seed-fixture / verify-e2e) consuming the `FIREBASE_SERVICE_ACCOUNT_STAGING` repo secret; inputs pass via env (never `${{ }}` splicing — script injection). Cloud-session env vars are plain-text and must never hold the key.
+
+**Verification (2026-06-12):** `verify-e2e` run green against live staging — self-mint → `signInWithCustomToken` → real `createTransport()` write accepted by the deployed rules → read-back → idempotent replay (rules denied the duplicate, transport recognized existing doc). Auth → transport → rules → Firestore proven end-to-end.
+
+**Known blocked:** workflow `deploy-rules` needs IAM roles on the service account (Firebase Rules Admin + Service Usage Consumer); rules were published via console this round. Real 508-challan seed awaits the fresh sep-invoicing export. Prod project not yet created.
+
+**Lock files:** `docs/reference/SCHEMA.md` (v2), `SCHEMA_CHANGELOG.md`, `docs/reference/FIRESTORE_RULES.ref.txt` (deployed), `tests/rules/` (27 emulator tests incl. importer- and transport-parity)
