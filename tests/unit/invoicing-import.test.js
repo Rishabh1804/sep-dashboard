@@ -67,19 +67,19 @@ describe('importInvoicingExport', () => {
 
   test('challan → 1 job + N job_lines (the load-bearing decision)', () => {
     expect(out.jobs).toHaveLength(2);
-    const multi = out.jobs.find((j) => j.id === jobId('2494'));
+    const multi = out.jobs.find((j) => j.id === jobId('IM-0001'));
     const multiLines = out.jobLines.filter((l) => l.job_id === multi.id);
     expect(multiLines).toHaveLength(2);
     // multi-line job has no convenience item_id; single-line job does
     expect(multi.item_id).toBeUndefined();
-    const single = out.jobs.find((j) => j.id === jobId('2495'));
+    const single = out.jobs.find((j) => j.id === jobId('IM-0002'));
     const singleLines = out.jobLines.filter((l) => l.job_id === single.id);
     expect(singleLines).toHaveLength(1);
     expect(single.item_id).toBe(itemId(102));
   });
 
   test('job rolls up received_kg (sum KG lines) + received_pcs (sum nosQty)', () => {
-    const multi = out.jobs.find((j) => j.id === jobId('2494'));
+    const multi = out.jobs.find((j) => j.id === jobId('IM-0001'));
     expect(multi.received_kg).toBeCloseTo(50.2, 3); // 20.2 + 30.0
     expect(multi.received_pcs).toBe(504); // 198 + 306
     expect(multi.customer_id).toBe(customerId(1));
@@ -87,7 +87,7 @@ describe('importInvoicingExport', () => {
   });
 
   test('job_lines resolve item_id by partNumber; carry invoice link', () => {
-    const lines = out.jobLines.filter((l) => l.job_id === jobId('2494'));
+    const lines = out.jobLines.filter((l) => l.job_id === jobId('IM-0001'));
     const bracket = lines.find((l) => l.part_number === 'BRACKET 5069');
     expect(bracket.item_id).toBe(itemId(100));
     expect(bracket.qty_kg).toBe(20.2);
@@ -98,7 +98,7 @@ describe('importInvoicingExport', () => {
 
   test('status: all-lines-invoiced → dispatched, else in-flight', () => {
     // 2494 has one un-invoiced line → in-flight
-    expect(out.jobs.find((j) => j.id === jobId('2494')).current_status).toBe('in-flight');
+    expect(out.jobs.find((j) => j.id === jobId('IM-0001')).current_status).toBe('in-flight');
   });
 
   test('no doc carries an explicit undefined value (Firestore setDoc rejects them)', () => {
@@ -131,7 +131,7 @@ describe('challan-collision guard (Track-2 precondition)', () => {
     expect(clean.stats.collidingJobIds).toEqual([]);
   });
 
-  test('duplicate challan numbers are surfaced, not silently merged', () => {
+  test('duplicate CUSTOMER challan numbers are two distinct jobs (12 Jun id ruling)', () => {
     const dup = {
       clients: [], items: [],
       incomingMaterial: [
@@ -140,8 +140,22 @@ describe('challan-collision guard (Track-2 precondition)', () => {
       ],
     };
     const r = importInvoicingExport(dup, OPTS);
+    expect(r.stats.jobIdCollisions).toBe(0);
+    expect(r.jobs.map((j) => j.id).sort()).toEqual([jobId('A'), jobId('B')]);
+    expect(r.jobs.every((j) => j.sep_invoicing_challan_no === '2494')).toBe(true);
+  });
+
+  test('duplicate SOURCE ids are surfaced, not silently merged', () => {
+    const dup = {
+      clients: [], items: [],
+      incomingMaterial: [
+        { id: 'A', challanNo: '1', clientId: 1, items: [{ id: 'a', partNumber: 'X', unit: 'KG', qty: 1 }] },
+        { id: 'A', challanNo: '2', clientId: 2, items: [{ id: 'b', partNumber: 'Y', unit: 'KG', qty: 2 }] },
+      ],
+    };
+    const r = importInvoicingExport(dup, OPTS);
     expect(r.stats.jobIdCollisions).toBe(1);
-    expect(r.stats.collidingJobIds).toEqual([jobId('2494')]);
+    expect(r.stats.collidingJobIds).toEqual([jobId('A')]);
   });
 });
 
@@ -151,5 +165,25 @@ describe('toJobWithLines edge: unresolved partNumber', () => {
     const { job, lines } = toJobWithLines(im, new Map(), { audit: {} });
     expect(lines[0].item_id).toBeUndefined();
     expect(job.received_kg).toBe(5);
+  });
+});
+
+describe('blank-line skip (12 Jun, real-export edge)', () => {
+  test('saved empty form rows are skipped and counted, not imported as garbage', () => {
+    const src = {
+      clients: [], items: [],
+      incomingMaterial: [{
+        id: 'IM-X', challanNo: '43', clientId: 1,
+        items: [
+          { id: 'a', partNumber: 'REAL-1', desc: 'REAL-1', unit: 'KG', qty: 80.8 },
+          { id: 'b', partNumber: '', desc: '', unit: 'KG', qty: 0, rate: 13 },
+        ],
+      }],
+    };
+    const r = importInvoicingExport(src, OPTS);
+    expect(r.jobLines).toHaveLength(1);
+    expect(r.jobLines[0].part_number).toBe('REAL-1');
+    expect(r.stats.emptyLinesSkipped).toBe(1);
+    expect(r.jobs[0].received_kg).toBe(80.8); // qty-0 blank row contributes nothing
   });
 });

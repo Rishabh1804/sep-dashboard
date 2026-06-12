@@ -50,7 +50,14 @@ export function normalizeUnit(unit) {
 // so a write is an idempotent upsert, never a duplicate.
 export const customerId = (clientId) => `cust-${clientId}`;
 export const itemId = (sourceId) => `item-${sourceId}`;
-export const jobId = (challanNo) => `sep-${challanNo}`;
+// Job id = the IM row's SOURCE id (unique across the export), NOT the
+// challan number: challanNo is the CUSTOMER's number — different customers
+// legitimately issue overlapping numbers ("1", "10", "100" all repeat across
+// clients in the real export; 107 collisions over 508 rows) and some rows
+// carry no challan number at all. Ruled 12 Jun 2026 after the dry-run guard
+// fired. The challan number survives as sep_invoicing_challan_no for
+// human cross-reference.
+export const jobId = (imId) => `sep-${imId}`;
 export const jobLineId = (job, lineSourceId, idx) =>
   `${job}__${lineSourceId != null ? lineSourceId : `l${idx}`}`;
 
@@ -114,8 +121,16 @@ export function toItem(srcItem, stamp) {
 // A challan (incomingMaterial) becomes one Job + N job_lines. Returns
 // { job, lines } so the caller writes the parent then the subcollection.
 export function toJobWithLines(im, itemsByPart, stamp) {
-  const job = jobId(im.challanNo);
-  const lines = (im.items || []).map((li, idx) => {
+  const job = jobId(im.id);
+  // Blank trailing rows (no partNumber, no desc, qty 0) are saved empty form
+  // lines in sep-invoicing (real export: IM-1775812632470 line 3) — they carry
+  // zero information and fail the schema's min-length checks. Skipped, and
+  // counted in stats.emptyLinesSkipped so the drop is visible, not silent.
+  const blank = (li) => !String(li.partNumber || '').trim()
+    && !String(li.desc || '').trim() && !(Number(li.qty) > 0);
+  const srcLines = (im.items || []);
+  const emptyLinesSkipped = srcLines.filter(blank).length;
+  const lines = srcLines.filter((li) => !blank(li)).map((li, idx) => {
     const unit = normalizeUnit(li.unit);
     const resolved = itemsByPart.get(String(li.partNumber));
     const qty = Number(li.qty) || 0;
@@ -143,12 +158,13 @@ export function toJobWithLines(im, itemsByPart, stamp) {
   const allInvoiced = lines.length > 0 && lines.every((l) => l.invoiced);
 
   return {
+    emptyLinesSkipped,
     job: {
       __schema_version: IMPORT_SCHEMA_VERSION,
       id: job,
       customer_id: customerId(im.clientId),
       item_id: lines.length === 1 ? lines[0].item_id : undefined,
-      sep_invoicing_challan_no: String(im.challanNo),
+      sep_invoicing_challan_no: im.challanNo != null && im.challanNo !== '' ? String(im.challanNo) : undefined,
       sep_invoicing_challan_date: im.challanDate || im.receivedDate || undefined,
       sep_invoicing_customer_id: im.clientId,
       is_informal: false,
@@ -199,13 +215,15 @@ export function importInvoicingExport(exportJson, opts = {}) {
 
   const jobs = [];
   const jobLines = [];
+  let emptyLinesSkipped = 0;
   for (const im of incoming) {
-    const { job, lines } = toJobWithLines(im, itemsByPart, stamp);
+    const { job, lines, emptyLinesSkipped: skipped } = toJobWithLines(im, itemsByPart, stamp);
+    emptyLinesSkipped += skipped;
     jobs.push(stripUndefined(job));
     for (const l of lines) jobLines.push(stripUndefined(l));
   }
 
-  // Challan-collision guard. jobId = `sep-{challanNo}`, so two challans sharing
+  // Source-id-collision guard. jobId = `sep-{im.id}`, so two rows sharing
   // a number (e.g. if sep-invoicing resets numbering across financial years)
   // would silently upsert into ONE Job. Surface it in stats so the caller can
   // abort/branch rather than merge — a Track-2 precondition before the real
@@ -225,6 +243,7 @@ export function importInvoicingExport(exportJson, opts = {}) {
       jobs: jobs.length,
       jobLines: jobLines.length,
       linesResolvedToItem: jobLines.filter((l) => l.item_id).length,
+      emptyLinesSkipped,
       jobIdCollisions: collided.size,
       collidingJobIds: [...collided],
     },
