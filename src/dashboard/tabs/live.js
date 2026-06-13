@@ -13,6 +13,9 @@
 // dashboard URL with the printed #token=… fragment appended.
 
 import { DEF_STOCK } from '../../shared/config/stock.js';
+import { esc } from '../../shared/utils/format.js';
+import { eventMillis } from '../../shared/utils/event-time.js';
+import { OPEN_JOB_STATUSES } from '../../shared/types/job-status.js';
 
 const READY_LOITER_MS = 12 * 3600 * 1000;   // Session 11: 12-hour Ready alarm
 const SLA_MS = 24 * 3600 * 1000;            // received → 24h SLA
@@ -25,6 +28,7 @@ const COLLS = ['production_entries', 'jobs', 'dft_measurements', 'dispatch_event
 const docsByColl = {};     // coll → array of {id, ...data}
 const collErr = {};        // coll → error code (e.g. CG reads pre-rules-deploy)
 let inflightJobs = [];
+let customerNames = {};   // id -> name, from the customers listener
 
 const $root = () => document.getElementById('liveRoot');
 
@@ -87,19 +91,27 @@ function startListeners() {
 
   // Jobs still on the floor (equality-only filter — no composite index).
   unsubs.push(fs.onSnapshot(
-    fs.query(fs.collection(db, 'jobs'), fs.where('current_status', 'in', ['in-flight', 'ready']), fs.limit(200)),
+    fs.query(fs.collection(db, 'jobs'), fs.where('current_status', 'in', OPEN_JOB_STATUSES), fs.limit(200)),
     (s) => { inflightJobs = grab(s); delete collErr.inflight; paint(); },
     onErr('inflight'),
+  ));
+
+  // Customer names for the stream + warnings (same dry-run finding as the
+  // handler's job picker: raw customer ids are unreadable on the floor).
+  unsubs.push(fs.onSnapshot(
+    fs.query(fs.collection(db, 'customers'), fs.limit(250)),
+    (s) => {
+      customerNames = Object.fromEntries(s.docs.map((d) => [d.id, d.data().name]));
+      paint();
+    },
+    onErr('customers'),
   ));
 }
 
 // --- derivations (pure over the listener arrays) ---
 
-function tsMs(doc) {
-  const t = doc.created_at;
-  if (t && typeof t.toMillis === 'function') return t.toMillis();
-  return typeof doc.client_ts === 'number' ? doc.client_ts : 0;
-}
+const tsMs = eventMillis; // shared helper: Timestamp | ISO string | client_ts
+const custName = (id) => customerNames[id] || id || '?';
 
 function todayStart() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
 
@@ -149,7 +161,7 @@ function overdueJobs() {
 function streamRows() {
   const label = {
     production_entries: ['🏭', (d) => `${d.machine_id || '?'} · ${d.qty_pcs ? d.qty_pcs + ' NOS' : (d.qty_kg || 0) + ' kg'}${d.rounds ? ` (${d.rounds}×${d.round_size || '?'})` : ''} · ${d.worker_id || ''}`],
-    jobs: ['📋', (d) => `Job in · ${d.customer_id || '?'}${d.challan_no ? ` · Ch ${d.challan_no}` : ''} · ${d.received_kg ? d.received_kg + ' kg' : (d.received_pcs || 0) + ' NOS'}`],
+    jobs: ['📋', (d) => `Job in · ${custName(d.customer_id)}${d.challan_no ? ` · Ch ${d.challan_no}` : ''} · ${d.received_kg ? d.received_kg + ' kg' : (d.received_pcs || 0) + ' NOS'}`],
     dft_measurements: ['🔬', (d) => `DFT ${d.micron_value} µm · ${d.outcome}`],
     dispatch_events: ['🚚', (d) => `Dispatch · ${d.job_id || ''}${d.weight_kg ? ` · ${d.weight_kg} kg` : ''}`],
     notes: ['📝', (d) => `${d.priority === 'urgent' ? '🚨 ' : ''}${d.kind}: ${d.summary || ''}`],
@@ -166,11 +178,6 @@ function streamRows() {
 }
 
 // --- paint ---
-
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
 
 function fmtTime(ms) {
   if (!ms) return '—';
@@ -236,7 +243,7 @@ function paint() {
       ${nils.map((n) => `<div class="lv-warn lv-warn-red">⚠ NIL stock: <b>${esc(n.name)}</b> (since ${fmtTime(n.since)})</div>`).join('')}
       ${overdue.map((j) => `<div class="lv-warn ${j.current_status === 'ready' ? 'lv-warn-red' : 'lv-warn-amber'}">
           ⏰ ${j.current_status === 'ready' ? 'Ready, not dispatched' : 'Over SLA'}:
-          <b>${esc(j.id)}</b> · ${esc(j.customer_id || '')} · ${fmtAge(j.age)}</div>`).join('')}
+          <b>${esc(j.id)}</b> · ${esc(custName(j.customer_id))} · ${fmtAge(j.age)}</div>`).join('')}
       ${cgBlocked ? `<div class="lv-warn">ℹ Check-in stream + NIL alerts need the 12 Jun rules deploy (IAM-gated) — sections stay empty until <code>deploy-rules</code> is green.</div>` : ''}
       ${!nils.length && !overdue.length && !cgBlocked ? `<div class="lv-warn lv-warn-ok">✓ No NIL stock, nothing overdue.</div>` : ''}
     </div>

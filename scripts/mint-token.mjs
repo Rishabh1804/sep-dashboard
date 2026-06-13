@@ -13,9 +13,20 @@
 //   node scripts/mint-token.mjs --uid champai --name "Champai" --roles handler
 //   node scripts/mint-token.mjs --uid rishabh --name "Rishabh" --roles handler --admin
 
-import { argv, exit } from 'node:process';
+import { argv, env, exit } from 'node:process';
 import { randomUUID } from 'node:crypto';
 import { arg, initAdminApp } from './lib/admin.mjs';
+
+// Defense at the tool, not just the workflow wrapper: this script prints a
+// live sign-in token, and CI run logs on a public repo are world-readable.
+// Any CI invocation must explicitly assert log privacy was verified — the
+// firebase-admin workflow sets MINT_ALLOW_CI_LOGS=1 only after its
+// public-repo guard passes. Local runs are unaffected.
+if (env.GITHUB_ACTIONS === 'true' && env.MINT_ALLOW_CI_LOGS !== '1') {
+  console.error('[mint] refusing to print a live token in CI without MINT_ALLOW_CI_LOGS=1 '
+    + '(set only after verifying run logs are private). Run locally instead.');
+  exit(1);
+}
 
 const uid = arg('uid');
 const name = arg('name', uid);

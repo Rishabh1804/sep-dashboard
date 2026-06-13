@@ -5,6 +5,7 @@
 // local cache so the picker never depends on the network.
 
 import { t } from './i18n.js';
+import { esc } from '../shared/utils/format.js';
 
 // item: { id, primary, sub?, tier?, method? }
 // Returns a close() handle; resolves selection via onPick(item).
@@ -34,12 +35,15 @@ export function openPicker({ titleKey, items, onPick }) {
       card.className = 'h-pcard';
       card.dataset.id = it.id;
       if (it.tier) card.dataset.tier = it.tier;
+      // esc(): primary/sub now carry free-text Firestore strings (customer
+      // names, part descriptions) — an innerHTML sink without escaping
+      // mangles names like "R&B <UNIT II>" and is stored XSS.
       card.innerHTML = `
-        <span class="h-pcard-primary">${it.primary}</span>
-        ${it.sub ? `<span class="h-pcard-sub">${it.sub}</span>` : ''}
+        <span class="h-pcard-primary">${esc(it.primary)}</span>
+        ${it.sub ? `<span class="h-pcard-sub">${esc(it.sub)}</span>` : ''}
         ${(it.tier || it.method) ? `<span class="h-pcard-tags">
-          ${it.tier ? `<span class="h-tag">${it.tier}</span>` : ''}
-          ${it.method ? `<span class="h-tag">${it.method}</span>` : ''}
+          ${it.tier ? `<span class="h-tag">${esc(it.tier)}</span>` : ''}
+          ${it.method ? `<span class="h-tag">${esc(it.method)}</span>` : ''}
         </span>` : ''}`;
       card.addEventListener('click', () => { onPick(it); close(); });
       grid.appendChild(card);

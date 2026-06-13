@@ -516,18 +516,21 @@ function itemToPickerItem(it) {
     method: it.default_unit === "NOS" ? "NOS" : "KG"
   };
 }
-function jobToPickerItem(j) {
+function jobToPickerItem(j, customerName) {
   const challan = j.challan_no || j.sep_invoicing_challan_no;
   return {
     id: j.id,
-    primary: challan ? `Challan ${challan}` : j.id,
-    sub: j.customer_id,
+    primary: customerName || j.customer_id,
+    sub: challan ? `Challan ${challan}` : j.id,
     method: j.current_status === "dispatched" ? "\u2713" : "\u2022"
   };
 }
+function customerNamesById(customers = []) {
+  return Object.fromEntries(customers.map((c) => [c.id, c.name]));
+}
 var customersToPickerItems = (cs = []) => cs.map(customerToPickerItem);
 var itemsToPickerItems = (its = []) => its.map(itemToPickerItem);
-var jobsToPickerItems = (js = []) => js.map(jobToPickerItem);
+var jobsToPickerItems = (js = [], namesById = {}) => js.map((j) => jobToPickerItem(j, namesById[j.customer_id]));
 
 export {
   LANGS,
@@ -553,8 +556,9 @@ export {
   getCache,
   setCache,
   hydrateCaches,
+  customerNamesById,
   customersToPickerItems,
   itemsToPickerItems,
   jobsToPickerItems
 };
-//# sourceMappingURL=chunk-JWRXL5EB.js.map
+//# sourceMappingURL=chunk-MKFO6Q76.js.map

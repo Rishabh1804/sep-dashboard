@@ -56,18 +56,32 @@ export function itemToPickerItem(it) {
   };
 }
 
-export function jobToPickerItem(j) {
-  // challan_no = captured at receipt by the handler (Stage D);
-  // sep_invoicing_challan_no = the importer's legacy cross-ref field.
+export function jobToPickerItem(j, customerName) {
+  // The floor thinks in customers first (the register keys on customer+SKU),
+  // so the resolved customer NAME is the primary line; the challan number —
+  // captured at receipt (challan_no) or imported (sep_invoicing_challan_no) —
+  // is the cross-reference sub-line. Raw customer_id only as a last resort.
+  //
+  // The '✓' glyph is unreachable through the live listener (firebase-boot
+  // filters to OPEN_JOB_STATUSES) — kept because this adapter is generic
+  // over job docs and pre-filter IndexedDB snapshots can still carry
+  // dispatched jobs until the first online refresh.
   const challan = j.challan_no || j.sep_invoicing_challan_no;
   return {
     id: j.id,
-    primary: challan ? `Challan ${challan}` : j.id,
-    sub: j.customer_id,
+    primary: customerName || j.customer_id,
+    sub: challan ? `Challan ${challan}` : j.id,
     method: j.current_status === 'dispatched' ? '✓' : '•',
   };
 }
 
+// id → display-name map for the jobs join. Lives HERE (next to the consumer)
+// so tests exercise the production mapping instead of re-deriving it.
+export function customerNamesById(customers = []) {
+  return Object.fromEntries(customers.map((c) => [c.id, c.name]));
+}
+
 export const customersToPickerItems = (cs = []) => cs.map(customerToPickerItem);
 export const itemsToPickerItems = (its = []) => its.map(itemToPickerItem);
-export const jobsToPickerItems = (js = []) => js.map(jobToPickerItem);
+export const jobsToPickerItems = (js = [], namesById = {}) =>
+  js.map((j) => jobToPickerItem(j, namesById[j.customer_id]));
