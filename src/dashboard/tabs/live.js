@@ -16,6 +16,7 @@ import { DEF_STOCK } from '../../shared/config/stock.js';
 import { esc } from '../../shared/utils/format.js';
 import { eventMillis } from '../../shared/utils/event-time.js';
 import { OPEN_JOB_STATUSES } from '../../shared/types/job-status.js';
+import { makeStreamFormatters, fmtTime, fmtAge } from '../stream-format.js';
 
 const READY_LOITER_MS = 12 * 3600 * 1000;   // Session 11: 12-hour Ready alarm
 const SLA_MS = 24 * 3600 * 1000;            // received → 24h SLA
@@ -159,17 +160,9 @@ function overdueJobs() {
 }
 
 function streamRows() {
-  const label = {
-    production_entries: ['🏭', (d) => `${d.machine_id || '?'} · ${d.qty_pcs ? d.qty_pcs + ' NOS' : (d.qty_kg || 0) + ' kg'}${d.rounds ? ` (${d.rounds}×${d.round_size || '?'})` : ''} · ${d.worker_id || ''}`],
-    jobs: ['📋', (d) => `Job in · ${custName(d.customer_id)}${d.challan_no ? ` · Ch ${d.challan_no}` : ''} · ${d.received_kg ? d.received_kg + ' kg' : (d.received_pcs || 0) + ' NOS'}`],
-    dft_measurements: ['🔬', (d) => `DFT ${d.micron_value} µm · ${d.outcome}`],
-    dispatch_events: ['🚚', (d) => `Dispatch · ${d.job_id || ''}${d.weight_kg ? ` · ${d.weight_kg} kg` : ''}`],
-    notes: ['📝', (d) => `${d.priority === 'urgent' ? '🚨 ' : ''}${d.kind}: ${d.summary || ''}`],
-    shifts: ['⏱', (d) => `${(d.__path || '').split('/')[1] || '?'} ${d.direction === 'in' ? '→ in' : '→ out'}${d.slot ? ` · ${d.slot}` : ''}`],
-    depletions: ['📤', (d) => `${(d.__path || '').split('/')[1] || '?'} −${d.qty_depleted}${d.level_after != null ? ` (left: ${d.level_after})` : ''}`],
-  };
+  const label = makeStreamFormatters(custName);
   const rows = [];
-  for (const [coll, [icon, fmt]] of Object.entries(label)) {
+  for (const [coll, { icon, fmt }] of Object.entries(label)) {
     for (const d of docsByColl[coll] || []) {
       rows.push({ ts: tsMs(d), icon, text: fmt(d), author: d.author_user_id || '' });
     }
@@ -177,21 +170,7 @@ function streamRows() {
   return rows.sort((a, b) => b.ts - a.ts).slice(0, STREAM_LIMIT);
 }
 
-// --- paint ---
-
-function fmtTime(ms) {
-  if (!ms) return '—';
-  const d = new Date(ms);
-  const sameDay = d.toDateString() === new Date().toDateString();
-  return sameDay
-    ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString([], { day: 'numeric', month: 'short' });
-}
-
-function fmtAge(ms) {
-  const h = Math.floor(ms / 3600000);
-  return h >= 48 ? `${Math.floor(h / 24)}d` : `${h}h`;
-}
+// --- paint --- (fmtTime / fmtAge now shared via stream-format.js)
 
 function paint() {
   const el = $root();

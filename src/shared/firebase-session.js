@@ -13,7 +13,26 @@
 
 import { getFirebaseConfig } from './config/firebase.js';
 
-export async function bootFirebaseSession() {
+// Memoised: one Firebase app per page. The dashboard now boots the session
+// from two surfaces (Live tab + Edit tab); a second initializeApp() would
+// throw "Firebase App named '[DEFAULT]' already exists". Caching the boot
+// promise also means the one-shot #token sign-in runs exactly once. Returns
+// the same {app, db, auth, fs, fbAuth} to every caller; null (no config) is
+// memoised too so callers keep their offline behaviour without re-probing.
+let _bootPromise;
+
+export function bootFirebaseSession() {
+  // Memoise only a SETTLED-OK boot (a resolved session, or the null no-config
+  // result). A REJECTED boot — e.g. the firebase/* dynamic import failing on a
+  // factory-wifi blip — must NOT be cached: clear the slot so the next call
+  // retries, keeping the Live/Edit tabs' "re-open to retry" path real.
+  if (_bootPromise === undefined) {
+    _bootPromise = _boot().catch((err) => { _bootPromise = undefined; throw err; });
+  }
+  return _bootPromise;
+}
+
+async function _boot() {
   const config = getFirebaseConfig();
   if (!config) return null;
 

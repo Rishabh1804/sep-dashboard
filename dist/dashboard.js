@@ -11,7 +11,7 @@ import {
   APP_VERSION,
   DEF_AREAS,
   DEF_STOCK
-} from "./chunks/chunk-H246LUTF.js";
+} from "./chunks/chunk-SUTEVBR2.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -2393,16 +2393,16 @@ function renderInvoice() {
   document.getElementById("invMonthCount").textContent = `${monthInvs.length} invoices`;
   document.getElementById("invReceivables").textContent = formatCurrency(unpaidTotal);
   document.getElementById("invReceivableCount").textContent = `${unpaid.length} unpaid`;
-  const panel = document.getElementById("invSubPanel");
+  const panel2 = document.getElementById("invSubPanel");
   switch (getState().invTab) {
     case "list":
-      renderInvList(panel, invoices, clients);
+      renderInvList(panel2, invoices, clients);
       break;
     case "clients":
-      renderClientList(panel, clients);
+      renderClientList(panel2, clients);
       break;
     case "gst":
-      renderGSTRegister(panel, invoices, clients);
+      renderGSTRegister(panel2, invoices, clients);
       break;
   }
 }
@@ -2858,6 +2858,29 @@ function initHistoryNav() {
   });
 }
 
+// src/dashboard/stream-format.js
+function makeStreamFormatters(custName3 = (id) => id || "?") {
+  return {
+    production_entries: { icon: "\u{1F3ED}", fmt: (d) => `${d.machine_id || "?"} \xB7 ${d.qty_pcs ? d.qty_pcs + " NOS" : (d.qty_kg || 0) + " kg"}${d.rounds ? ` (${d.rounds}\xD7${d.round_size || "?"})` : ""} \xB7 ${d.worker_id || ""}` },
+    jobs: { icon: "\u{1F4CB}", fmt: (d) => `Job \xB7 ${custName3(d.customer_id)}${d.challan_no ? ` \xB7 Ch ${d.challan_no}` : ""} \xB7 ${d.received_kg ? d.received_kg + " kg" : (d.received_pcs || 0) + " NOS"}${d.current_status ? ` \xB7 ${d.current_status}` : ""}` },
+    dft_measurements: { icon: "\u{1F52C}", fmt: (d) => `DFT ${d.micron_value} \xB5m \xB7 ${d.outcome}` },
+    dispatch_events: { icon: "\u{1F69A}", fmt: (d) => `Dispatch \xB7 ${d.job_id || ""}${d.weight_kg ? ` \xB7 ${d.weight_kg} kg` : ""}` },
+    notes: { icon: "\u{1F4DD}", fmt: (d) => `${d.priority === "urgent" ? "\u{1F6A8} " : ""}${d.kind}: ${d.summary || ""}` },
+    shifts: { icon: "\u23F1", fmt: (d) => `${(d.__path || "").split("/")[1] || "?"} ${d.direction === "in" ? "\u2192 in" : "\u2192 out"}${d.slot ? ` \xB7 ${d.slot}` : ""}` },
+    depletions: { icon: "\u{1F4E4}", fmt: (d) => `${(d.__path || "").split("/")[1] || "?"} \u2212${d.qty_depleted}${d.level_after != null ? ` (left: ${d.level_after})` : ""}` }
+  };
+}
+function fmtTime(ms) {
+  if (!ms) return "\u2014";
+  const d = new Date(ms);
+  const sameDay = d.toDateString() === (/* @__PURE__ */ new Date()).toDateString();
+  return sameDay ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString([], { day: "numeric", month: "short" });
+}
+function fmtAge(ms) {
+  const h = Math.floor(ms / 36e5);
+  return h >= 48 ? `${Math.floor(h / 24)}d` : `${h}h`;
+}
+
 // src/dashboard/tabs/live.js
 var READY_LOITER_MS = 12 * 3600 * 1e3;
 var SLA_MS = 24 * 3600 * 1e3;
@@ -2881,7 +2904,7 @@ function renderLive() {
 }
 async function boot() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-Y3YQCEJD.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-6HVZIBQB.js");
     session = await bootFirebaseSession();
     if (!session) {
       bootState = "no-config";
@@ -3001,32 +3024,14 @@ function overdueJobs() {
   return inflightJobs.map((j) => ({ ...j, age: now - tsMs(j) })).filter((j) => j.current_status === "ready" && j.age > READY_LOITER_MS || j.current_status === "in-flight" && j.age > SLA_MS).sort((a, b) => b.age - a.age).slice(0, 20);
 }
 function streamRows() {
-  const label = {
-    production_entries: ["\u{1F3ED}", (d) => `${d.machine_id || "?"} \xB7 ${d.qty_pcs ? d.qty_pcs + " NOS" : (d.qty_kg || 0) + " kg"}${d.rounds ? ` (${d.rounds}\xD7${d.round_size || "?"})` : ""} \xB7 ${d.worker_id || ""}`],
-    jobs: ["\u{1F4CB}", (d) => `Job in \xB7 ${custName(d.customer_id)}${d.challan_no ? ` \xB7 Ch ${d.challan_no}` : ""} \xB7 ${d.received_kg ? d.received_kg + " kg" : (d.received_pcs || 0) + " NOS"}`],
-    dft_measurements: ["\u{1F52C}", (d) => `DFT ${d.micron_value} \xB5m \xB7 ${d.outcome}`],
-    dispatch_events: ["\u{1F69A}", (d) => `Dispatch \xB7 ${d.job_id || ""}${d.weight_kg ? ` \xB7 ${d.weight_kg} kg` : ""}`],
-    notes: ["\u{1F4DD}", (d) => `${d.priority === "urgent" ? "\u{1F6A8} " : ""}${d.kind}: ${d.summary || ""}`],
-    shifts: ["\u23F1", (d) => `${(d.__path || "").split("/")[1] || "?"} ${d.direction === "in" ? "\u2192 in" : "\u2192 out"}${d.slot ? ` \xB7 ${d.slot}` : ""}`],
-    depletions: ["\u{1F4E4}", (d) => `${(d.__path || "").split("/")[1] || "?"} \u2212${d.qty_depleted}${d.level_after != null ? ` (left: ${d.level_after})` : ""}`]
-  };
+  const label = makeStreamFormatters(custName);
   const rows = [];
-  for (const [coll, [icon, fmt]] of Object.entries(label)) {
+  for (const [coll, { icon, fmt }] of Object.entries(label)) {
     for (const d of docsByColl[coll] || []) {
       rows.push({ ts: tsMs(d), icon, text: fmt(d), author: d.author_user_id || "" });
     }
   }
   return rows.sort((a, b) => b.ts - a.ts).slice(0, STREAM_LIMIT);
-}
-function fmtTime(ms) {
-  if (!ms) return "\u2014";
-  const d = new Date(ms);
-  const sameDay = d.toDateString() === (/* @__PURE__ */ new Date()).toDateString();
-  return sameDay ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString([], { day: "numeric", month: "short" });
-}
-function fmtAge(ms) {
-  const h = Math.floor(ms / 36e5);
-  return h >= 48 ? `${Math.floor(h / 24)}d` : `${h}h`;
 }
 function paint() {
   const el = $root();
@@ -3093,6 +3098,536 @@ function paint() {
 }
 function kpi(value, label) {
   return `<div class="lv-kpi"><div class="lv-kpi-v">${value}</div><div class="lv-kpi-l">${label}</div></div>`;
+}
+
+// src/dashboard/edit-model.js
+var REASON_ENUM = [
+  { value: "typo", label: "Typo" },
+  { value: "operator-misread", label: "Operator misread" },
+  { value: "equipment-misread", label: "Equipment misread" },
+  { value: "customer-disputed", label: "Customer disputed" },
+  { value: "late-correction", label: "Late correction" },
+  { value: "other", label: "Other (specify)" }
+];
+var REASON_VALUES = REASON_ENUM.map((r) => r.value);
+var FIELD_SPECS = {
+  production_entries: [
+    { key: "qty_pcs", label: "Quantity (NOS)", kind: "number" },
+    { key: "qty_kg", label: "Quantity (kg)", kind: "number" },
+    { key: "worker_id", label: "Worker", kind: "text" },
+    { key: "notes", label: "Notes", kind: "text" }
+  ],
+  dft_measurements: [
+    { key: "micron_value", label: "DFT (\xB5m)", kind: "number" },
+    { key: "outcome", label: "Outcome", kind: "select", options: ["pass", "fail-rework"] },
+    { key: "notes", label: "Notes", kind: "text" }
+  ],
+  jobs: [
+    { key: "current_status", label: "Status", kind: "select", options: ["in-flight", "ready", "dispatched"] },
+    { key: "route", label: "Route", kind: "select", options: ["standard", "rework-active", "rework-completed"] },
+    { key: "challan_no", label: "Challan no.", kind: "text" },
+    { key: "notes", label: "Notes", kind: "text" }
+  ],
+  dispatch_events: [
+    { key: "weight_kg", label: "Weight (kg)", kind: "number" },
+    { key: "notes", label: "Notes", kind: "text" }
+  ],
+  notes: [
+    { key: "summary", label: "Summary", kind: "text" },
+    { key: "status", label: "Status", kind: "select", options: ["active", "resolved", "archived"] },
+    { key: "priority", label: "Priority", kind: "select", options: ["normal", "urgent"] }
+  ],
+  shifts: [
+    { key: "direction", label: "Direction", kind: "select", options: ["in", "out"] },
+    { key: "slot", label: "OT slot", kind: "select", options: ["morning_ot", "regular", "evening_ot"] }
+  ],
+  depletions: [
+    { key: "qty_depleted", label: "Qty depleted", kind: "number" },
+    { key: "level_after", label: "Level after (0 = NIL)", kind: "number" },
+    { key: "reason", label: "Reason", kind: "select", options: ["production_use", "waste", "spillage", "theft", "other"] }
+  ]
+};
+function docTypeFromPath(path) {
+  const parts = String(path || "").split("/").filter(Boolean);
+  if (parts.length >= 4) return parts[2];
+  return parts[0] || "";
+}
+function editableFields(type) {
+  return FIELD_SPECS[type] || null;
+}
+function coerce(spec, raw) {
+  if (raw == null || raw === "") return void 0;
+  if (spec.kind === "number") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : void 0;
+  }
+  return String(raw);
+}
+function changedKey(spec, before, raw) {
+  const next = coerce(spec, raw);
+  if (next === void 0) return null;
+  const prev = before ? before[spec.key] : void 0;
+  if (spec.kind === "number" ? Number(prev) === next : prev === next) return null;
+  return { key: spec.key, before: prev ?? null, after: next };
+}
+function buildEditPayload(input) {
+  const { path, before = {}, values = {}, reason, reasonText = "", evidence = "", uid, now = Date.now() } = input || {};
+  const type = docTypeFromPath(path);
+  const spec = FIELD_SPECS[type];
+  if (!spec) return { ok: false, error: `'${type}' is not editable from this surface` };
+  if (!uid) return { ok: false, error: "not signed in" };
+  if (!REASON_VALUES.includes(reason)) return { ok: false, error: "choose a reason" };
+  if (reason === "other" && !String(reasonText).trim()) return { ok: false, error: "describe the reason" };
+  const diffs = [];
+  for (const fs of spec) {
+    const d = changedKey(fs, before, values[fs.key]);
+    if (d) diffs.push(d);
+  }
+  if (!diffs.length) return { ok: false, error: "no changes to save" };
+  const after = {};
+  const beforeChanged = {};
+  for (const d of diffs) {
+    after[d.key] = d.after;
+    beforeChanged[d.key] = d.before;
+  }
+  const updates = {
+    ...after,
+    last_edit_reason: reason,
+    last_edited_by: uid
+  };
+  if (reason === "other") updates.last_edit_reason_text = String(reasonText).trim();
+  const revision = {
+    at: now,
+    by: uid,
+    reason,
+    before: beforeChanged,
+    after
+  };
+  if (reason === "other") revision.reason_text = String(reasonText).trim();
+  if (String(evidence).trim()) {
+    revision.evidence = String(evidence).trim();
+    updates.last_edit_evidence = revision.evidence;
+  }
+  return { ok: true, type, changedKeys: diffs.map((d) => d.key), updates, revision };
+}
+function summarizeRevision(rev) {
+  if (!rev) return "";
+  const fields = Object.keys(rev.after || {});
+  const changes = fields.map((k) => `${k}: ${fmtVal(rev.before?.[k])} \u2192 ${fmtVal(rev.after?.[k])}`).join(", ");
+  const reason = rev.reason === "other" && rev.reason_text ? `other \u2014 ${rev.reason_text}` : rev.reason;
+  return `${changes}  \xB7  ${reason}`;
+}
+function fmtVal(v) {
+  if (v == null || v === "") return "\u2205";
+  return String(v);
+}
+
+// src/dashboard/tabs/edit.js
+var STREAM_LIMIT2 = 50;
+var tsMs2 = eventMillis;
+var CATEGORIES = [
+  { id: "production", label: "Production", coll: "production_entries" },
+  { id: "jobs", label: "Jobs", coll: "jobs" },
+  { id: "dft", label: "DFT", coll: "dft_measurements" },
+  { id: "dispatch", label: "Dispatch", coll: "dispatch_events" },
+  { id: "notes", label: "Notes", coll: "notes" },
+  { id: "checkins", label: "Check-ins", coll: "shifts" },
+  { id: "depletions", label: "Depletions", coll: "depletions" }
+];
+var TOP_COLLS = ["production_entries", "jobs", "dft_measurements", "dispatch_events", "notes"];
+var session2 = null;
+var bootState2 = "idle";
+var unsubs2 = [];
+var claims = {};
+var docsByColl2 = {};
+var collErr2 = {};
+var customerNames2 = {};
+var rejectedWrites = [];
+var kpiSnapshot = null;
+var view = "records";
+var activeCat = "production";
+var modal = null;
+var formErr = "";
+var $root2 = () => document.getElementById("editRoot");
+var custName2 = (id) => customerNames2[id] || id || "?";
+function renderEdit() {
+  if (!$root2()) return;
+  if (bootState2 === "idle") {
+    bootState2 = "booting";
+    boot2();
+  }
+  paint2();
+}
+async function boot2() {
+  try {
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-6HVZIBQB.js");
+    session2 = await bootFirebaseSession();
+    if (!session2) {
+      bootState2 = "no-config";
+      return paint2();
+    }
+    bootState2 = "ready";
+    session2.fbAuth.onAuthStateChanged(session2.auth, async (user) => {
+      stopListeners2();
+      claims = {};
+      if (user) {
+        try {
+          claims = (await user.getIdTokenResult()).claims || {};
+        } catch {
+          claims = {};
+        }
+        startListeners2();
+      }
+      paint2();
+    });
+  } catch {
+    bootState2 = "error";
+  }
+  paint2();
+}
+function stopListeners2() {
+  unsubs2.forEach((u) => {
+    try {
+      u();
+    } catch {
+    }
+  });
+  unsubs2 = [];
+}
+function startListeners2() {
+  const { db, fs } = session2;
+  const grab = (snap) => snap.docs.map((d) => ({ id: d.id, __path: d.ref.path, ...d.data() }));
+  const onErr = (key) => (err) => {
+    collErr2[key] = err?.code || "error";
+    paint2();
+  };
+  for (const coll of TOP_COLLS) {
+    unsubs2.push(fs.onSnapshot(
+      fs.query(fs.collection(db, coll), fs.orderBy("created_at", "desc"), fs.limit(STREAM_LIMIT2)),
+      (s) => {
+        docsByColl2[coll] = grab(s);
+        delete collErr2[coll];
+        paint2();
+      },
+      onErr(coll)
+    ));
+  }
+  unsubs2.push(fs.onSnapshot(
+    fs.query(fs.collectionGroup(db, "shifts"), fs.limit(200)),
+    (s) => {
+      docsByColl2.shifts = grab(s);
+      delete collErr2.shifts;
+      paint2();
+    },
+    onErr("shifts")
+  ));
+  unsubs2.push(fs.onSnapshot(
+    fs.query(fs.collectionGroup(db, "depletions"), fs.limit(200)),
+    (s) => {
+      docsByColl2.depletions = grab(s);
+      delete collErr2.depletions;
+      paint2();
+    },
+    onErr("depletions")
+  ));
+  unsubs2.push(fs.onSnapshot(
+    fs.query(fs.collection(db, "customers"), fs.limit(250)),
+    (s) => {
+      customerNames2 = Object.fromEntries(s.docs.map((d) => [d.id, d.data().name]));
+      paint2();
+    },
+    onErr("customers")
+  ));
+  unsubs2.push(fs.onSnapshot(
+    fs.query(fs.collection(db, "_rejected_writes"), fs.limit(100)),
+    (s) => {
+      rejectedWrites = grab(s);
+      delete collErr2.rejected;
+      paint2();
+    },
+    onErr("rejected")
+  ));
+  unsubs2.push(fs.onSnapshot(
+    fs.query(fs.collection(db, "kpi_snapshots"), fs.limit(1)),
+    (s) => {
+      kpiSnapshot = s.docs[0]?.data() || null;
+      delete collErr2.kpi;
+      paint2();
+    },
+    onErr("kpi")
+  ));
+}
+function bucketFor(catId) {
+  const cat = CATEGORIES.find((c) => c.id === catId) || CATEGORIES[0];
+  return [...docsByColl2[cat.coll] || []].sort((a, b) => tsMs2(b) - tsMs2(a));
+}
+function docByPath(path) {
+  for (const coll of Object.keys(docsByColl2)) {
+    const hit = (docsByColl2[coll] || []).find((d) => d.__path === path);
+    if (hit) return hit;
+  }
+  return null;
+}
+function canEditType(type) {
+  if (claims.is_admin) return true;
+  if (claims.is_steward && type === "notes") return true;
+  return false;
+}
+async function saveEdit() {
+  if (!modal || !session2) return;
+  const before = docByPath(modal.path);
+  if (!before) {
+    formErr = "record no longer present";
+    return paint2();
+  }
+  const values = {};
+  for (const f of editableFields(modal.type) || []) {
+    const el = document.getElementById(`edF_${f.key}`);
+    if (el) values[f.key] = el.value;
+  }
+  const reason = document.getElementById("edReason")?.value || "";
+  const reasonText = document.getElementById("edReasonText")?.value || "";
+  const evidence = document.getElementById("edEvidence")?.value || "";
+  const built = buildEditPayload({
+    path: modal.path,
+    before,
+    values,
+    reason,
+    reasonText,
+    evidence,
+    uid: session2.auth.currentUser?.uid,
+    now: Date.now()
+  });
+  if (!built.ok) {
+    formErr = built.error;
+    return paint2();
+  }
+  const { fs, db } = session2;
+  const ref = fs.doc(db, ...modal.path.split("/"));
+  const updates = {
+    ...built.updates,
+    last_edited_at: fs.serverTimestamp(),
+    revisions: fs.arrayUnion(built.revision)
+  };
+  try {
+    await fs.updateDoc(ref, updates);
+    modal = null;
+    formErr = "";
+    paint2();
+  } catch (e) {
+    formErr = e?.code === "permission-denied" ? "Edit denied by the rules \u2014 is this session signed in as admin/steward?" : e?.message || "write failed";
+    paint2();
+  }
+}
+function edSetView(v) {
+  view = v;
+  paint2();
+}
+function edSelectCat(id) {
+  activeCat = id;
+  paint2();
+}
+function edOpenEdit(encPath) {
+  const path = decodeURIComponent(encPath);
+  const type = docTypeFromPath(path);
+  if (!editableFields(type)) return;
+  modal = { path, type, mode: "edit" };
+  formErr = "";
+  paint2();
+}
+function edOpenHistory(encPath) {
+  const path = decodeURIComponent(encPath);
+  modal = { path, type: docTypeFromPath(path), mode: "history" };
+  paint2();
+}
+function edCloseModal() {
+  modal = null;
+  formErr = "";
+  paint2();
+}
+function edReasonChange() {
+  const v = document.getElementById("edReason")?.value;
+  const row = document.getElementById("edReasonTextRow");
+  if (row) row.style.display = v === "other" ? "block" : "none";
+}
+function edSaveEdit() {
+  saveEdit();
+}
+function paint2() {
+  const el = $root2();
+  if (!el) return;
+  if (bootState2 === "booting" || bootState2 === "idle") {
+    el.innerHTML = `<div class="lv-state">Connecting to Firestore\u2026</div>`;
+    return;
+  }
+  if (bootState2 === "no-config") {
+    el.innerHTML = `<div class="lv-state">No Firebase config for this environment.</div>`;
+    return;
+  }
+  if (bootState2 === "error") {
+    el.innerHTML = `<div class="lv-state">Firebase failed to load (offline?). Re-open this tab to retry.</div>`;
+    return;
+  }
+  const user = session2?.auth?.currentUser;
+  if (!user) {
+    el.innerHTML = `<div class="lv-state">
+      <b>Not signed in.</b>
+      <p>Editing and the steward inboxes need an admin/steward session. Run the
+      <code>firebase-admin</code> workflow's <code>mint-token</code> action
+      (uid <code>rishabh</code>, admin) and open this page with the printed
+      <code>#token=\u2026</code> fragment appended.</p>
+    </div>`;
+    return;
+  }
+  const role = claims.is_admin ? "admin" : claims.is_steward ? "steward" : "viewer";
+  const conflictCount = rejectedWrites.length;
+  el.innerHTML = `
+    <div class="lv-signed">Signed in as <b>${esc(user.uid)}</b> \xB7 ${role} \xB7 staging</div>
+    <div class="ed-views">
+      <button class="ed-viewbtn ${view === "records" ? "active" : ""}" onclick="edSetView('records')">Records</button>
+      <button class="ed-viewbtn ${view === "inboxes" ? "active" : ""}" onclick="edSetView('inboxes')">
+        Inboxes${conflictCount ? ` <span class="ed-badge">${conflictCount}</span>` : ""}
+      </button>
+    </div>
+    ${view === "records" ? renderRecords() : renderInboxes()}
+    ${modal ? renderModal() : ""}`;
+}
+function renderRecords() {
+  const chips = CATEGORIES.map((c) => `<button class="ed-chip ${c.id === activeCat ? "active" : ""}" onclick="edSelectCat('${c.id}')">${esc(c.label)}</button>`).join("");
+  const cat = CATEGORIES.find((c) => c.id === activeCat) || CATEGORIES[0];
+  const err = collErr2[cat.coll];
+  const rows = bucketFor(activeCat);
+  const fmt = makeStreamFormatters(custName2)[cat.coll];
+  let body;
+  if (err) {
+    body = `<div class="lv-state">This category needs the 12 Jun collection-group rules deploy (<code>${esc(err)}</code>) \u2014 empty until <code>deploy-rules</code> is green.</div>`;
+  } else if (!rows.length) {
+    body = `<div class="lv-state">No ${esc(cat.label.toLowerCase())} records yet.</div>`;
+  } else {
+    body = `<div class="ed-table">${rows.map((d) => recordRow(d, fmt)).join("")}</div>`;
+  }
+  return `<div class="ed-chips">${chips}</div>${body}`;
+}
+function recordRow(d, fmt) {
+  const type = docTypeFromPath(d.__path);
+  const editable = !!editableFields(type) && canEditType(type);
+  const revs = Array.isArray(d.revisions) ? d.revisions.length : 0;
+  const text = fmt ? fmt.fmt(d) : d.summary || d.id;
+  const ep = encodeURIComponent(d.__path);
+  return `
+    <div class="ed-row">
+      <span class="lv-row-time">${fmtTime(tsMs2(d))}</span>
+      <span class="ed-row-text">${esc(text)}${d.last_edit_reason ? ` <span class="ed-tag">edited</span>` : ""}</span>
+      <span class="ed-row-actions">
+        ${revs ? `<button class="ed-act" onclick="edOpenHistory('${ep}')">History (${revs})</button>` : ""}
+        ${editable ? `<button class="ed-act ed-act-edit" onclick="edOpenEdit('${ep}')">Edit</button>` : `<span class="ed-act-disabled" title="${claims.is_admin || claims.is_steward ? "not editable from this surface" : "admin/steward only"}">\u2014</span>`}
+      </span>
+    </div>`;
+}
+function renderModal() {
+  const d = docByPath(modal.path);
+  if (!d) return "";
+  if (modal.mode === "history") return renderHistoryModal(d);
+  return renderEditModal(d);
+}
+function renderEditModal(d) {
+  const fields = editableFields(modal.type) || [];
+  const fieldHtml = fields.map((f) => {
+    const cur = d[f.key] != null ? d[f.key] : "";
+    if (f.kind === "select") {
+      const opts = f.options.map((o) => `<option value="${esc(o)}" ${String(cur) === o ? "selected" : ""}>${esc(o)}</option>`).join("");
+      return `<div class="form-group"><label>${esc(f.label)}</label><select id="edF_${f.key}"><option value="">\u2014</option>${opts}</select></div>`;
+    }
+    const t = f.kind === "number" ? "number" : "text";
+    return `<div class="form-group"><label>${esc(f.label)}</label><input id="edF_${f.key}" type="${t}" value="${esc(cur)}" inputmode="${f.kind === "number" ? "decimal" : "text"}"></div>`;
+  }).join("");
+  const reasonOpts = REASON_ENUM.map((r) => `<option value="${r.value}">${esc(r.label)}</option>`).join("");
+  return `
+    <div class="inv-modal-overlay" onclick="if(event.target===this)edCloseModal()">
+      <div class="inv-modal ed-modal">
+        <div class="ed-modal-h">Edit ${esc(modal.type)} <button class="ed-x" onclick="edCloseModal()">\u2715</button></div>
+        <div class="ed-modal-sub">${esc(d.__path)}</div>
+        ${fieldHtml}
+        <div class="form-group">
+          <label>Reason</label>
+          <select id="edReason" onchange="edReasonChange()">
+            <option value="">\u2014 choose \u2014</option>${reasonOpts}
+          </select>
+        </div>
+        <div class="form-group" id="edReasonTextRow" style="display:none">
+          <label>Describe (other)</label>
+          <input id="edReasonText" type="text" placeholder="what was wrong">
+        </div>
+        <div class="form-group">
+          <label>Evidence ref (optional)</label>
+          <input id="edEvidence" type="text" placeholder="note id / photo url / conversation">
+        </div>
+        ${formErr ? `<div class="lv-warn lv-warn-red">${esc(formErr)}</div>` : ""}
+        <div class="ed-modal-actions">
+          <button class="ed-btn-ghost" onclick="edCloseModal()">Cancel</button>
+          <button class="ed-btn-primary" onclick="edSaveEdit()">Save edit</button>
+        </div>
+        <div class="ed-modal-foot">Appends to this record's revision history; never overwrites the original silently.</div>
+      </div>
+    </div>`;
+}
+function renderHistoryModal(d) {
+  const revs = Array.isArray(d.revisions) ? [...d.revisions].sort((a, b) => (b.at || 0) - (a.at || 0)) : [];
+  const list = revs.length ? revs.map((r) => `<div class="ed-rev">
+        <div class="ed-rev-time">${fmtTime(r.at)} \xB7 ${esc(r.by || "?")}</div>
+        <div class="ed-rev-body">${esc(summarizeRevision(r))}</div>
+        ${r.evidence ? `<div class="ed-rev-ev">evidence: ${esc(r.evidence)}</div>` : ""}
+      </div>`).join("") : `<div class="lv-state">No edits recorded for this entry.</div>`;
+  return `
+    <div class="inv-modal-overlay" onclick="if(event.target===this)edCloseModal()">
+      <div class="inv-modal ed-modal">
+        <div class="ed-modal-h">History <button class="ed-x" onclick="edCloseModal()">\u2715</button></div>
+        <div class="ed-modal-sub">${esc(d.__path)}</div>
+        ${list}
+        <div class="ed-modal-foot">On-doc revision trail. The audit-event Cloud Function mirrors these to <code>audit_events</code> once deployed.</div>
+      </div>
+    </div>`;
+}
+function renderInboxes() {
+  return `
+    ${renderConflicts()}
+    ${renderAnomalies()}
+    ${renderKpi()}`;
+}
+function renderConflicts() {
+  if (collErr2.rejected) {
+    return panel("Pending conflicts", `<div class="lv-state">Readable by admin/steward only (<code>${esc(collErr2.rejected)}</code>).</div>`);
+  }
+  if (!rejectedWrites.length) {
+    return panel("Pending conflicts", `<div class="lv-state">No rejected writes. LWW-overwritten edits + rule rejections surface here once the conflict-capture Cloud Function writes <code>_rejected_writes</code>.</div>`);
+  }
+  const rows = rejectedWrites.sort((a, b) => tsMs2(b) - tsMs2(a)).map((r) => `<div class="ed-row">
+      <span class="lv-row-time">${fmtTime(tsMs2(r))}</span>
+      <span class="ed-row-text">${esc(r.entity_type || r.target_path || r.id)} \xB7 ${esc(r.reason || r.error || "rejected")}</span>
+    </div>`).join("");
+  return panel("Pending conflicts", `<div class="ed-table">${rows}</div>
+    <div class="ed-modal-foot">Read-only this build \u2014 retry / discard / annotate write back to a CF-only collection (deferred with the steward-disposition CF).</div>`);
+}
+function renderAnomalies() {
+  return panel("Anomaly inbox", `<div class="lv-state">Awaiting the anomaly-detector Cloud Function (Phase 8, ~11 categories per <code>ANOMALY_INBOX.md</code>). No client read path until it lands.</div>`);
+}
+function renderKpi() {
+  if (!kpiSnapshot) {
+    return panel("Steward KPI (weekly)", `<div class="lv-state">Four data-integrity metrics populate as the KPI aggregator CF accrues <code>kpi_snapshots</code>: anomaly aging \xB7 edit-with-reason rate \xB7 dispute reopens \xB7 anomaly precision.</div>`);
+  }
+  const m = kpiSnapshot;
+  return panel("Steward KPI (weekly)", `<div class="lv-kpis">
+    ${kpiCard(m.anomaly_aging_median, "anomaly aging")}
+    ${kpiCard(m.edit_reason_rate, "edits / 1000")}
+    ${kpiCard(m.dispute_reopen_pct, "dispute reopens")}
+    ${kpiCard(m.anomaly_precision_pct, "anomaly precision")}
+  </div>`);
+}
+function kpiCard(v, label) {
+  return `<div class="lv-kpi"><div class="lv-kpi-v">${v != null ? esc(String(v)) : "\u2014"}</div><div class="lv-kpi-l">${esc(label)}</div></div>`;
+}
+function panel(title, inner) {
+  return `<div class="ed-panel"><div class="lv-stream-h">${esc(title)}</div>${inner}</div>`;
 }
 
 // src/dashboard/tabs/finance-export.js
@@ -3230,7 +3765,7 @@ function exportCostsCSV() {
 }
 
 // src/dashboard/main.js
-var TAB_ORDER = ["home", "attendance", "production", "finance", "invoice", "stock", "history", "live"];
+var TAB_ORDER = ["home", "attendance", "production", "finance", "invoice", "stock", "history", "live", "edit"];
 function switchTab(tabId) {
   setState({ currentTab: tabId });
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tabId));
@@ -3264,6 +3799,9 @@ function renderTab(tabId) {
       break;
     case "live":
       renderLive();
+      break;
+    case "edit":
+      renderEdit();
       break;
   }
 }
@@ -3393,10 +3931,18 @@ function exposeWindowSurface() {
     // Finance exports
     exportAttendanceCSV,
     exportPayrollCSV,
-    exportCostsCSV
+    exportCostsCSV,
+    // Edit tab (records + edit-with-reason + inboxes)
+    edSetView,
+    edSelectCat,
+    edOpenEdit,
+    edOpenHistory,
+    edCloseModal,
+    edReasonChange,
+    edSaveEdit
   });
 }
-function boot2() {
+function boot3() {
   document.getElementById("headerDate").textContent = formatDate(getState().today);
   exposeWindowSurface();
   initSaveDot();
@@ -3423,8 +3969,8 @@ function boot2() {
   }
 }
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", boot2);
+  document.addEventListener("DOMContentLoaded", boot3);
 } else {
-  boot2();
+  boot3();
 }
 //# sourceMappingURL=dashboard.js.map

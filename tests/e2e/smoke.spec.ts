@@ -9,6 +9,7 @@ const TABS = [
   { slug: 'stock', label: 'Stock' },
   { slug: 'history', label: 'History' },
   { slug: 'live', label: 'Live' },
+  { slug: 'edit', label: 'Edit' },
 ];
 
 // sw.js does `cache.addAll(ASSETS)` on install, where ASSETS includes the
@@ -30,7 +31,7 @@ test.beforeEach(async ({ context }) => {
 });
 
 test.describe('sep-dashboard baseline smoke @smoke', () => {
-  test('1. dashboard renders at /sep-dashboard/ with all 8 tabs visible', async ({ page }) => {
+  test('1. dashboard renders at /sep-dashboard/ with all 9 tabs visible', async ({ page }) => {
     await page.goto('./', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveTitle(/SEP Dashboard/);
     const tabBar = page.locator('#tabBar');

@@ -1,5 +1,5 @@
 // App version reported in Settings → General. Bump when shipping.
-export const APP_VERSION = '2.1.0-alpha.4';
+export const APP_VERSION = '2.1.0-alpha.5';
 
 // Numeric build counter, stamped on every Firestore write as
 // app_version (string form, e.g. '1'). The rules' buildSupported()

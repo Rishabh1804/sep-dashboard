@@ -53,6 +53,10 @@ import {
 import { renderStock, updateStock, editStockQty } from './tabs/stock.js';
 import { renderHistory, initHistoryNav } from './tabs/history.js';
 import { renderLive } from './tabs/live.js';
+import {
+  renderEdit, edSetView, edSelectCat, edOpenEdit, edOpenHistory,
+  edCloseModal, edReasonChange, edSaveEdit,
+} from './tabs/edit.js';
 import { exportAttendanceCSV, exportPayrollCSV, exportCostsCSV } from './tabs/finance-export.js';
 
 // Storage hooks invoked from finance.js record-advance flow (avoids cycle).
@@ -61,7 +65,7 @@ import { initProdDay } from '../shared/utils/calc-prod.js';
 
 // --- Tab routing ---
 
-const TAB_ORDER = ['home', 'attendance', 'production', 'finance', 'invoice', 'stock', 'history', 'live'];
+const TAB_ORDER = ['home', 'attendance', 'production', 'finance', 'invoice', 'stock', 'history', 'live', 'edit'];
 
 function switchTab(tabId) {
   setState({ currentTab: tabId });
@@ -84,6 +88,7 @@ function renderTab(tabId) {
     case 'stock':      renderStock(); break;
     case 'history':    renderHistory(); break;
     case 'live':       renderLive(); break;
+    case 'edit':       renderEdit(); break;
   }
 }
 
@@ -185,6 +190,9 @@ function exposeWindowSurface() {
     updateStock, editStockQty,
     // Finance exports
     exportAttendanceCSV, exportPayrollCSV, exportCostsCSV,
+    // Edit tab (records + edit-with-reason + inboxes)
+    edSetView, edSelectCat, edOpenEdit, edOpenHistory,
+    edCloseModal, edReasonChange, edSaveEdit,
   });
 }
 

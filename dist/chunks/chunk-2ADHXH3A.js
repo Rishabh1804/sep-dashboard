@@ -32,13 +32,23 @@ function getFirebaseConfig(env = resolveFirebaseEnv()) {
 }
 
 // src/shared/firebase-session.js
-async function bootFirebaseSession() {
+var _bootPromise;
+function bootFirebaseSession() {
+  if (_bootPromise === void 0) {
+    _bootPromise = _boot().catch((err) => {
+      _bootPromise = void 0;
+      throw err;
+    });
+  }
+  return _bootPromise;
+}
+async function _boot() {
   const config = getFirebaseConfig();
   if (!config) return null;
   const [{ initializeApp }, fs, fbAuth] = await Promise.all([
-    import("./index.esm-YCKMX627.js"),
-    import("./index.esm-PSUINTKR.js"),
-    import("./index.esm-SEISHXRY.js")
+    import("./index.esm-OHGUEI4Y.js"),
+    import("./index.esm-KA5UU77X.js"),
+    import("./index.esm-VBHEN4HA.js")
   ]);
   const app = initializeApp(config);
   const db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache() });
@@ -67,4 +77,4 @@ async function signInFromUrlFragment(auth, fbAuth) {
 export {
   bootFirebaseSession
 };
-//# sourceMappingURL=chunk-ZSA5E46Q.js.map
+//# sourceMappingURL=chunk-2ADHXH3A.js.map

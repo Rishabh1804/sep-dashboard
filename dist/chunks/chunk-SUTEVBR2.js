@@ -75,7 +75,7 @@ var DEF_STOCK = [
 ];
 
 // src/shared/config/app.js
-var APP_VERSION = "2.1.0-alpha.4";
+var APP_VERSION = "2.1.0-alpha.5";
 var BUILD = 2;
 
 export {
@@ -84,4 +84,4 @@ export {
   APP_VERSION,
   BUILD
 };
-//# sourceMappingURL=chunk-H246LUTF.js.map
+//# sourceMappingURL=chunk-SUTEVBR2.js.map

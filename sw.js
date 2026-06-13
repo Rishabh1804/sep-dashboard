@@ -5,7 +5,9 @@
 // alpha.2: dist/dashboard.js + shared chunk hashes changed (Track 2 Firebase
 // wiring). Without this bump, installed clients keep the cached old
 // dashboard.js whose imports point at chunk hashes that no longer exist.
-const CACHE_NAME = 'sep-v2.1.0-alpha.4';
+// alpha.5: Edit tab added + shared firebase-session.js memoised → dashboard.js
+// + shared chunk hashes changed again.
+const CACHE_NAME = 'sep-v2.1.0-alpha.5';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',
