@@ -21,9 +21,9 @@ import {
   isSafariOrWebkit,
   pingServer,
   registerVersion
-} from "./chunk-RXBV6JCG.js";
+} from "./chunk-VCDLSDOV.js";
 
-// node_modules/.pnpm/@firebase+webchannel-wrapper@1.0.6/node_modules/@firebase/webchannel-wrapper/dist/bloom-blob/esm/bloom_blob_es2018.js
+// node_modules/@firebase/webchannel-wrapper/dist/bloom-blob/esm/bloom_blob_es2018.js
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 var bloom_blob_es2018 = {};
 var Integer;
@@ -453,7 +453,7 @@ var Md5;
   Integer = bloom_blob_es2018.Integer = t;
 }).apply(typeof commonjsGlobal !== "undefined" ? commonjsGlobal : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {});
 
-// node_modules/.pnpm/@firebase+webchannel-wrapper@1.0.6/node_modules/@firebase/webchannel-wrapper/dist/webchannel-blob/esm/webchannel_blob_es2018.js
+// node_modules/@firebase/webchannel-wrapper/dist/webchannel-blob/esm/webchannel_blob_es2018.js
 var commonjsGlobal2 = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 var webchannel_blob_es2018 = {};
 var XhrIo;
@@ -2517,7 +2517,7 @@ var createWebChannelTransport;
   XhrIo = webchannel_blob_es2018.XhrIo = X2;
 }).apply(typeof commonjsGlobal2 !== "undefined" ? commonjsGlobal2 : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {});
 
-// node_modules/.pnpm/@firebase+firestore@4.15.0_@firebase+app@0.14.13/node_modules/@firebase/firestore/dist/common-b3e8012f.esm.js
+// node_modules/@firebase/firestore/dist/common-b3e8012f.esm.js
 var User = class {
   constructor(e) {
     this.uid = e;
@@ -17285,7 +17285,7 @@ function _internalAggregationQueryToProtoRunAggregationQueryRequest(e, t) {
   ).request;
 }
 
-// node_modules/.pnpm/@firebase+firestore@4.15.0_@firebase+app@0.14.13/node_modules/@firebase/firestore/dist/index.esm.js
+// node_modules/@firebase/firestore/dist/index.esm.js
 var Ut2 = "@firebase/firestore";
 var Ht2 = "4.15.0";
 function __PRIVATE_isPartialObserver(t) {
@@ -19413,4 +19413,4 @@ export {
    * limitations under the License.
    *)
 */
-//# sourceMappingURL=index.esm-PSUINTKR.js.map
+//# sourceMappingURL=index.esm-KA5UU77X.js.map

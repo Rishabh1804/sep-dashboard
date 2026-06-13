@@ -217,6 +217,61 @@ test('in-window update with pinned author + created_at succeeds (positive contra
   }));
 });
 
+// ---- dashboard edit-with-reason contract (Edit-UI session) ----
+// The dashboard's correction surface signs in as ADMIN and edits handler-
+// authored docs BEYOND the 24h window, appending an on-doc revisions[] entry.
+// These lock the rule behaviour edit-model.js / edit.js depend on, so a future
+// rules change can't silently break the Edit tab.
+
+test('admin edits a production entry past the 24h window, adding revisions[]', async () => {
+  const old = Timestamp.fromMillis(Date.now() - 72 * 60 * 60 * 1000); // 3 days ago
+  await seedEntry('p-admin-edit', 'u-t-handler', old);
+  const db = ctxFor(ADMIN);
+  // The exact shape edit.js writes: changed field + edit metadata + a revision
+  // appended via arrayUnion (here a literal array — emulator has no sentinel).
+  await assertSucceeds(updateDoc(doc(db, 'production_entries', 'p-admin-edit'), {
+    qty_pcs: 175,
+    last_edit_reason: 'operator-misread',
+    last_edited_by: 'u-t-admin',
+    revisions: [{ at: Date.now(), by: 'u-t-admin', reason: 'operator-misread', before: { qty_pcs: 100 }, after: { qty_pcs: 175 } }],
+  }));
+});
+
+test('admin flips a job current_status beyond any window (the dispatch-flip gap)', async () => {
+  const old = Timestamp.fromMillis(Date.now() - 72 * 60 * 60 * 1000);
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'jobs', 'sep-flip'), {
+      author_user_id: 'u-t-handler', created_at: old, app_version: '999',
+      customer_id: 'cust-1', received_kg: 10, route: 'standard', current_status: 'in-flight',
+    });
+  });
+  const db = ctxFor(ADMIN);
+  await assertSucceeds(updateDoc(doc(db, 'jobs', 'sep-flip'), {
+    current_status: 'dispatched', last_edit_reason: 'late-correction', last_edited_by: 'u-t-admin',
+  }));
+});
+
+test('steward may edit a note but NOT a production entry', async () => {
+  const recent = Timestamp.fromMillis(Date.now());
+  const STEWARD = { roles: ['handler'], token_id: 't-stew', is_admin: false, is_steward: true };
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'workers', 'u-t-stew'), { active_token_id: 't-stew', revoked_at: null, name: 'steward' });
+    await setDoc(doc(ctx.firestore(), 'notes', 'n-stew'), {
+      created_by: { uid: 'u-t-handler' }, created_at: recent, app_version: '999',
+      summary: 'orig', status: 'active', topic_refs: ['general'], kind: 'general',
+    });
+    await setDoc(doc(ctx.firestore(), 'production_entries', 'p-stew'), {
+      author_user_id: 'u-t-handler', created_at: recent, app_version: '999',
+      job_id: 'j1', machine_id: 'vat_a1', worker_id: 'w-floor-1', qty_pcs: 100, station: 'plating',
+    });
+  });
+  const db = testEnv.authenticatedContext('u-t-stew', STEWARD).firestore();
+  // notes update: isAdmin() || isSteward() || (author && ...) → steward allowed.
+  await assertSucceeds(updateDoc(doc(db, 'notes', 'n-stew'), { status: 'resolved', last_edited_by: 'u-t-stew' }));
+  // production update: isAdmin() || (author && ...) → steward is neither → denied.
+  await assertFails(updateDoc(doc(db, 'production_entries', 'p-stew'), { qty_pcs: 120, last_edited_by: 'u-t-stew' }));
+});
+
 // ---- 2026-06-10 hardening regressions (code-review findings on PR #17) ----
 
 test('job create with spoofed author_user_id is rejected (jobs authoredBySelf)', async () => {

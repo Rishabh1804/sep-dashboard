@@ -5,7 +5,9 @@
 // writes with no signal. Best-effort install (Promise.allSettled) so a
 // blocked font CDN never tanks registration — same hardening as sw.js.
 
-const CACHE_NAME = 'sep-handler-2.1.0-alpha.4';
+// alpha.5: shared firebase-session.js (memoised) is in the handler's dynamic
+// firebase chunk → its hash changed; bump so installed handlers re-cache.
+const CACHE_NAME = 'sep-handler-2.1.0-alpha.5';
 const BASE = '/sep-dashboard/';
 const ASSETS = [
   BASE + 'entry/handler/',

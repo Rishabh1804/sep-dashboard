@@ -16,10 +16,10 @@ import {
   BUILD,
   DEF_AREAS,
   DEF_STOCK
-} from "./chunk-H246LUTF.js";
+} from "./chunk-SUTEVBR2.js";
 import {
   bootFirebaseSession
-} from "./chunk-ZSA5E46Q.js";
+} from "./chunk-2ADHXH3A.js";
 
 // src/handler/transport.js
 var PermanentRejection = class extends Error {
@@ -266,4 +266,4 @@ function startPickerListeners({ db, fs, onChange }) {
 export {
   startFirebase
 };
-//# sourceMappingURL=firebase-boot-YPE4PJJ3.js.map
+//# sourceMappingURL=firebase-boot-RRDY2CVR.js.map

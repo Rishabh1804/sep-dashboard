@@ -29,10 +29,14 @@ var DEF_CW = [
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+function escAttr(s) {
+  return esc(s).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 
 export {
   DEF_PERM,
   DEF_CW,
-  esc
+  esc,
+  escAttr
 };
-//# sourceMappingURL=chunk-Z27QHJP5.js.map
+//# sourceMappingURL=chunk-IIQMR7WS.js.map
