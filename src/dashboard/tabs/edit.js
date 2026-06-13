@@ -68,7 +68,10 @@ const custName = (id) => customerNames[id] || id || '?';
 
 export function renderEdit() {
   if (!$root()) return;
-  if (bootState === 'idle') { bootState = 'booting'; boot(); }
+  // Retry from 'error' too (not just first 'idle'): a transient boot failure
+  // (firebase/* import blip) clears the memoised session promise, so re-opening
+  // the tab can genuinely recover — which is what the error card promises.
+  if (bootState === 'idle' || bootState === 'error') { bootState = 'booting'; boot(); }
   paint();
 }
 
@@ -79,12 +82,15 @@ async function boot() {
     if (!session) { bootState = 'no-config'; return paint(); }
     bootState = 'ready';
     session.fbAuth.onAuthStateChanged(session.auth, async (user) => {
+      if (!user) { stopListeners(); claims = {}; return paint(); }
+      // Resolve claims BEFORE tearing down + rebuilding listeners, so a token
+      // refresh never leaves a window where paint() renders with claims={}
+      // (Edit buttons flicker non-editable for an admin) and empty buckets.
+      let next = {};
+      try { next = (await user.getIdTokenResult()).claims || {}; } catch { next = {}; }
+      claims = next;
       stopListeners();
-      claims = {};
-      if (user) {
-        try { claims = (await user.getIdTokenResult()).claims || {}; } catch { claims = {}; }
-        startListeners();
-      }
+      startListeners();
       paint();
     });
   } catch {

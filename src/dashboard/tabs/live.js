@@ -35,7 +35,10 @@ const $root = () => document.getElementById('liveRoot');
 
 export function renderLive() {
   if (!$root()) return;
-  if (bootState === 'idle') { bootState = 'booting'; boot(); }
+  // Retry from 'error' too: a transient boot failure clears the memoised
+  // session promise (firebase-session.js), so re-opening the tab can recover —
+  // which is exactly what the error card's "re-open to retry" tells the user.
+  if (bootState === 'idle' || bootState === 'error') { bootState = 'booting'; boot(); }
   paint();
 }
 

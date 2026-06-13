@@ -859,3 +859,80 @@ passivation stays folded into plating.
 | Stage F viewer | ✅ minimal cut live in code (activity/KPI/alerts); full DASHBOARD_VIEWER.md surface remains 2.1 |
 
 *Session 15 documented 12 June 2026 by Aurelius (Claude Code).*
+
+---
+
+## Session 16: Dashboard Edit UI + Steward Inboxes (13 June 2026)
+
+### What Shipped
+
+The dashboard-side **correction surface** — the answer to the on-device dry-run's
+"edit/history missing". The SEP Handler is append-only by design (last-10 recent
+log only); every correction beyond its rules-enforced 24h window lives on the
+dashboard, performed by the admin/steward identity it signs in as. A new **Edit
+tab** (sep-dashboard PR #26): records-by-category with an edit-with-reason modal,
+per-record revision history, and the steward inboxes as honest read surfaces.
+Scoped against `DASHBOARD_VIEWER.md` (recent-by-category + edit affordance) and
+`STEWARD_AFFORDANCES.md` (edit-with-reason + inboxes).
+
+### Deliverables
+
+| Area | Detail |
+|---|---|
+| **Edit tab** | `src/dashboard/tabs/edit.js` — **Records** view (recent-by-category: Production / Jobs / DFT / Dispatch / Notes / Check-ins / Depletions, read from the same staging Firestore the Live tab uses via the shared memoised session); **Edit-with-reason modal** (structured reason enum + optional evidence ref); **History** view (per-record revision trail); **Inboxes** view (pending-conflicts / anomaly / steward KPI). |
+| **Edit model** | `src/dashboard/edit-model.js` — pure `buildEditPayload` / `REASON_ENUM` / per-type `FIELD_SPECS` / `summarizeRevision`. The edit writes the changed fields **plus an append-only on-doc `revisions[]` entry** (STRUCTURED_NOTES pattern) — the forensic record that works **today, without the audit-event CF**, which mirrors the same change to `audit_events` server-side once deployed. |
+| **Shared extraction** | `src/dashboard/stream-format.js` — per-collection activity formatters + `fmtTime`/`fmtAge`, now shared by Live + Edit (de-dups the Live tab). |
+| **Session memoised** | `firebase-session.js` memoised so both tabs share one Firebase app (a second `initializeApp` would throw); a **rejected** boot is not cached, so "re-open to retry" stays real. |
+| **Tests** | +39 unit (`edit-model`, `stream-format`) → **168**; +1 e2e honest-state (`edit_tab.spec`) → **39**; +3 rules-emulator edit-contract (admin-edit-past-24h-window · admin job-status-flip · steward-edits-notes-not-production) → **33**. Build `BUILD=2`, `APP_VERSION 2.1.0-alpha.5`, both SW caches bumped. |
+
+### Key property: no rules deploy required
+
+Admin updates are already permitted on every editable collection via the
+`isAdmin() ||` short-circuit in the deployed v2.2 rules — so the Edit UI works
+against staging **as-is**, independent of the IAM-gated `deploy-rules` path.
+Steward edits are scoped to notes (rules-honest). The 3 new rules-emulator tests
+lock this contract so a future rules change can't silently break the tab.
+
+### Review (workflow convention upheld)
+
+A 7-angle `/code-review` ran (3 correctness + reuse/simplification/efficiency/
+altitude). Findings folded across two rounds:
+- **edit-modal attribute XSS** — `__path` interpolated into an inline `onclick`
+  JS-string; now `encodeURIComponent`/`decodeURIComponent` round-tripped (the
+  same sink class the 12-Jun picker review caught).
+- **out-of-enum `<select>`** — modal selects now carry an explicit empty option.
+- **memoised-rejection trap** — a rejected boot was cached, killing retry; now
+  the slot clears on rejection.
+- **boot `'error'` dead-end** — `renderEdit`/`renderLive` only retried from
+  `'idle'`, so the "re-open to retry" card was a lie and the memoisation reset
+  never fired; both tabs now retry from `'error'` too.
+- **token-refresh flicker** — claims now resolve *before* listeners are torn
+  down/rebuilt, closing the window where an admin's Edit buttons flicker
+  non-editable.
+
+### Out of scope (honest deferrals, tracked)
+
+- **Inbox disposition writes** (retry/discard/annotate, anomaly close) — need the
+  steward-disposition + anomaly-detector CFs (`_rejected_writes` / `audit_events`
+  / `kpi_snapshots` are all `allow write: if false`). Rendered as deferred seams,
+  not faked.
+- **Stock receipts editing** — no collection-group read rule for `receipts`
+  (would need per-item listeners).
+- **Shared `firestore-store`** — the Edit tab forks the Live tab's listener
+  scaffold; a shared store to de-dup the two (and the boot state-machine) is the
+  review's altitude recommendation, kept separate this round to avoid
+  destabilising the on-hardware-proven Live surface. Tracked as a fast-follow.
+- **Field-clearing** — the edit surface can set values but not clear them
+  (blank = no-change, documented). The one scenario this blocks (correcting a
+  wrong-*unit* production entry) is near-unreachable: the handler derives the qty
+  unit from the machine and `machine_id` isn't editable. Tracked, not folded.
+
+### Next build
+
+**Stage E aggregator Cloud Function** — flip `Job.current_status` on dispatch
+(handler writes `dispatch_events` but never flips status; until it ships,
+dispatched jobs re-accumulate in the picker, and the Edit tab's manual status
+edit is the stopgap). Then handler form hardening (Zod-at-boundary / 2σ / CF
+cross-doc validation) and the shared `firestore-store` extraction.
+
+*Session 16 documented 13 June 2026 by Aurelius (Claude Code).*

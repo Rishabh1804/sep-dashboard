@@ -2897,7 +2897,7 @@ var customerNames = {};
 var $root = () => document.getElementById("liveRoot");
 function renderLive() {
   if (!$root()) return;
-  if (bootState === "idle") {
+  if (bootState === "idle" || bootState === "error") {
     bootState = "booting";
     boot();
   }
@@ -3253,7 +3253,7 @@ var $root2 = () => document.getElementById("editRoot");
 var custName2 = (id) => customerNames2[id] || id || "?";
 function renderEdit() {
   if (!$root2()) return;
-  if (bootState2 === "idle") {
+  if (bootState2 === "idle" || bootState2 === "error") {
     bootState2 = "booting";
     boot2();
   }
@@ -3269,16 +3269,20 @@ async function boot2() {
     }
     bootState2 = "ready";
     session2.fbAuth.onAuthStateChanged(session2.auth, async (user) => {
-      stopListeners2();
-      claims = {};
-      if (user) {
-        try {
-          claims = (await user.getIdTokenResult()).claims || {};
-        } catch {
-          claims = {};
-        }
-        startListeners2();
+      if (!user) {
+        stopListeners2();
+        claims = {};
+        return paint2();
       }
+      let next = {};
+      try {
+        next = (await user.getIdTokenResult()).claims || {};
+      } catch {
+        next = {};
+      }
+      claims = next;
+      stopListeners2();
+      startListeners2();
       paint2();
     });
   } catch {
