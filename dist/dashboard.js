@@ -1,8 +1,9 @@
 import {
   DEF_CW,
   DEF_PERM,
-  esc
-} from "./chunks/chunk-Z27QHJP5.js";
+  esc,
+  escAttr
+} from "./chunks/chunk-IIQMR7WS.js";
 import {
   OPEN_JOB_STATUSES,
   eventMillis
@@ -3535,11 +3536,13 @@ function renderEditModal(d) {
   const fieldHtml = fields.map((f) => {
     const cur = d[f.key] != null ? d[f.key] : "";
     if (f.kind === "select") {
-      const opts = f.options.map((o) => `<option value="${esc(o)}" ${String(cur) === o ? "selected" : ""}>${esc(o)}</option>`).join("");
-      return `<div class="form-group"><label>${esc(f.label)}</label><select id="edF_${f.key}"><option value="">\u2014</option>${opts}</select></div>`;
+      const curStr = cur === "" ? "" : String(cur);
+      const opts = f.options.map((o) => `<option value="${escAttr(o)}" ${curStr === o ? "selected" : ""}>${esc(o)}</option>`).join("");
+      const orphan = curStr && !f.options.includes(curStr) ? `<option value="${escAttr(curStr)}" selected>${esc(curStr)} (current)</option>` : "";
+      return `<div class="form-group"><label>${esc(f.label)}</label><select id="edF_${f.key}"><option value="">\u2014</option>${orphan}${opts}</select></div>`;
     }
     const t = f.kind === "number" ? "number" : "text";
-    return `<div class="form-group"><label>${esc(f.label)}</label><input id="edF_${f.key}" type="${t}" value="${esc(cur)}" inputmode="${f.kind === "number" ? "decimal" : "text"}"></div>`;
+    return `<div class="form-group"><label>${esc(f.label)}</label><input id="edF_${f.key}" type="${t}" value="${escAttr(cur)}" inputmode="${f.kind === "number" ? "decimal" : "text"}"></div>`;
   }).join("");
   const reasonOpts = REASON_ENUM.map((r) => `<option value="${r.value}">${esc(r.label)}</option>`).join("");
   return `

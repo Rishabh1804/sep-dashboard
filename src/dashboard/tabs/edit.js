@@ -26,7 +26,7 @@
 // multiplexes them on the one app, and volumes are tiny in alpha. A future
 // shared firestore-store can de-dup the two tabs.
 
-import { esc } from '../../shared/utils/format.js';
+import { esc, escAttr } from '../../shared/utils/format.js';
 import { eventMillis } from '../../shared/utils/event-time.js';
 import { makeStreamFormatters, fmtTime } from '../stream-format.js';
 import {
@@ -312,11 +312,17 @@ function renderEditModal(d) {
   const fieldHtml = fields.map((f) => {
     const cur = d[f.key] != null ? d[f.key] : '';
     if (f.kind === 'select') {
-      const opts = f.options.map((o) => `<option value="${esc(o)}" ${String(cur) === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
-      return `<div class="form-group"><label>${esc(f.label)}</label><select id="edF_${f.key}"><option value="">—</option>${opts}</select></div>`;
+      const curStr = cur === '' ? '' : String(cur);
+      const opts = f.options.map((o) => `<option value="${escAttr(o)}" ${curStr === o ? 'selected' : ''}>${esc(o)}</option>`).join('');
+      // Surface an out-of-enum stored value (e.g. a legacy route) as its own
+      // selected option instead of silently falling back to the blank "—" —
+      // otherwise the current value is invisible and reads as "no change".
+      const orphan = (curStr && !f.options.includes(curStr))
+        ? `<option value="${escAttr(curStr)}" selected>${esc(curStr)} (current)</option>` : '';
+      return `<div class="form-group"><label>${esc(f.label)}</label><select id="edF_${f.key}"><option value="">—</option>${orphan}${opts}</select></div>`;
     }
     const t = f.kind === 'number' ? 'number' : 'text';
-    return `<div class="form-group"><label>${esc(f.label)}</label><input id="edF_${f.key}" type="${t}" value="${esc(cur)}" inputmode="${f.kind === 'number' ? 'decimal' : 'text'}"></div>`;
+    return `<div class="form-group"><label>${esc(f.label)}</label><input id="edF_${f.key}" type="${t}" value="${escAttr(cur)}" inputmode="${f.kind === 'number' ? 'decimal' : 'text'}"></div>`;
   }).join('');
 
   const reasonOpts = REASON_ENUM.map((r) => `<option value="${r.value}">${esc(r.label)}</option>`).join('');
