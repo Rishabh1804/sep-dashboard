@@ -15,6 +15,7 @@
     "test:smoke": "playwright test --grep @smoke",
     "test:report": "playwright show-report",
     "deploy:rules:staging": "node scripts/deploy-rules.mjs --project sep-dashboard-staging",
+    "deploy:functions:staging": "node scripts/deploy-functions.mjs --project sep-dashboard-staging",
     "seed:staging": "node scripts/seed-staging.mjs",
     "mint:token": "node scripts/mint-token.mjs"
   },
