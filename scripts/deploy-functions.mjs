@@ -4,22 +4,58 @@
 // pinned firebase-tools). firebase.json's predeploy vendors the shared pure
 // logic first, so the deployed bundle always carries a fresh copy of cross-doc.js.
 //
-// ⚠ IAM — the gated part (this is why the prompt says check the deploy path
-// FIRST). deploy-rules' grant on the staging service account (Firebase Rules
-// Admin + Service Usage Consumer) is NOT enough for functions. A v2 functions
-// deploy additionally needs, on the staging SA:
-//   - roles/cloudfunctions.admin        (Cloud Functions Admin)
-//   - roles/iam.serviceAccountUser      (act as the functions runtime SA)
-//   - roles/cloudbuild.builds.editor    (v2 builds a container via Cloud Build)
-//   - roles/artifactregistry.writer     (push that container image)
-//   - roles/eventarc.admin              (Firestore-trigger plumbing)
-//   - roles/run.admin                   (v2 functions run on Cloud Run)
-// plus these APIs enabled on the project: cloudfunctions, cloudbuild,
-// artifactregistry, eventarc, run, pubsub. Until granted, this dead-ends at a
-// 403 the same way deploy-rules did — by design we surface that here, not at
-// the floor.
+// ════════════════════════════════════════════════════════════════════════════
+// FIRST-DEPLOY RUNBOOK (one-time per PROJECT — verified end-to-end on staging,
+// 16 Jun 2026). v2 Firestore-trigger functions need ALL of the below before the
+// deploy succeeds. Each step gated the staging deploy in this exact order; do
+// them up front for prod so its first deploy is a one-shot, not a rediscovery.
+// As project OWNER (e.g. in Cloud Shell), for project <P>:
+//
+// 1. BILLING — link a Blaze (pay-as-you-go) billing account to <P>. Functions
+//    cannot deploy on the Spark free plan. (Firestore/rules/Auth can — that's
+//    why deploy-rules + the seed worked on Spark.) At this scale, min-instances=0
+//    keeps it within the free tier (~₹0/mo). Firebase console → Usage → Modify
+//    plan → Blaze; set a budget alert.
+//
+// 2. ENABLE APIs:
+//      gcloud services enable cloudfunctions.googleapis.com cloudbuild.googleapis.com \
+//        artifactregistry.googleapis.com eventarc.googleapis.com run.googleapis.com \
+//        pubsub.googleapis.com cloudbilling.googleapis.com --project <P>
+//    (cloudbilling is the one firebase-tools queries to verify Blaze — easy to miss.)
+//
+// 3. DEPLOY-SA ROLES — deploy-rules' grant (Firebase Rules Admin + Service Usage
+//    Consumer) is NOT enough. On the deploy SA (the FIREBASE_SERVICE_ACCOUNT_*
+//    identity's client_email):
+//      for r in roles/cloudfunctions.admin roles/iam.serviceAccountUser \
+//               roles/cloudbuild.builds.editor roles/artifactregistry.writer \
+//               roles/eventarc.admin roles/run.admin; do
+//        gcloud projects add-iam-policy-binding <P> \
+//          --member=serviceAccount:<deploy-sa-email> --role=$r; done
+//
+// 4. SERVICE-AGENT BINDINGS — Google-managed service agents (NOT the deploy SA);
+//    firebase-tools prints these verbatim if missing. With <N> = project number:
+//      gcloud projects add-iam-policy-binding <P> \
+//        --member=serviceAccount:service-<N>@gcp-sa-pubsub.iam.gserviceaccount.com \
+//        --role=roles/iam.serviceAccountTokenCreator
+//      gcloud projects add-iam-policy-binding <P> \
+//        --member=serviceAccount:<N>-compute@developer.gserviceaccount.com \
+//        --role=roles/run.invoker
+//      gcloud projects add-iam-policy-binding <P> \
+//        --member=serviceAccount:<N>-compute@developer.gserviceaccount.com \
+//        --role=roles/eventarc.eventReceiver
+//
+// 5. FIRST-DEPLOY EVENTARC PROPAGATION — the very first v2 deploy can fail every
+//    function create with "Permission denied while using the Eventarc Service
+//    Agent … retry in a few minutes." This is benign auto-provisioning lag, NOT
+//    a config error: wait ~3-5 min and re-run. The deploy is idempotent.
+//
+// Until 1-4 are in place each surfaces as a clean 403/400 here (by design — at
+// the deploy, not on the floor). Prod also sets AGG_MIN_INSTANCES=1 per
+// CONFLICT_RESOLUTION.md (always-warm aggregators).
+// ════════════════════════════════════════════════════════════════════════════
 //
 // Usage: node scripts/deploy-functions.mjs [--project sep-dashboard-staging]
+
 
 import { spawnSync } from 'node:child_process';
 import { argv, env, exit } from 'node:process';

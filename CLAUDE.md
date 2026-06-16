@@ -936,3 +936,48 @@ edit is the stopgap). Then handler form hardening (Zod-at-boundary / 2σ / CF
 cross-doc validation) and the shared `firestore-store` extraction.
 
 *Session 16 documented 13 June 2026 by Aurelius (Claude Code).*
+
+---
+
+## Session 17: Stage E Aggregator CFs — Built, Deployed, Verified Live (14–16 June 2026)
+
+### What Shipped
+
+The **Stage E aggregator Cloud Functions** — the T-CU "next build" — went from a skeleton to **live on `sep-dashboard-staging`**, closing the named dispatch gap (handler writes `dispatch_events` but nothing flipped `Job.current_status`; the skeleton aggregator listened on the `route_history` subcollection the handler never writes, so dispatch reached no aggregator at all). PR #27 (merged `ceecbed`).
+
+### Deliverables
+
+| Area | Detail |
+|---|---|
+| **Aggregators** | Four idempotent v2 `onDocumentCreated` functions in `functions/src/index.js`: `dispatchStatusAggregator` (`dispatch_events/{id}` → `Job.current_status='dispatched'`, the load-bearing fix), `workerShiftAggregator` (`workers/{wid}/shifts` → `Worker.current_status`), `machineStateAggregator` (`machines/{mid}/state_transitions` → `Machine.current_status`), `routeHistoryAggregator` (kept; route lifecycle). `foldEvent` runs one transaction per parent; job parents required (never fabricated), worker/machine derived parents merge-create + `__derived`; missing-parent logged. |
+| **Pure logic** | `src/shared/validation/cross-doc.js`: `applyDispatchEvent` / `applyShiftEvent` / `applyStateTransition` + `shouldApplyEvent` (server-primary + client tiebreaker ordering guard, documented `last_applied_event_id_<sub>` cursor) + `toMillis`. Unit-tested in root Jest (`tests/unit/derive.test.js`). |
+| **Deploy plumbing** | `firebase.json` functions block + predeploy vendor (`functions/vendor.mjs` → gitignored `functions/vendor/cross-doc.js`, no source-copy drift); `scripts/deploy-functions.mjs` (installs `functions/` deps then `firebase deploy`) + `deploy-functions` workflow action + pinned `functions/package-lock.json`; shared credential-tempfile helper `withCredentialFile` in `scripts/lib/admin.mjs` (finally-cleanup; used by both deploy scripts). |
+| **Behavioural verify** | `scripts/verify-aggregator-staging.mjs` + `verify-aggregator` workflow action: writes one `dispatch_event` for a seeded in-flight job, polls until the CF flips it, then restores the job + deletes the test doc (auto-cleanup, seed-safe). |
+| **Tests** | Unit **168 → 181** (derivations + ordering guard incl. duplicate-trigger / out-of-order / `client_ts=0`). No web-bundle change (cross-doc is server/test-only) → no SW cache bump. |
+
+### Live verification (16 Jun)
+
+`verify-aggregator` ran green against staging: a `dispatch_event` flipped its seeded job to `dispatched` in **~4s**, cursor set, then cleanup restored the job to `in-flight/standard` and deleted the test doc. All 17 functions registered (`✔ Deploy complete!`). The deliverable is proven end-to-end, not just deployed.
+
+### The deploy path (now a documented one-shot)
+
+The first-ever v2 Functions deploy walked through a long chain of **one-time GCP project setup** gates, each surfaced as a clean 403/400 at the deploy (by design, not on the floor): **Blaze billing → 6 APIs + cloudbilling → deploy-SA roles (6) → `functions/` deps install (code fix) → vendored-import path (code fix) → service-agent bindings (3) → Eventarc first-time propagation retry.** The complete runbook is folded into `scripts/deploy-functions.mjs`'s header so **prod's first deploy is a one-shot**. Two code fixes were committed mid-deploy (the deps install + the `../vendor/` import path — `node --check` is syntax-only and couldn't catch the latter).
+
+### Review
+
+7-angle `/code-review` across rounds; folded findings include the documented-cursor field naming, a `client_ts=0` coercion bug, observable warning on a missing parent, `__derived` marker, gitignored vendor (drift), the functions lockfile, the shared credential helper, and (this session) an `AGG_MIN_INSTANCES` NaN clamp for the prod path. Tracked fast-follows (non-blocking): **audit-trail noise** on aggregator-derived writes (bookkeeping-heavy `field_changed`, `system`/`cf` attribution — filter before `audit_events` is consumed); **`functions lint`** can't catch broken vendor imports (`node --check` is syntax-only); reconciliation sweep for a dispatch landing before its job; worker/machine LWW client-clock tiebreak; enum guard on machine state/direction.
+
+### Operational State (delta from Session 16)
+
+| Item | Status |
+|---|---|
+| Stage E aggregators | ✅ **LIVE on staging**, behaviourally verified (T-CV in soma-internal) |
+| `deploy-functions` via Actions | ✅ one-click; full first-deploy IAM/API runbook in `deploy-functions.mjs` |
+| Prod project | ⏳ not created — same runbook (now documented) applies |
+| Dispatched jobs re-accumulating in picker | ✅ resolved once a real dispatch flows (the Edit-tab manual flip retires as stopgap) |
+
+### Next
+
+Handler form hardening (Zod-at-boundary / 2σ / CF cross-doc validation) · the audit-noise + lint fast-follows above · shared `firestore-store` extraction (Live + Edit) · prod project stand-up when ready (runbook is one-shot).
+
+*Session 17 documented 16 June 2026 by Aurelius (Claude Code).*
