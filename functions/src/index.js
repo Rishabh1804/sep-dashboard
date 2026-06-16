@@ -1,25 +1,41 @@
-// Cloud Functions — Phase 2 Stage B SKELETON.
+// Cloud Functions — Phase 2 Stage E.
 //
-// NOT DEPLOYED. This package is scaffolding for Track 2 (needs a live Firebase
-// project). It is deliberately not part of the root web app's install / build /
-// CI gate. The load-bearing *logic* is pure and lives + is unit-tested in the
-// web app at src/shared/validation/cross-doc.js; these wrappers are thin
-// Firestore-trigger / callable shells around it. See CLOUD_FUNCTION_HOOKS.md.
+// The load-bearing *logic* is pure and lives + is unit-tested in the web app at
+// src/shared/validation/cross-doc.js; these wrappers are thin Firestore-trigger
+// / callable shells around it. See CLOUD_FUNCTION_HOOKS.md + EVENT_SOURCING.md.
 //
-// Track 2 packaging note: deploy bundles only this functions/ dir, so the
-// shared logic must be vendored in (a prebuild copy step or an npm workspace).
-// Until then the import below points at the web source for reference.
+// DEPLOY: firebase deploy bundles ONLY this functions/ dir, so the shared pure
+// logic is VENDORED in (functions/vendor/cross-doc.js) by functions/vendor.mjs,
+// run from firebase.json's predeploy. vendor/ is gitignored and generated — never
+// committed — so the deployed artifact is always a fresh copy of the source and
+// there is no second copy to drift. Edit the source, never the vendor copy.
+// (`pnpm --prefix functions lint` regenerates it then node --checks this entry.)
+//
+// IAM: the deploy path is gated — see scripts/deploy-functions.mjs for the exact
+// roles the staging service account needs (deploy-rules' grant is NOT enough).
 
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { setGlobalOptions, logger } from 'firebase-functions/v2';
+import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
-// Pure logic shared with the web app + unit tests (vendored at deploy — see note).
+// Pure logic shared with the web app + unit tests (vendored at deploy).
 import {
   validateProductionEntry, validateDftMeasurement, validateDispatchEvent,
-  applyRouteEvent, diffKeys,
-} from '../../src/shared/validation/cross-doc.js';
+  applyRouteEvent, applyDispatchEvent, applyShiftEvent, applyStateTransition,
+  shouldApplyEvent, diffKeys,
+} from '../vendor/cross-doc.js';
+
+// Staging lives in asia-south1 (Session 14); keep the functions co-located with
+// Firestore to cut round-trip latency on the aggregator transactions.
+setGlobalOptions({ region: 'asia-south1' });
+
+// Always-warm aggregators (CONFLICT_RESOLUTION.md + CLOUD_FUNCTION_HOOKS.md lock
+// min-instances=1 for prod's "data backbone" — cold start is 1-10s, and a
+// shift-open's first event shouldn't eat that. Staging defaults to 0 to stay in
+// the free tier; prod sets AGG_MIN_INSTANCES=1.
+const AGG_MIN_INSTANCES = Math.max(0, Math.trunc(Number(process.env.AGG_MIN_INSTANCES)) || 0);
 
 initializeApp();
 const db = () => getFirestore();
@@ -86,23 +102,89 @@ export const createDispatchEvent = onCall(async (req) => {
   return { id: ref.id };
 });
 
-// --- eventSourcingAggregator: derive Job.current_status from route_history ---
-export const aggregateRouteHistory = onDocumentWritten(
-  'jobs/{jid}/route_history/{eid}',
+// --- eventSourcingAggregator (Stage E): derive parent doc state from append-
+// only event streams. Each aggregator is idempotent (shouldApplyEvent guards
+// duplicate triggers + out-of-order replay) and transactional (single writer
+// per parent doc, no conflict surface). EVENT_SOURCING.md.
+
+/**
+ * Fold one event into its parent doc inside a transaction.
+ * - requireParent: jobs are seeded ground truth — never fabricate one from a
+ *   stray dispatch/route event (merge would write a status-only orphan). Worker
+ *   and Machine derived parents, by contrast, are *meant* to be created by their
+ *   first event, so they merge-create.
+ */
+async function foldEvent(parentRef, sub, derive, eventData, eventId, { requireParent = false } = {}) {
+  await db().runTransaction(async (tx) => {
+    const snap = await tx.get(parentRef);
+    if (!snap.exists && requireParent) {
+      // The event references a parent that isn't in Firestore yet (e.g. a
+      // dispatch whose job-receipt write is still in the offline queue).
+      // onDocumentCreated fires once and isn't re-driven, so a silent return
+      // would strand the fold forever — log it so it's greppable and a
+      // reconciliation sweep can pick it up. (Sweep is a tracked follow-up.)
+      logger.warn('aggregator: parent missing, fold skipped', { parent: parentRef.path, sub, eventId });
+      return;
+    }
+    const parent = snap.exists ? snap.data() : {};
+    const decision = shouldApplyEvent(parent, eventData, eventId, sub);
+    if (!decision.apply) return;
+    tx.set(parentRef, {
+      ...derive(parent, eventData),
+      ...decision.bookkeeping,
+      // Mark a derived parent the aggregator itself created (worker/machine
+      // status projections) so the dashboard can tell it apart from a seeded
+      // master record that carries name/roles/area.
+      ...(snap.exists ? {} : { __derived: true }),
+      last_updated_at: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+}
+
+// Dispatch (the named Stage E gap): handler writes top-level dispatch_events but
+// never flips jobs/{job_id}.current_status. This closes it.
+export const dispatchStatusAggregator = onDocumentCreated(
+  { document: 'dispatch_events/{id}', minInstances: AGG_MIN_INSTANCES },
   async (event) => {
-    const ev = event.data?.after?.data();
-    if (!ev) return;
-    const jobRef = db().doc(`jobs/${event.params.jid}`);
-    await db().runTransaction(async (tx) => {
-      const parent = await tx.get(jobRef);
-      if (!parent.exists) return;
-      const job = parent.data();
-      // Idempotency: skip events already folded in (SCHEMA last_applied_event_id).
-      if ((job.last_applied_event_id_routeHistory || '') >= event.params.eid) return;
-      tx.update(jobRef, {
-        ...applyRouteEvent(job, ev),
-        last_applied_event_id_routeHistory: event.params.eid,
-      });
-    });
+    const data = event.data?.data();
+    if (!data?.job_id) return;
+    await foldEvent(db().doc(`jobs/${data.job_id}`), 'dispatch',
+      applyDispatchEvent, data, event.params.id, { requireParent: true });
+  },
+);
+
+// Worker.current_status from the shift stream (check-in/out events).
+export const workerShiftAggregator = onDocumentCreated(
+  { document: 'workers/{wid}/shifts/{id}', minInstances: AGG_MIN_INSTANCES },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+    await foldEvent(db().doc(`workers/${event.params.wid}`), 'shifts',
+      applyShiftEvent, data, event.params.id);
+  },
+);
+
+// Machine.current_status from the state-transition stream.
+export const machineStateAggregator = onDocumentCreated(
+  { document: 'machines/{mid}/state_transitions/{id}', minInstances: AGG_MIN_INSTANCES },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+    await foldEvent(db().doc(`machines/${event.params.mid}`), 'stateTransitions',
+      applyStateTransition, data, event.params.id);
+  },
+);
+
+// Route-history aggregator (kept from the skeleton): derives status from the
+// jobs/{jid}/route_history subcollection for the route-based lifecycle. The
+// handler doesn't write route_history today, but the Inspector role-app + the
+// dashboard route editor will — so the path stays live.
+export const routeHistoryAggregator = onDocumentCreated(
+  { document: 'jobs/{jid}/route_history/{id}', minInstances: AGG_MIN_INSTANCES },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+    await foldEvent(db().doc(`jobs/${event.params.jid}`), 'routeHistory',
+      applyRouteEvent, data, event.params.id, { requireParent: true });
   },
 );

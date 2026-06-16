@@ -1,14 +1,16 @@
 {
   "name": "sep-dashboard-functions",
-  "version": "0.0.0-skeleton",
+  "version": "0.1.0-stage-e",
   "private": true,
-  "description": "Cloud Functions for SEP Dashboard Phase 2 (Stage B SKELETON — not yet deployed). Separate package: NOT installed by the root web app, NOT exercised by root CI. Track 2 wires deploy + emulator.",
+  "description": "Cloud Functions for SEP Dashboard Phase 2 (Stage E). Separate package: NOT installed by the root web app, NOT exercised by root CI. The pure trigger logic lives + is unit-tested in the web app (src/shared/validation/cross-doc.js); vendor.mjs copies it in at predeploy.",
   "type": "module",
   "main": "src/index.js",
   "engines": { "node": "20" },
   "scripts": {
-    "lint": "echo 'functions lint — Track 2'",
-    "deploy": "echo 'firebase deploy --only functions — Track 2 (needs live project)'"
+    "vendor": "node vendor.mjs",
+    "lint": "node vendor.mjs && node --check src/index.js",
+    "test": "echo 'functions pure logic is unit-tested in root Jest (tests/unit/derive.test.js + cross-doc.test.js); emulator duplicate-trigger test is the Track-2 deploy follow-up'",
+    "deploy": "node ../scripts/deploy-functions.mjs --project sep-dashboard-staging"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",

@@ -2,6 +2,11 @@
   "firestore": {
     "rules": "docs/reference/FIRESTORE_RULES.ref.txt"
   },
+  "functions": {
+    "source": "functions",
+    "codebase": "default",
+    "predeploy": ["node functions/vendor.mjs"]
+  },
   "emulators": {
     "firestore": { "port": 8080 },
     "ui": { "enabled": false },
