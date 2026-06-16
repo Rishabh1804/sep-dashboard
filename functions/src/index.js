@@ -35,7 +35,7 @@ setGlobalOptions({ region: 'asia-south1' });
 // min-instances=1 for prod's "data backbone" — cold start is 1-10s, and a
 // shift-open's first event shouldn't eat that. Staging defaults to 0 to stay in
 // the free tier; prod sets AGG_MIN_INSTANCES=1.
-const AGG_MIN_INSTANCES = Number(process.env.AGG_MIN_INSTANCES || 0);
+const AGG_MIN_INSTANCES = Math.max(0, Math.trunc(Number(process.env.AGG_MIN_INSTANCES)) || 0);
 
 initializeApp();
 const db = () => getFirestore();
