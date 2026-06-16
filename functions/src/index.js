@@ -25,7 +25,7 @@ import {
   validateProductionEntry, validateDftMeasurement, validateDispatchEvent,
   applyRouteEvent, applyDispatchEvent, applyShiftEvent, applyStateTransition,
   shouldApplyEvent, diffKeys,
-} from './vendor/cross-doc.js';
+} from '../vendor/cross-doc.js';
 
 // Staging lives in asia-south1 (Session 14); keep the functions co-located with
 // Firestore to cut round-trip latency on the aggregator transactions.
