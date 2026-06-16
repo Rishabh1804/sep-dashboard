@@ -16,6 +16,7 @@
     "test:report": "playwright show-report",
     "deploy:rules:staging": "node scripts/deploy-rules.mjs --project sep-dashboard-staging",
     "deploy:functions:staging": "node scripts/deploy-functions.mjs --project sep-dashboard-staging",
+    "verify:aggregator:staging": "node scripts/verify-aggregator-staging.mjs",
     "seed:staging": "node scripts/seed-staging.mjs",
     "mint:token": "node scripts/mint-token.mjs"
   },
