@@ -59,14 +59,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up pnpm (root deps use pnpm; version from packageManager)
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            tests/rules/package-lock.json
-            package-lock.json
+          cache-dependency-path: tests/rules/package-lock.json
 
       - name: Set up Java (Firestore emulator runs on a JVM)
         uses: actions/setup-java@v4
@@ -93,12 +94,14 @@ jobs:
       # whose import graph includes root PROD deps (zod, via the Stage D
       # handler-writes gate). Node resolves those from the ROOT node_modules —
       # tests/rules/node_modules is not on that resolution path — so the root
-      # prod deps must be installed too. --omit=dev keeps it to firebase + zod.
-      # (Same cross-package import-graph trap class as the Session 17 vendored-
-      # functions finding: an isolated package importing root src/ inherits
-      # that src's dependency growth.)
+      # prod deps must be installed too. pnpm, NOT npm ci: the root lockfile is
+      # pnpm-lock.yaml (package-lock.json is blanket-gitignored with all *.json
+      # as business-data guard), matching the main CI's install. --prod keeps
+      # it to firebase + zod. (Same cross-package import-graph trap class as
+      # the Session 17 vendored-functions finding: an isolated package
+      # importing root src/ inherits that src's dependency growth.)
       - name: Install root prod deps (src/ import graph for parity tests)
-        run: npm ci --omit=dev
+        run: pnpm install --frozen-lockfile --prod
 
       - name: Run rules tests against the Firestore emulator
         run: >
