@@ -110,7 +110,7 @@ var DICT = {
   no: { hi: "\u0928\u0939\u0940\u0902", en: "No" },
   still_same: { hi: "\u0905\u092C \u092D\u0940 \u092F\u0939\u0940?", en: "Still this?" },
   stage_d_note: { hi: "\u092A\u0942\u0930\u0947 \u092B\u093C\u0940\u0932\u094D\u0921 \u0938\u094D\u091F\u0947\u091C D \u092E\u0947\u0902 \u0906\u090F\u0901\u0917\u0947", en: "Full fields land in Stage D" },
-  // Sanity / 2σ confirm (form.js)
+  // Sanity / σ-net confirm (form.js)
   unusual_title: { hi: "\u092F\u0939 \u0905\u0938\u093E\u092E\u093E\u0928\u094D\u092F \u0932\u0917\u0924\u093E \u0939\u0948", en: "This looks unusual" },
   unusual_ask: { hi: "\u0915\u094D\u092F\u093E \u092F\u0947 \u0928\u0902\u092C\u0930 \u0938\u0939\u0940 \u0939\u0948\u0902?", en: "Are these numbers correct?" },
   confirm_correct: { hi: "\u0939\u093E\u0901, \u0938\u0939\u0940 \u0939\u0948", en: "Yes, it's correct" },
@@ -566,4 +566,4 @@ export {
   itemsToPickerItems,
   jobsToPickerItems
 };
-//# sourceMappingURL=chunk-6KDPV3ND.js.map
+//# sourceMappingURL=chunk-OVCQVVID.js.map

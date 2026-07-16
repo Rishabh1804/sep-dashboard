@@ -125,7 +125,7 @@ export const DICT = {
   still_same:       { hi: 'अब भी यही?',            en: 'Still this?' },
   stage_d_note:     { hi: 'पूरे फ़ील्ड स्टेज D में आएँगे', en: 'Full fields land in Stage D' },
 
-  // Sanity / 2σ confirm (form.js)
+  // Sanity / σ-net confirm (form.js)
   unusual_title:    { hi: 'यह असामान्य लगता है',    en: 'This looks unusual' },
   unusual_ask:      { hi: 'क्या ये नंबर सही हैं?',   en: 'Are these numbers correct?' },
   confirm_correct:  { hi: 'हाँ, सही है',            en: "Yes, it's correct" },

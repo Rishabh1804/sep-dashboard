@@ -11,7 +11,7 @@ import {
   jobsToPickerItems,
   setCache,
   setTransport
-} from "./chunk-6KDPV3ND.js";
+} from "./chunk-OVCQVVID.js";
 import {
   BUILD,
   DEF_AREAS,
@@ -14772,6 +14772,9 @@ function recordToWrite(record2, ctx) {
   if (!mapper) throw new PermanentRejection(`unknown record type '${record2.type}'`);
   if (!ctx?.uid) throw new Error("not-signed-in");
   const w = mapper(record2.fields || {}, record2, ctx);
+  if (w.path.some((seg) => typeof seg !== "string" || seg === "")) {
+    throw new PermanentRejection("path: missing segment");
+  }
   const v = validateWrite(record2.type, w.data);
   if (!v.ok) throw new PermanentRejection(`schema: ${v.reason}`);
   return w;
@@ -14872,4 +14875,4 @@ function startPickerListeners({ db, fs, onChange }) {
 export {
   startFirebase
 };
-//# sourceMappingURL=firebase-boot-3CG2326Z.js.map
+//# sourceMappingURL=firebase-boot-RYVEXU7B.js.map

@@ -23,7 +23,7 @@ import {
   showModal,
   speak,
   t
-} from "./chunks/chunk-6KDPV3ND.js";
+} from "./chunks/chunk-OVCQVVID.js";
 import {
   APP_VERSION,
   DEF_AREAS,
@@ -408,7 +408,11 @@ var SANITY = {
     received_pcs: { hardMin: 0, hardMax: 1e6, softMax: 2e5, z: 3 }
   },
   dft: {
-    dft_micron: { hardMin: 0, hardMax: 50, softMin: 2, softMax: 30, z: 3 }
+    // No hardMax: exactly 50 µm is LEGAL in every other layer (rules <= 50,
+    // Zod .max(50), the form's dftRange rejects only > 50 before sanity even
+    // runs) — a hardMax:50 here (block on v >= 50) made the one legal boundary
+    // reading unenterable. softMax keeps the confirm prompt for high readings.
+    dft_micron: { hardMin: 0, softMin: 2, softMax: 30, z: 3 }
   },
   dispatch: {
     weight: { hardMin: 0, hardMax: 1e5, softMax: 2e4, z: 3 }
@@ -432,7 +436,7 @@ var SANITY = {
 function fieldVerdict(value, cfg, stats) {
   if (!cfg) return { level: "ok" };
   const v = Number(value);
-  if (value == null || value === "" || !Number.isFinite(v)) return { level: "ok" };
+  if (value == null || String(value).trim() === "" || !Number.isFinite(v)) return { level: "ok" };
   if (cfg.hardMax != null && v >= cfg.hardMax) return { level: "block", reason: `\u2265 ${cfg.hardMax}` };
   if (cfg.hardMin != null && v <= cfg.hardMin) return { level: "block", reason: `\u2264 ${cfg.hardMin}` };
   if (cfg.softMax != null && v > cfg.softMax) return { level: "confirm", reason: `> ${cfg.softMax}` };
@@ -451,7 +455,7 @@ function checkRecord(type, state = {}, baselines = {}) {
   const flags = [];
   for (const [key, cfg] of Object.entries(cfgs)) {
     const raw = state[key];
-    if (raw == null || raw === "") continue;
+    if (raw == null || String(raw).trim() === "") continue;
     const verdict = fieldVerdict(raw, cfg, baselines[key]);
     if (verdict.level !== "ok") flags.push({ key, value: Number(raw), ...verdict });
   }
@@ -463,7 +467,7 @@ function statFields(type) {
 }
 function deriveSanityState(type, state = {}) {
   if (type !== "production") return state;
-  if (state.quantity != null && state.quantity !== "") return state;
+  if (state.quantity != null && String(state.quantity).trim() !== "") return state;
   const rounds = Number(state.rounds);
   const roundSize = Number(state.round_size);
   if (rounds > 0 && roundSize > 0) return { ...state, quantity: rounds * roundSize };
@@ -511,6 +515,10 @@ async function renderForm(host, def, ctx = {}) {
     ctx.onBack?.();
   });
   const fieldApi = {};
+  const scheduleDraft = debounce(() => {
+    if (idbAvailable()) idbSet(DRAFT_PREFIX + def.id, { ...state }).catch(() => {
+    });
+  }, 200);
   for (const f of def.fields) {
     const wrap = document.createElement("div");
     wrap.className = "h-field";
@@ -588,10 +596,6 @@ async function renderForm(host, def, ctx = {}) {
       if (dv != null && dv !== "") fieldApi[f.key].setValue(dv);
     }
   }
-  const scheduleDraft = debounce(() => {
-    if (idbAvailable()) idbSet(DRAFT_PREFIX + def.id, { ...state }).catch(() => {
-    });
-  }, 200);
   await maybeResumeDraft(def, state, fieldApi);
   host.querySelector(".h-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -612,7 +616,12 @@ async function renderForm(host, def, ctx = {}) {
     const record = buildRecord(def, state, idempotencyKey);
     await enqueueWrite(record);
     await rememberLastVals(def, state);
-    await updateBaselines(def, state, baselines);
+    await updateBaselines(
+      def,
+      deriveSanityState(def.id, state),
+      baselines,
+      new Set(flags.map((f) => f.key))
+    );
     await pushRecent({
       type: def.id,
       idempotencyKey,
@@ -685,13 +694,14 @@ async function rememberLastVals(def, state) {
   await idbSet(LASTVALS_PREFIX + def.id, keep).catch(() => {
   });
 }
-async function updateBaselines(def, state, baselines) {
+async function updateBaselines(def, state, baselines, skipKeys = /* @__PURE__ */ new Set()) {
   if (!idbAvailable()) return;
   const next = { ...baselines };
   let touched = false;
   for (const key of statFields(def.id)) {
+    if (skipKeys.has(key)) continue;
     const v = state[key];
-    if (v == null || v === "" || !Number.isFinite(Number(v))) continue;
+    if (v == null || String(v).trim() === "" || !Number.isFinite(Number(v))) continue;
     next[key] = pushStat(next[key] || emptyStats(), Number(v));
     touched = true;
   }
@@ -883,7 +893,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-3CG2326Z.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-RYVEXU7B.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

@@ -39,7 +39,7 @@ export async function renderForm(host, def, ctx = {}) {
   const idempotencyKey = uuid();
   const state = { __idem: idempotencyKey };
   const lastVals = (idbAvailable() ? await idbGet(LASTVALS_PREFIX + def.id).catch(() => null) : null) || {};
-  // Rolling 2σ baseline for this form's numeric fields (Welford stats per key).
+  // Rolling σ baseline (default 3σ) for this form's numeric fields (Welford stats per key).
   const baselines = (idbAvailable() ? await idbGet(STATS_PREFIX + def.id).catch(() => null) : null) || {};
 
   host.innerHTML = `
@@ -62,6 +62,14 @@ export async function renderForm(host, def, ctx = {}) {
   host.querySelector('.h-cancel').addEventListener('click', () => { clearDraft(def.id); ctx.onBack?.(); });
 
   const fieldApi = {}; // key -> { setValue, getEl }
+
+  // Draft auto-save (defends against acid-splash screen-wake loss).
+  // Declared BEFORE the field loop: the picker setValue closure calls it, and
+  // the loop's lastVals pre-fill invokes that closure synchronously — a later
+  // declaration is a TDZ ReferenceError on any reopen with remembered pickers.
+  const scheduleDraft = debounce(() => {
+    if (idbAvailable()) idbSet(DRAFT_PREFIX + def.id, { ...state }).catch(() => {});
+  }, 200);
 
   for (const f of def.fields) {
     const wrap = document.createElement('div');
@@ -143,11 +151,6 @@ export async function renderForm(host, def, ctx = {}) {
     }
   }
 
-  // --- Draft auto-save (defends against acid-splash screen-wake loss) ---
-  const scheduleDraft = debounce(() => {
-    if (idbAvailable()) idbSet(DRAFT_PREFIX + def.id, { ...state }).catch(() => {});
-  }, 200);
-
   await maybeResumeDraft(def, state, fieldApi);
 
   // --- Submit ---
@@ -171,7 +174,13 @@ export async function renderForm(host, def, ctx = {}) {
     const record = buildRecord(def, state, idempotencyKey);
     await enqueueWrite(record);
     await rememberLastVals(def, state);
-    await updateBaselines(def, state, baselines);
+    // Fold the DERIVED state (same view checkRecord judged — production's
+    // rounds × round_size total lands under `quantity`, so the σ baseline
+    // matures in rounds-mode too), and skip fields the user just confirmed
+    // as unusual: folding a waved-through outlier inflates σ enough that the
+    // next identical fat-finger passes silently.
+    await updateBaselines(def, deriveSanityState(def.id, state), baselines,
+      new Set(flags.map((f) => f.key)));
     await pushRecent({
       type: def.id,
       idempotencyKey,
@@ -250,13 +259,16 @@ async function rememberLastVals(def, state) {
 
 // Fold this submission's numeric fields into the rolling Welford baseline so
 // the σ net sharpens over time. Runs only after a record is safely queued.
-async function updateBaselines(def, state, baselines) {
+// `skipKeys`: fields that raised a confirm flag this submission — excluded so
+// a confirmed outlier doesn't poison the very baseline it was flagged against.
+async function updateBaselines(def, state, baselines, skipKeys = new Set()) {
   if (!idbAvailable()) return;
   const next = { ...baselines };
   let touched = false;
   for (const key of statFields(def.id)) {
+    if (skipKeys.has(key)) continue;
     const v = state[key];
-    if (v == null || v === '' || !Number.isFinite(Number(v))) continue;
+    if (v == null || String(v).trim() === '' || !Number.isFinite(Number(v))) continue;
     next[key] = pushStat(next[key] || emptyStats(), Number(v));
     touched = true;
   }

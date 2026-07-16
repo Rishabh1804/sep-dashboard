@@ -1040,10 +1040,80 @@ handoff every prior CF was, so it's held as its own build rather than faked here
   emulator jar); unaffected by the diff (no `firestore.rules` change, parity
   confirmed). Run locally / in CI as usual.
 
+### Review Round 2 (pre-merge, 8-angle + adversarial verify)
+
+A second full review pass ran before the ready-flip (8 finder angles → 1-vote
+adversarial verify per candidate). **Six CONFIRMED findings, all folded:**
+
+- **TDZ crash (form.js):** the picker pre-fill loop invoked `scheduleDraft()`
+  before its `const` declaration — **any reopen of the production form after
+  one submit threw a ReferenceError mid-render** (job/part/machine/worker are
+  `remember:true`). Undetected because no e2e reopened a form. Declaration
+  hoisted above the loop; e2e TDZ-reopen regression added (seeds lastvals via
+  IndexedDB).
+- **σ-baseline fold gap (form.js):** `updateBaselines` folded raw state while
+  `checkRecord` judged the derived state — in rounds-mode production (the
+  register's native grain) the `quantity` baseline never accumulated, so the
+  rolling net could never activate for the derived total. Now folds
+  `deriveSanityState(...)`.
+- **Outlier pollution (form.js):** a confirmed-unusual value was folded into
+  the very baseline it was flagged against — one waved-through outlier
+  inflated σ enough that the next identical fat-finger passed silently.
+  Flagged fields now skip the fold.
+- **Path-segment queue wedge (transport.js):** the Zod gate validated only
+  `w.data`, never the path fields (`worker`/`item`/`machine`) — a stripped
+  record passed the gate, then `fs.doc()` threw an SDK error the flush loop
+  classifies TRANSIENT, wedging the queue forever. Path segments now asserted
+  non-empty strings → `PermanentRejection` → rejected-store. Unit-tested ×3.
+- **DFT 50 µm unenterable (sanity.js):** `hardMax: 50` blocked `v >= 50` while
+  every other layer (rules `<= 50`, Zod `.max(50)`, form `> 50`) accepts
+  exactly 50 — the one legal boundary reading forced falsification. hardMax
+  dropped (form validator owns the `> 50` bound; softMax 30 keeps the confirm).
+  N.B. a uniform `>`-for-`>=` operator change would have been WRONG: quantity's
+  cap mirrors an exclusive rules bound (`< 100000`).
+- **SW cross-cache wipe (sw.js, pre-existing since Stage A):** the dashboard
+  SW's activate deleted EVERY origin cache ≠ its own name — including the
+  handler PWA's (`sep-handler-*`), whose entry assets only repopulate on a
+  handler SW re-install. **Every dashboard cache bump silently broke handler
+  offline support on dual-install devices.** Cleanup now spares the
+  `sep-handler-` namespace.
+
+Also folded: whitespace-only quantity trap (trim-aware guards in
+`fieldVerdict`/`checkRecord`/`deriveSanityState` — `Number(' ')===0` hit
+hardMin blocks on a blank-looking field); raw-hex `--danger` fallback in
+handler.css (mismatched the token, broke dark mode if ever hit); stale "2σ"
+labels corrected to "σ (default 3σ)" across comments/test names.
+
+**Post-fold tests:** unit **257** (+6 regressions) · e2e **41** (+1 TDZ reopen)
+· build clean. dist chunk hashes rotated (handler-side only; verified no stale
+references; both SW cache names already bumped this PR).
+
+**Tracked fast-follows from this round (not folded — real but not blockers):**
+- **Unit-blind σ baselines** — production `quantity` pools VAT pcs with barrel
+  kg; stock forms pool all items into one distribution. Needs per-machine-group
+  / per-item baseline keys before the rolling net is trustworthy at n≥8.
+- **zod → zod/mini** — zod classic puts ~530 kB unminified (~80 kB gz) into the
+  handler's boot-critical `firebase-boot` chunk (the tracked 34 kB handler.js
+  number hides it); `zod/mini` measures ~19× smaller. Mechanical API rewrite.
+- **Schema single-sourcing** — `JobReceiptWrite` re-declares `JobSchema`'s
+  shape + hardcodes the status enum vs `JOB_STATUSES`; the station enum
+  re-spells `RULE_STATIONS`; the DFT 50 cap lives in 3 files; the production
+  qty derivation is mirrored in sanity.js vs transport.js. Hoist shared
+  fragments/constants; add a coupling test.
+- **Edit-tab writes bypass the gate** — admin edits skip both rules content
+  validation (`isAdmin()` short-circuit) and `validateWrite`; route
+  `buildEditPayload` output through the same schemas.
+- **rules-CI installs all prod deps** — the parity import graph needs only
+  zod; `--prod` drags the full Firebase SDK (~30-60 s/run).
+- **Submit-path serial IDB writes** — 3 bookkeeping awaits before the toast;
+  parallelize or fire feedback after enqueue.
+
 ### Next
 
-CF cross-doc validation (deploy-gated) · the Session-17 fast-follows (audit-noise
-filter on aggregator-derived writes, `functions lint` import-resolution gap) ·
-shared `firestore-store` extraction (Live + Edit) · prod project stand-up.
+CF cross-doc validation (deploy-gated) · the Round-2 fast-follows above
+(σ-baseline unit keys + zod/mini first) · the Session-17 fast-follows
+(audit-noise filter, `functions lint` gap) · shared `firestore-store`
+extraction (Live + Edit) · prod project stand-up.
 
-*Session 18 documented 16 July 2026 by Aurelius (Claude Code).*
+*Session 18 documented 16 July 2026 by Aurelius (Claude Code); Round-2 review
+folded same day.*

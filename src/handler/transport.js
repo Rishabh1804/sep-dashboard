@@ -216,6 +216,14 @@ export function recordToWrite(record, ctx) {
   if (!mapper) throw new PermanentRejection(`unknown record type '${record.type}'`);
   if (!ctx?.uid) throw new Error('not-signed-in');
   const w = mapper(record.fields || {}, record, ctx);
+  // Path-segment guard: the doc path carries picker fields the data schema
+  // never sees (worker / item / machine / job). A missing one would reach
+  // fs.doc() as `undefined`, whose SDK error is classified TRANSIENT by the
+  // flush loop — wedging the queue behind the poisoned record on every flush.
+  // Absence here is content-deterministic → permanent, like the schema gate.
+  if (w.path.some((seg) => typeof seg !== 'string' || seg === '')) {
+    throw new PermanentRejection('path: missing segment');
+  }
   // Zod gate (Stage D hardening): the mapped doc must satisfy its form-type
   // schema — the exact shape Firestore receives. A failure here is
   // content-deterministic (retrying the identical doc gets the identical

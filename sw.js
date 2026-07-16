@@ -5,7 +5,7 @@
 // alpha.2: dist/dashboard.js + shared chunk hashes changed (Track 2 Firebase
 // wiring). Without this bump, installed clients keep the cached old
 // dashboard.js whose imports point at chunk hashes that no longer exist.
-// alpha.6: handler form hardening (Zod write-boundary + 2σ sanity) → app.js
+// alpha.6: handler form hardening (Zod write-boundary + σ sanity net) → app.js
 //   (APP_VERSION/BUILD) changed, so both bundles' bytes shift.
 // alpha.5: Edit tab added + shared firebase-session.js memoised → dashboard.js
 // + shared chunk hashes changed again.
@@ -33,9 +33,16 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
+  // Cache Storage is ORIGIN-global, not SW-scope-bound: the handler PWA's
+  // cache (sep-handler-*) lives beside ours and its offline-first entry
+  // assets only repopulate on a handler SW re-install. Spare its namespace —
+  // deleting it here bricked handler offline support on dual-install devices
+  // every time the dashboard cache name bumped.
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))),
+      Promise.all(keys
+        .filter((k) => k !== CACHE_NAME && !k.startsWith('sep-handler-'))
+        .map((k) => caches.delete(k)))),
   );
   self.clients.claim();
 });

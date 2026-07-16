@@ -87,7 +87,7 @@ test.describe('handler PWA shell @smoke', () => {
     await expect(page.locator('.h-screen-title')).toBeVisible();
   });
 
-  test('an unusual quantity raises the 2σ sanity confirm before submitting', async ({ page }) => {
+  test('an unusual quantity raises the σ sanity confirm before submitting', async ({ page }) => {
     await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
     // Stock depletion: item picker seeds from real config (DEF_STOCK) so it
     // works offline, and quantity is a sanity-configured numeric field.
@@ -108,5 +108,34 @@ test.describe('handler PWA shell @smoke', () => {
     await modal.locator('button', { hasText: /सही|correct/i }).click();
     await expect(page.locator('.h-toast')).toContainText('✓');
     await expect(page.locator('.h-recent-row').first()).toBeVisible();
+  });
+  test('reopening a form with remembered picker values renders (TDZ regression)', async ({ page }) => {
+    await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
+    // App boot creates the sep-handler/kv store — wait for it before seeding.
+    await expect(page.locator('.h-tile[data-form="production"]')).toBeVisible();
+    // Seed lastvals the way a prior production submit would (machine + worker
+    // are remember:true, config-seeded pickers). Pre-fix, the pre-fill loop
+    // invoked the picker setValue closure -> scheduleDraft() before its const
+    // declaration: a TDZ ReferenceError aborted renderForm mid-loop and the
+    // production form died on every reopen after its first submit.
+    await page.evaluate(() => new Promise((resolve, reject) => {
+      const open = indexedDB.open('sep-handler');
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const db = open.result;
+        const tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put({ machine: 'vat_a1', worker: 'shyam_bera' }, 'lastvals:production');
+        tx.oncomplete = () => resolve(null);
+        tx.onerror = () => reject(tx.error);
+      };
+    }));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('.h-tile[data-form="production"]').click();
+    // The form must fully render: title, the prefilled machine field with its
+    // hint, and the submit button (wired after the field loop completes).
+    await expect(page.locator('.h-screen-title')).toBeVisible();
+    await expect(page.locator('.h-field[data-key="machine"].h-prefilled')).toBeVisible();
+    await expect(page.locator('.h-field[data-key="machine"] .h-chooser-val')).toContainText('VAT A1');
+    await expect(page.locator('.h-submit')).toBeVisible();
   });
 });

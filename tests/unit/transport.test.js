@@ -240,3 +240,24 @@ describe('recordToWrite() — Zod gate', () => {
       .toThrow(PermanentRejection);
   });
 });
+
+describe('path-segment guard (review-pass regression)', () => {
+  // The data schemas never see picker fields that live only in the doc PATH
+  // (worker / item / machine). A missing one must be a PermanentRejection —
+  // otherwise fs.doc(db, ...path) throws an SDK error the flush loop
+  // classifies as transient, wedging the queue behind the poisoned record.
+  test('check_in without worker is permanently rejected, not queued forever', () => {
+    expect(() => recordToWrite(rec('check_in', { direction: 'in', slot: 'regular' }), CTX))
+      .toThrow(PermanentRejection);
+    expect(() => recordToWrite(rec('check_in', { direction: 'in', slot: 'regular' }), CTX))
+      .toThrow(/path/);
+  });
+  test('stock_deplete without item is permanently rejected', () => {
+    expect(() => recordToWrite(rec('stock_deplete', { quantity: 5 }), CTX))
+      .toThrow(PermanentRejection);
+  });
+  test('machine_state without machine is permanently rejected', () => {
+    expect(() => recordToWrite(rec('machine_state', { state: 'down' }), CTX))
+      .toThrow(PermanentRejection);
+  });
+});

@@ -47,8 +47,8 @@ export function zScore(stats, x) {
   return (Number(x) - stats.mean) / sd;
 }
 
-// Minimum history before the rolling 2σ net activates — below this the floor
-// distribution is too thin to trust; declared bounds carry the load.
+// Minimum history before the rolling σ net (default 3σ) activates — below this
+// the floor distribution is too thin to trust; declared bounds carry the load.
 export const MIN_HISTORY = 8;
 
 // Per-form numeric-field plausibility. hard = impossible (block); soft =
@@ -66,7 +66,11 @@ export const SANITY = {
     received_pcs: { hardMin: 0, hardMax: 1000000, softMax: 200000, z: 3 },
   },
   dft: {
-    dft_micron: { hardMin: 0, hardMax: 50, softMin: 2, softMax: 30, z: 3 },
+    // No hardMax: exactly 50 µm is LEGAL in every other layer (rules <= 50,
+    // Zod .max(50), the form's dftRange rejects only > 50 before sanity even
+    // runs) — a hardMax:50 here (block on v >= 50) made the one legal boundary
+    // reading unenterable. softMax keeps the confirm prompt for high readings.
+    dft_micron: { hardMin: 0, softMin: 2, softMax: 30, z: 3 },
   },
   dispatch: {
     weight: { hardMin: 0, hardMax: 100000, softMax: 20000, z: 3 },
@@ -94,7 +98,10 @@ export const SANITY = {
 export function fieldVerdict(value, cfg, stats) {
   if (!cfg) return { level: 'ok' };
   const v = Number(value);
-  if (value == null || value === '' || !Number.isFinite(v)) return { level: 'ok' };
+  // Trim-aware absent check: a whitespace-only string is "empty", not the
+  // number 0 (Number(' ') === 0 would otherwise hit hardMin blocks on a
+  // field that LOOKS blank — an invisible-character trap on touch keyboards).
+  if (value == null || String(value).trim() === '' || !Number.isFinite(v)) return { level: 'ok' };
 
   if (cfg.hardMax != null && v >= cfg.hardMax) return { level: 'block', reason: `≥ ${cfg.hardMax}` };
   if (cfg.hardMin != null && v <= cfg.hardMin) return { level: 'block', reason: `≤ ${cfg.hardMin}` };
@@ -123,7 +130,7 @@ export function checkRecord(type, state = {}, baselines = {}) {
   const flags = [];
   for (const [key, cfg] of Object.entries(cfgs)) {
     const raw = state[key];
-    if (raw == null || raw === '') continue;
+    if (raw == null || String(raw).trim() === '') continue; // trim-aware, matches fieldVerdict
     const verdict = fieldVerdict(raw, cfg, baselines[key]);
     if (verdict.level !== 'ok') flags.push({ key, value: Number(raw), ...verdict });
   }
@@ -145,7 +152,9 @@ export function statFields(type) {
 // Other form types (and production-with-explicit-total) pass through untouched.
 export function deriveSanityState(type, state = {}) {
   if (type !== 'production') return state;
-  if (state.quantity != null && state.quantity !== '') return state;
+  // Trim-aware: whitespace-only quantity is "not entered", so the rounds
+  // derivation still runs (matches validate()'s String(v).trim() emptiness).
+  if (state.quantity != null && String(state.quantity).trim() !== '') return state;
   const rounds = Number(state.rounds);
   const roundSize = Number(state.round_size);
   if (rounds > 0 && roundSize > 0) return { ...state, quantity: rounds * roundSize };

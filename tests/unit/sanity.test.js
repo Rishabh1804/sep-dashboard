@@ -1,4 +1,4 @@
-// Sanity / 2σ net — Welford stats + plausibility verdict + record check.
+// Sanity / σ-outlier net (default 3σ) — Welford stats + plausibility verdict + record check.
 
 import {
   emptyStats, pushStat, stdev, zScore, MIN_HISTORY,
@@ -69,7 +69,7 @@ describe('fieldVerdict', () => {
     expect(v.level).toBe('confirm');
   });
 
-  test('rolling 2σ net fires only once history matures', () => {
+  test('rolling σ net fires only once history matures', () => {
     // Build a tight distribution around 100.
     let s = emptyStats();
     for (let i = 0; i < MIN_HISTORY; i++) s = pushStat(s, 100 + (i % 2 === 0 ? 1 : -1));
@@ -144,5 +144,30 @@ describe('statFields mirrors the SANITY config', () => {
   });
   test('an unconfigured form has no stat fields', () => {
     expect(statFields('note')).toEqual([]);
+  });
+});
+
+// --- Review-pass regressions (Session 18, round 2) ---
+
+describe('boundary + whitespace regressions', () => {
+  test('DFT of exactly 50 µm is legal — confirm (high), never block', () => {
+    // Rules accept <= 50, Zod .max(50) accepts 50, the form validator rejects
+    // only > 50; sanity must not be the one layer that refuses the boundary.
+    const flags = checkRecord('dft', { dft_micron: 50 });
+    expect(flags).toHaveLength(1);
+    expect(flags[0].level).toBe('confirm'); // > softMax 30 — unusual, not impossible
+  });
+
+  test('whitespace-only value is "absent", not the number 0', () => {
+    // Number(' ') === 0 — without trimming, a stray space in a blank-looking
+    // field would hit hardMin blocks the worker cannot see to fix.
+    expect(fieldVerdict(' ', { hardMin: 0, hardMax: 100 }).level).toBe('ok');
+    expect(checkRecord('production', { quantity: ' ', rounds: 25, round_size: 18 })
+      .filter((f) => f.key === 'quantity' && f.value === 0)).toEqual([]);
+  });
+
+  test('whitespace-only quantity still derives rounds × round_size', () => {
+    const s = deriveSanityState('production', { quantity: ' ', rounds: 25, round_size: 18 });
+    expect(s.quantity).toBe(450);
   });
 });
