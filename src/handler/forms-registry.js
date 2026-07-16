@@ -9,7 +9,7 @@
 //      level_after of 0 is Shyam's "NIL" and feeds the viewer's alert).
 //   5. Note — power-cut / incident kinds + urgency (power-cut log).
 // Still deferred: Zod at the form boundary, the full pre-fill defense
-// bundle, 2σ sanity prompts, CF-mediated cross-doc validation.
+// bundle, σ sanity prompts (default 3σ), CF-mediated cross-doc validation.
 
 import { DEF_PERM, DEF_CW } from '../shared/config/workers.js';
 import { DEF_AREAS } from '../shared/config/areas.js';

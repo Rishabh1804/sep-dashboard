@@ -27,6 +27,7 @@
 import { DEF_AREAS } from '../shared/config/areas.js';
 import { DEF_STOCK } from '../shared/config/stock.js';
 import { BUILD } from '../shared/config/app.js';
+import { validateWrite } from '../shared/types/handler-writes.js';
 
 export class PermanentRejection extends Error {
   constructor(message) {
@@ -214,7 +215,26 @@ export function recordToWrite(record, ctx) {
   const mapper = MAPPERS[record.type];
   if (!mapper) throw new PermanentRejection(`unknown record type '${record.type}'`);
   if (!ctx?.uid) throw new Error('not-signed-in');
-  return mapper(record.fields || {}, record, ctx);
+  const w = mapper(record.fields || {}, record, ctx);
+  // Path-segment guard: the doc path carries picker fields the data schema
+  // never sees (worker / item / machine / job). A missing one would reach
+  // fs.doc() as `undefined`, whose SDK error is classified TRANSIENT by the
+  // flush loop — wedging the queue behind the poisoned record on every flush.
+  // Absence here is content-deterministic → permanent, like the schema gate.
+  if (w.path.some((seg) => typeof seg !== 'string' || seg === '')) {
+    throw new PermanentRejection('path: missing segment');
+  }
+  // Zod gate (Stage D hardening): the mapped doc must satisfy its form-type
+  // schema — the exact shape Firestore receives. A failure here is
+  // content-deterministic (retrying the identical doc gets the identical
+  // verdict), so it is a PermanentRejection, parked in the rejected-store
+  // rather than retried against the rules forever. The mappers above still
+  // throw their own domain rejections first (station whitelist, qty
+  // derivation); this is the backstop that also guards the enums the rules
+  // leave unchecked (dispatch / check-in / machine-state).
+  const v = validateWrite(record.type, w.data);
+  if (!v.ok) throw new PermanentRejection(`schema: ${v.reason}`);
+  return w;
 }
 
 // fs = the firebase/firestore module namespace (injected so this file

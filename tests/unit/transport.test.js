@@ -194,3 +194,70 @@ describe('subcollection + note writes', () => {
     expect(w.data.topic_refs).toEqual(['power_cut']);
   });
 });
+
+// --- Zod write-boundary gate (Stage D hardening) ---------------------------
+// recordToWrite validates the MAPPED doc against its form-type schema and
+// raises PermanentRejection on failure. These cases bypass the DOM validate
+// (a queued record replayed by a newer build, or a programmatic write): the
+// gate is the last deterministic line before Firestore, and the only content
+// guard for the enums the rules leave open (dispatch / check-in / machine).
+describe('recordToWrite() — Zod gate', () => {
+  test('check-in with a bad direction is a PermanentRejection (rules silent on it)', () => {
+    expect(() => recordToWrite(rec('check_in', { worker: 'w', direction: 'sideways' }), CTX))
+      .toThrow(PermanentRejection);
+  });
+
+  test('check-in with a bad OT slot is rejected', () => {
+    expect(() => recordToWrite(rec('check_in', { worker: 'w', direction: 'in', slot: 'lunch' }), CTX))
+      .toThrow(/schema: slot/);
+  });
+
+  test('a well-formed check-in still passes the gate', () => {
+    const w = recordToWrite(rec('check_in', { worker: 'w', direction: 'in', slot: 'morning_ot' }), CTX);
+    expect(w.path).toEqual(['workers', 'w', 'shifts', 'idem-1']);
+    expect(w.data.direction).toBe('in');
+    expect(w.data.slot).toBe('morning_ot');
+  });
+
+  test('machine-state with a bad state enum is rejected', () => {
+    expect(() => recordToWrite(rec('machine_state', { machine: 'vat_a1', state: 'exploded' }), CTX))
+      .toThrow(PermanentRejection);
+  });
+
+  test('dispatch with a negative weight is rejected', () => {
+    expect(() => recordToWrite(rec('dispatch', { job: 'sep-1', weight: -5 }), CTX))
+      .toThrow(PermanentRejection);
+  });
+
+  test('a DFT replay with an out-of-range micron is caught at the gate', () => {
+    // Bypasses the form-level dftRange check (queued by an older build).
+    expect(() => recordToWrite(rec('dft', { job: 'sep-1', dft_micron: 999, outcome: 'pass' }), CTX))
+      .toThrow(/schema: micron_value/);
+  });
+
+  test('an empty-body note is rejected (isValidNote summary > 0)', () => {
+    expect(() => recordToWrite(rec('note', { note_kind: 'machine', note_text: '   ' }), CTX))
+      .toThrow(PermanentRejection);
+  });
+});
+
+describe('path-segment guard (review-pass regression)', () => {
+  // The data schemas never see picker fields that live only in the doc PATH
+  // (worker / item / machine). A missing one must be a PermanentRejection —
+  // otherwise fs.doc(db, ...path) throws an SDK error the flush loop
+  // classifies as transient, wedging the queue behind the poisoned record.
+  test('check_in without worker is permanently rejected, not queued forever', () => {
+    expect(() => recordToWrite(rec('check_in', { direction: 'in', slot: 'regular' }), CTX))
+      .toThrow(PermanentRejection);
+    expect(() => recordToWrite(rec('check_in', { direction: 'in', slot: 'regular' }), CTX))
+      .toThrow(/path/);
+  });
+  test('stock_deplete without item is permanently rejected', () => {
+    expect(() => recordToWrite(rec('stock_deplete', { quantity: 5 }), CTX))
+      .toThrow(PermanentRejection);
+  });
+  test('machine_state without machine is permanently rejected', () => {
+    expect(() => recordToWrite(rec('machine_state', { state: 'down' }), CTX))
+      .toThrow(PermanentRejection);
+  });
+});

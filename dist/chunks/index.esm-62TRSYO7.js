@@ -22,11 +22,12 @@ import {
   onLog,
   registerVersion,
   setLogLevel
-} from "./chunk-VCDLSDOV.js";
+} from "./chunk-K47QRFWO.js";
+import "./chunk-UM27USL5.js";
 
 // node_modules/firebase/app/dist/esm/index.esm.js
 var name = "firebase";
-var version = "12.14.0";
+var version = "12.16.0";
 registerVersion(name, version, "app");
 export {
   FirebaseError,
@@ -73,4 +74,4 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 */
-//# sourceMappingURL=index.esm-OHGUEI4Y.js.map
+//# sourceMappingURL=index.esm-62TRSYO7.js.map

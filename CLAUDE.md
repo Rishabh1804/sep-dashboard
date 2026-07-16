@@ -981,3 +981,139 @@ The first-ever v2 Functions deploy walked through a long chain of **one-time GCP
 Handler form hardening (Zod-at-boundary / 2σ / CF cross-doc validation) · the audit-noise + lint fast-follows above · shared `firestore-store` extraction (Live + Edit) · prod project stand-up when ready (runbook is one-shot).
 
 *Session 17 documented 16 June 2026 by Aurelius (Claude Code).*
+
+---
+
+## Session 18: Handler Form Hardening — Zod Write-Boundary + σ-Sanity Net (16 July 2026)
+
+### What Shipped
+
+The first two legs of the long-standing **"handler form hardening"** next-build
+(named at Session 16 close, carried through 17): the **Zod write-boundary gate**
+and the **σ-outlier sanity net**. Both are 100% client-side, unit- + e2e-tested,
+no IAM/deploy gate — the honest single-session unit. The third leg (**CF-mediated
+cross-doc validation**) stays deploy-gated: the pure validators already live in
+`cross-doc.js`; wiring them into a *deployed* callable is the same Architect GCP
+handoff every prior CF was, so it's held as its own build rather than faked here.
+
+### Deliverables
+
+| Area | Detail |
+|---|---|
+| **Zod write-boundary** | `src/shared/types/handler-writes.js` — per-form schemas for the **mapped Firestore doc** (the exact shape that hits Firestore), one per record type. Each mirrors an `isValidX` predicate in `FIRESTORE_RULES.ref.txt`; the three the rules leave open (**dispatch** job_id, **check-in** direction/slot, **machine-state** state) get their *only* client-side content guard here. Enforced inside `transport.recordToWrite` → a schema miss is a `PermanentRejection`, so it parks in the reviewable rejected-store instead of retrying against the rules forever (rule denials are transient — they read mutable token/build state — so a malformed doc would otherwise wedge the queue). |
+| **σ-sanity net** | `src/handler/sanity.js` — pure Welford rolling stats (`{n,mean,m2}`, no history stored) + declared per-field plausibility bounds. `checkRecord` returns `block` (impossible) / `confirm` (unusual) / `ok`; `form.js` surfaces a confirm-step modal echoing the odd values before the record queues. Two nets: declared soft/hard bounds work on the first-ever entry; the rolling σ net (default 3σ, per-field `z`, activates at `MIN_HISTORY=8`) sharpens as entries accumulate. `deriveSanityState` folds production's rounds × round_size into a derived total so a fat-finger round_size still prompts. |
+| **i18n** | Four confirm-dialog keys (hi+en; completeness test green). |
+| **Version/cache** | `BUILD 2→3`, `APP_VERSION → 2.1.0-alpha.6`, both SW caches bumped (app.js feeds both bundles). |
+| **Tests** | Unit **181 → 251** (`handler-writes` 39 · `sanity` 25 · transport-gate 7). E2E **39 → 40** (unusual-quantity → confirm → proceed, on a config-seeded picker path). Build clean; handler bundle 28.4 → 33.6 kB (Zod + sanity). |
+
+### The Review Pass (workflow convention upheld)
+
+7-angle `/code-review` (xhigh) before leaving draft. Four findings, all folded:
+- **BUG (correctness):** `hardMin:0` on `level_after`/`cost` made `fieldVerdict`
+  block `v <= hardMin`, so **`level_after: 0` — Shyam's NIL stock-take, the
+  reorder-alert signal — could never be submitted.** Dropped `hardMin` on the
+  two zero-valid fields (negatives already caught by Zod `nonnegative` + the
+  form validate). Regression tests added.
+- **coverage:** production's *derived* total (rounds × round_size) went
+  unchecked — closed via `deriveSanityState` (the most-frequent form's real
+  fat-finger vector).
+- **cleanup:** dead in-place mutation of the baselines object removed; the
+  "2σ" label corrected to an honest "σ-outlier net, default 3σ" (matches the
+  per-field `z`), since the code defaults to 3σ to hold prompt-fatigue down.
+
+### Key properties
+
+- **No rules deploy required.** The gate is a client pre-flight; it only ever
+  *tightens* what the handler sends (rejecting garbage the rules would either
+  bounce transiently or, for the silent enums, accept). Every transport-parity
+  case in `tests/rules` stays schema-valid, so the rules suite can't regress.
+- **Honest offline story preserved.** A schema miss is `PermanentRejection` →
+  rejected-store (reviewable/requeue-able), never a silent drop; the σ net is
+  advisory (confirm), never a silent drop either.
+
+### Out of scope (honest deferral)
+
+- **CF-mediated cross-doc validation** (Production / DFT / Dispatch — worker-on-
+  shift, machine-not-down, route-valid, no-double-dispatch). Pure validators
+  exist in `cross-doc.js`; deploying them in a callable is the IAM-gated leg.
+- **Rules emulator suite** not runnable in this container (no firebase CLI /
+  emulator jar); unaffected by the diff (no `firestore.rules` change, parity
+  confirmed). Run locally / in CI as usual.
+
+### Review Round 2 (pre-merge, 8-angle + adversarial verify)
+
+A second full review pass ran before the ready-flip (8 finder angles → 1-vote
+adversarial verify per candidate). **Six CONFIRMED findings, all folded:**
+
+- **TDZ crash (form.js):** the picker pre-fill loop invoked `scheduleDraft()`
+  before its `const` declaration — **any reopen of the production form after
+  one submit threw a ReferenceError mid-render** (job/part/machine/worker are
+  `remember:true`). Undetected because no e2e reopened a form. Declaration
+  hoisted above the loop; e2e TDZ-reopen regression added (seeds lastvals via
+  IndexedDB).
+- **σ-baseline fold gap (form.js):** `updateBaselines` folded raw state while
+  `checkRecord` judged the derived state — in rounds-mode production (the
+  register's native grain) the `quantity` baseline never accumulated, so the
+  rolling net could never activate for the derived total. Now folds
+  `deriveSanityState(...)`.
+- **Outlier pollution (form.js):** a confirmed-unusual value was folded into
+  the very baseline it was flagged against — one waved-through outlier
+  inflated σ enough that the next identical fat-finger passed silently.
+  Flagged fields now skip the fold.
+- **Path-segment queue wedge (transport.js):** the Zod gate validated only
+  `w.data`, never the path fields (`worker`/`item`/`machine`) — a stripped
+  record passed the gate, then `fs.doc()` threw an SDK error the flush loop
+  classifies TRANSIENT, wedging the queue forever. Path segments now asserted
+  non-empty strings → `PermanentRejection` → rejected-store. Unit-tested ×3.
+- **DFT 50 µm unenterable (sanity.js):** `hardMax: 50` blocked `v >= 50` while
+  every other layer (rules `<= 50`, Zod `.max(50)`, form `> 50`) accepts
+  exactly 50 — the one legal boundary reading forced falsification. hardMax
+  dropped (form validator owns the `> 50` bound; softMax 30 keeps the confirm).
+  N.B. a uniform `>`-for-`>=` operator change would have been WRONG: quantity's
+  cap mirrors an exclusive rules bound (`< 100000`).
+- **SW cross-cache wipe (sw.js, pre-existing since Stage A):** the dashboard
+  SW's activate deleted EVERY origin cache ≠ its own name — including the
+  handler PWA's (`sep-handler-*`), whose entry assets only repopulate on a
+  handler SW re-install. **Every dashboard cache bump silently broke handler
+  offline support on dual-install devices.** Cleanup now spares the
+  `sep-handler-` namespace.
+
+Also folded: whitespace-only quantity trap (trim-aware guards in
+`fieldVerdict`/`checkRecord`/`deriveSanityState` — `Number(' ')===0` hit
+hardMin blocks on a blank-looking field); raw-hex `--danger` fallback in
+handler.css (mismatched the token, broke dark mode if ever hit); stale "2σ"
+labels corrected to "σ (default 3σ)" across comments/test names.
+
+**Post-fold tests:** unit **257** (+6 regressions) · e2e **41** (+1 TDZ reopen)
+· build clean. dist chunk hashes rotated (handler-side only; verified no stale
+references; both SW cache names already bumped this PR).
+
+**Tracked fast-follows from this round (not folded — real but not blockers):**
+- **Unit-blind σ baselines** — production `quantity` pools VAT pcs with barrel
+  kg; stock forms pool all items into one distribution. Needs per-machine-group
+  / per-item baseline keys before the rolling net is trustworthy at n≥8.
+- **zod → zod/mini** — zod classic puts ~530 kB unminified (~80 kB gz) into the
+  handler's boot-critical `firebase-boot` chunk (the tracked 34 kB handler.js
+  number hides it); `zod/mini` measures ~19× smaller. Mechanical API rewrite.
+- **Schema single-sourcing** — `JobReceiptWrite` re-declares `JobSchema`'s
+  shape + hardcodes the status enum vs `JOB_STATUSES`; the station enum
+  re-spells `RULE_STATIONS`; the DFT 50 cap lives in 3 files; the production
+  qty derivation is mirrored in sanity.js vs transport.js. Hoist shared
+  fragments/constants; add a coupling test.
+- **Edit-tab writes bypass the gate** — admin edits skip both rules content
+  validation (`isAdmin()` short-circuit) and `validateWrite`; route
+  `buildEditPayload` output through the same schemas.
+- **rules-CI installs all prod deps** — the parity import graph needs only
+  zod; `--prod` drags the full Firebase SDK (~30-60 s/run).
+- **Submit-path serial IDB writes** — 3 bookkeeping awaits before the toast;
+  parallelize or fire feedback after enqueue.
+
+### Next
+
+CF cross-doc validation (deploy-gated) · the Round-2 fast-follows above
+(σ-baseline unit keys + zod/mini first) · the Session-17 fast-follows
+(audit-noise filter, `functions lint` gap) · shared `firestore-store`
+extraction (Live + Edit) · prod project stand-up.
+
+*Session 18 documented 16 July 2026 by Aurelius (Claude Code); Round-2 review
+folded same day.*
