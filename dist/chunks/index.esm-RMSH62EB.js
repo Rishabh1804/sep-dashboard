@@ -1,5 +1,6 @@
 import {
   Component,
+  Deferred,
   ErrorFactory,
   FirebaseError,
   LogLevel,
@@ -28,9 +29,10 @@ import {
   querystring,
   querystringDecode,
   registerVersion
-} from "./chunk-VCDLSDOV.js";
+} from "./chunk-K47QRFWO.js";
+import "./chunk-UM27USL5.js";
 
-// node_modules/@firebase/auth/dist/esm/index-9d184c40.js
+// node_modules/@firebase/auth/dist/esm/index-d90d2ee5.js
 var FactorId = {
   /** Phone as second factor */
   PHONE: "phone",
@@ -1075,8 +1077,8 @@ async function _performApiRequest(auth, method, path, request, customErrorMap = 
       }
     }
     const query = querystring({
-      key: auth.config.apiKey,
-      ...params
+      ...params,
+      key: auth.config.apiKey
     }).slice(1);
     const headers = await auth._getAdditionalHeaders();
     headers[
@@ -1095,7 +1097,7 @@ async function _performApiRequest(auth, method, path, request, customErrorMap = 
       ...body
     };
     if (!isCloudflareWorker()) {
-      fetchArgs.referrerPolicy = "no-referrer";
+      fetchArgs.referrerPolicy = "strict-origin-when-cross-origin";
     }
     if (auth.emulatorConfig && isCloudWorkstation(auth.emulatorConfig.host)) {
       fetchArgs.credentials = "include";
@@ -3021,7 +3023,8 @@ function generateRandomAlphaNumericString(len) {
 }
 var RECAPTCHA_ENTERPRISE_VERIFIER_TYPE = "recaptcha-enterprise";
 var FAKE_TOKEN = "NO_RECAPTCHA";
-var RecaptchaEnterpriseVerifier = class {
+var RECAPTCHA_ENTERPRISE_ONLOAD_CALLBACK_NAME = "onFirebaseAuthREInstanceReady";
+var RecaptchaEnterpriseVerifier = class _RecaptchaEnterpriseVerifier {
   /**
    *
    * @param authExtern - The corresponding Firebase {@link Auth} instance.
@@ -3087,8 +3090,11 @@ var RecaptchaEnterpriseVerifier = class {
       return mockRecaptcha.execute("siteKey", { action: "verify" });
     }
     return new Promise((resolve, reject) => {
-      retrieveSiteKey(this.auth).then((siteKey) => {
-        if (!forceRefresh && isEnterprise(window.grecaptcha)) {
+      retrieveSiteKey(this.auth).then(async (siteKey) => {
+        if (!forceRefresh && isEnterprise(window.grecaptcha) && // If download has already been initiated, do not trigger another
+        // download, await the promise here.
+        _RecaptchaEnterpriseVerifier.scriptInjectionDeferred) {
+          await _RecaptchaEnterpriseVerifier.scriptInjectionDeferred.promise;
           retrieveRecaptchaToken(siteKey, resolve, reject);
         } else {
           if (typeof window === "undefined") {
@@ -3097,9 +3103,13 @@ var RecaptchaEnterpriseVerifier = class {
           }
           let url = _recaptchaEnterpriseScriptUrl();
           if (url.length !== 0) {
-            url += siteKey;
+            url += siteKey + `&onload=${RECAPTCHA_ENTERPRISE_ONLOAD_CALLBACK_NAME}`;
           }
-          _loadJS(url).then(() => {
+          _RecaptchaEnterpriseVerifier.scriptInjectionDeferred = new Deferred();
+          window[RECAPTCHA_ENTERPRISE_ONLOAD_CALLBACK_NAME] = () => {
+            _RecaptchaEnterpriseVerifier.scriptInjectionDeferred?.resolve();
+          };
+          _loadJS(url).then(() => _RecaptchaEnterpriseVerifier.scriptInjectionDeferred?.promise).then(() => {
             retrieveRecaptchaToken(siteKey, resolve, reject);
           }).catch((error) => {
             reject(error);
@@ -3111,6 +3121,7 @@ var RecaptchaEnterpriseVerifier = class {
     });
   }
 };
+RecaptchaEnterpriseVerifier.scriptInjectionDeferred = null;
 async function injectRecaptchaFields(auth, request, action, isCaptchaResp = false, isFakeToken = false) {
   const verifier = new RecaptchaEnterpriseVerifier(auth);
   let captchaResponse;
@@ -7937,7 +7948,7 @@ function _isEmptyString(input) {
   return typeof input === "undefined" || input?.length === 0;
 }
 var name = "@firebase/auth";
-var version = "1.13.2";
+var version = "1.13.3";
 var AuthInterop = class {
   constructor(auth) {
     this.auth = auth;
@@ -8228,7 +8239,7 @@ export {
 };
 /*! Bundled license information:
 
-@firebase/auth/dist/esm/index-9d184c40.js:
+@firebase/auth/dist/esm/index-d90d2ee5.js:
   (**
    * @license
    * Copyright 2021 Google LLC
@@ -8278,7 +8289,7 @@ export {
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm/index-9d184c40.js:
+@firebase/auth/dist/esm/index-d90d2ee5.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8392,7 +8403,7 @@ export {
    * limitations under the License.
    *)
 
-@firebase/auth/dist/esm/index-9d184c40.js:
+@firebase/auth/dist/esm/index-d90d2ee5.js:
   (**
    * @license
    * Copyright 2020 Google LLC
@@ -8442,4 +8453,4 @@ export {
    * limitations under the License.
    *)
 */
-//# sourceMappingURL=index.esm-VBHEN4HA.js.map
+//# sourceMappingURL=index.esm-RMSH62EB.js.map

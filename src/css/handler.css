@@ -303,6 +303,8 @@ html, body { background: var(--bg); }
 .h-modal-body ul { list-style: none; margin-top: var(--sp-8); }
 .h-modal-body li { padding: var(--sp-4) 0; color: var(--text-secondary); }
 .h-modal-actions { display: flex; gap: var(--sp-8); }
+.h-sanity-list li { display: flex; justify-content: space-between; gap: var(--sp-8); }
+.h-sanity-reason { color: var(--danger, #b45a37); font-family: var(--font-mono); font-size: var(--fs-xs); }
 
 /* Settings rows */
 .h-set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); padding: var(--sp-12) 0; border-bottom: 1px solid var(--border); }

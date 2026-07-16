@@ -12,7 +12,8 @@ import {
   APP_VERSION,
   DEF_AREAS,
   DEF_STOCK
-} from "./chunks/chunk-SUTEVBR2.js";
+} from "./chunks/chunk-IIVJ6OWL.js";
+import "./chunks/chunk-UM27USL5.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -2905,7 +2906,7 @@ function renderLive() {
 }
 async function boot() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-6HVZIBQB.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-RVEYXFX3.js");
     session = await bootFirebaseSession();
     if (!session) {
       bootState = "no-config";
@@ -3261,7 +3262,7 @@ function renderEdit() {
 }
 async function boot2() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-6HVZIBQB.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-RVEYXFX3.js");
     session2 = await bootFirebaseSession();
     if (!session2) {
       bootState2 = "no-config";

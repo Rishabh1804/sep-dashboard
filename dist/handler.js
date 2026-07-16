@@ -23,12 +23,13 @@ import {
   showModal,
   speak,
   t
-} from "./chunks/chunk-MKFO6Q76.js";
+} from "./chunks/chunk-6KDPV3ND.js";
 import {
   APP_VERSION,
   DEF_AREAS,
   DEF_STOCK
-} from "./chunks/chunk-SUTEVBR2.js";
+} from "./chunks/chunk-IIVJ6OWL.js";
+import "./chunks/chunk-UM27USL5.js";
 
 // src/handler/feedback.js
 var MUTE_KEY = "sep_handler_mute";
@@ -372,9 +373,107 @@ function openPicker({ titleKey, items, onPick }) {
   return close;
 }
 
+// src/handler/sanity.js
+function emptyStats() {
+  return { n: 0, mean: 0, m2: 0 };
+}
+function pushStat(stats, x) {
+  const s = stats && stats.n ? { ...stats } : emptyStats();
+  const v = Number(x);
+  if (!Number.isFinite(v)) return s;
+  s.n += 1;
+  const delta = v - s.mean;
+  s.mean += delta / s.n;
+  s.m2 += delta * (v - s.mean);
+  return s;
+}
+function stdev(stats) {
+  if (!stats || stats.n < 2) return 0;
+  return Math.sqrt(stats.m2 / (stats.n - 1));
+}
+function zScore(stats, x) {
+  const sd = stdev(stats);
+  if (!(sd > 0)) return 0;
+  return (Number(x) - stats.mean) / sd;
+}
+var MIN_HISTORY = 8;
+var SANITY = {
+  production: {
+    quantity: { hardMin: 0, hardMax: 1e5, softMax: 4e4, z: 3 },
+    rounds: { hardMin: 0, hardMax: 2e3, softMax: 500, z: 3 },
+    round_size: { hardMin: 0, hardMax: 5e3, softMax: 2e3, z: 3 }
+  },
+  job_receipt: {
+    weight: { hardMin: 0, hardMax: 1e5, softMax: 2e4, z: 3 },
+    received_pcs: { hardMin: 0, hardMax: 1e6, softMax: 2e5, z: 3 }
+  },
+  dft: {
+    dft_micron: { hardMin: 0, hardMax: 50, softMin: 2, softMax: 30, z: 3 }
+  },
+  dispatch: {
+    weight: { hardMin: 0, hardMax: 1e5, softMax: 2e4, z: 3 }
+  },
+  stock_refill: {
+    quantity: { hardMin: 0, hardMax: 1e5, softMax: 5e3, z: 3 },
+    // No hardMin: 0 is a legitimate cost (an unpriced/free receipt); the
+    // mapper only records unit_cost when cost > 0 anyway. A hardMin:0 here
+    // would block-then-refuse a 0, which is not an impossible value.
+    cost: { hardMax: 1e7, softMax: 1e6, z: 3 }
+  },
+  stock_deplete: {
+    quantity: { hardMin: 0, hardMax: 1e5, softMax: 5e3, z: 3 },
+    // No hardMin: level_after: 0 is Shyam's NIL stock-take — the reorder-alert
+    // signal, a VALID reading. Blocking v <= hardMin(0) would make NIL
+    // unenterable. Negatives are already caught by Zod (nonnegative) + the
+    // form's nonNegNumber validate.
+    level_after: { hardMax: 1e5, softMax: 2e4, z: 3 }
+  }
+};
+function fieldVerdict(value, cfg, stats) {
+  if (!cfg) return { level: "ok" };
+  const v = Number(value);
+  if (value == null || value === "" || !Number.isFinite(v)) return { level: "ok" };
+  if (cfg.hardMax != null && v >= cfg.hardMax) return { level: "block", reason: `\u2265 ${cfg.hardMax}` };
+  if (cfg.hardMin != null && v <= cfg.hardMin) return { level: "block", reason: `\u2264 ${cfg.hardMin}` };
+  if (cfg.softMax != null && v > cfg.softMax) return { level: "confirm", reason: `> ${cfg.softMax}` };
+  if (cfg.softMin != null && v < cfg.softMin) return { level: "confirm", reason: `< ${cfg.softMin}` };
+  if (stats && stats.n >= MIN_HISTORY) {
+    const z = zScore(stats, v);
+    if (Math.abs(z) >= (cfg.z ?? 3)) {
+      return { level: "confirm", reason: `${z > 0 ? "+" : ""}${z.toFixed(1)}\u03C3` };
+    }
+  }
+  return { level: "ok" };
+}
+function checkRecord(type, state = {}, baselines = {}) {
+  const cfgs = SANITY[type];
+  if (!cfgs) return [];
+  const flags = [];
+  for (const [key, cfg] of Object.entries(cfgs)) {
+    const raw = state[key];
+    if (raw == null || raw === "") continue;
+    const verdict = fieldVerdict(raw, cfg, baselines[key]);
+    if (verdict.level !== "ok") flags.push({ key, value: Number(raw), ...verdict });
+  }
+  const rank = { block: 0, confirm: 1 };
+  return flags.sort((a, b) => rank[a.level] - rank[b.level]);
+}
+function statFields(type) {
+  return Object.keys(SANITY[type] || {});
+}
+function deriveSanityState(type, state = {}) {
+  if (type !== "production") return state;
+  if (state.quantity != null && state.quantity !== "") return state;
+  const rounds = Number(state.rounds);
+  const roundSize = Number(state.round_size);
+  if (rounds > 0 && roundSize > 0) return { ...state, quantity: rounds * roundSize };
+  return state;
+}
+
 // src/handler/form.js
 var DRAFT_PREFIX = "draft:";
 var LASTVALS_PREFIX = "lastvals:";
+var STATS_PREFIX = "stats:";
 function uuid() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return "id-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
@@ -390,6 +489,7 @@ async function renderForm(host, def, ctx = {}) {
   const idempotencyKey = uuid();
   const state = { __idem: idempotencyKey };
   const lastVals = (idbAvailable() ? await idbGet(LASTVALS_PREFIX + def.id).catch(() => null) : null) || {};
+  const baselines = (idbAvailable() ? await idbGet(STATS_PREFIX + def.id).catch(() => null) : null) || {};
   host.innerHTML = `
     <div class="h-form-head">
       <button class="h-back" aria-label="${t("back")}">\u2190</button>
@@ -501,9 +601,18 @@ async function renderForm(host, def, ctx = {}) {
       firstBad.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
+    const flags = checkRecord(def.id, deriveSanityState(def.id, state), baselines);
+    if (flags.length) {
+      const proceed = await confirmSanity(def, flags);
+      if (!proceed) {
+        signalError(t("unusual_title"));
+        return;
+      }
+    }
     const record = buildRecord(def, state, idempotencyKey);
     await enqueueWrite(record);
     await rememberLastVals(def, state);
+    await updateBaselines(def, state, baselines);
     await pushRecent({
       type: def.id,
       idempotencyKey,
@@ -574,6 +683,39 @@ async function rememberLastVals(def, state) {
     if (f.remember && state[f.key] != null && state[f.key] !== "") keep[f.key] = state[f.key];
   }
   await idbSet(LASTVALS_PREFIX + def.id, keep).catch(() => {
+  });
+}
+async function updateBaselines(def, state, baselines) {
+  if (!idbAvailable()) return;
+  const next = { ...baselines };
+  let touched = false;
+  for (const key of statFields(def.id)) {
+    const v = state[key];
+    if (v == null || v === "" || !Number.isFinite(Number(v))) continue;
+    next[key] = pushStat(next[key] || emptyStats(), Number(v));
+    touched = true;
+  }
+  if (touched) await idbSet(STATS_PREFIX + def.id, next).catch(() => {
+  });
+}
+function confirmSanity(def, flags) {
+  const labelFor = (key) => t(def.fields.find((f) => f.key === key)?.labelKey || key);
+  const hasBlock = flags.some((f) => f.level === "block");
+  const rows = flags.map(
+    (f) => `<li><strong>${labelFor(f.key)}</strong>: ${f.value} <span class="h-sanity-reason">(${f.reason})</span></li>`
+  ).join("");
+  return new Promise((resolve) => {
+    const actions = [{ label: t("go_fix"), kind: "ghost", onClick: (close) => {
+      close();
+      resolve(false);
+    } }];
+    if (!hasBlock) {
+      actions.push({ label: t("confirm_correct"), kind: "ghost", onClick: (close) => {
+        close();
+        resolve(true);
+      } });
+    }
+    showModal({ title: t("unusual_title"), bodyHtml: `<div>${t("unusual_ask")}</div><ul class="h-sanity-list">${rows}</ul>`, actions });
   });
 }
 function clearDraft(type) {
@@ -741,7 +883,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-RRDY2CVR.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-3CG2326Z.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

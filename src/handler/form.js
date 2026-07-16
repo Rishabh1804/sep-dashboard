@@ -17,9 +17,11 @@ import { idbAvailable, idbGet, idbSet, idbDel } from './idb.js';
 import { confirmSaved, signalError } from './feedback.js';
 import { enqueueWrite, showModal } from './sync.js';
 import { pushRecent } from './recent.js';
+import { checkRecord, deriveSanityState, statFields, pushStat, emptyStats } from './sanity.js';
 
 const DRAFT_PREFIX = 'draft:';
 const LASTVALS_PREFIX = 'lastvals:';
+const STATS_PREFIX = 'stats:';
 
 function uuid() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -37,6 +39,8 @@ export async function renderForm(host, def, ctx = {}) {
   const idempotencyKey = uuid();
   const state = { __idem: idempotencyKey };
   const lastVals = (idbAvailable() ? await idbGet(LASTVALS_PREFIX + def.id).catch(() => null) : null) || {};
+  // Rolling 2σ baseline for this form's numeric fields (Welford stats per key).
+  const baselines = (idbAvailable() ? await idbGet(STATS_PREFIX + def.id).catch(() => null) : null) || {};
 
   host.innerHTML = `
     <div class="h-form-head">
@@ -152,9 +156,22 @@ export async function renderForm(host, def, ctx = {}) {
     const firstBad = validate(def, state, fieldsEl);
     if (firstBad) { signalError(t('required')); firstBad.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
 
+    // Sanity / σ net: an unusual (but not impossible) number gets a confirm
+    // step; an impossible one is refused outright. Advisory, never a silent
+    // drop — the Zod gate at transport is the deterministic backstop.
+    // Production's quantity may be entered as rounds × round_size (no explicit
+    // total); check the DERIVED total too so a fat-finger round_size that
+    // multiplies out of band still prompts (mirrors transport's derivation).
+    const flags = checkRecord(def.id, deriveSanityState(def.id, state), baselines);
+    if (flags.length) {
+      const proceed = await confirmSanity(def, flags);
+      if (!proceed) { signalError(t('unusual_title')); return; }
+    }
+
     const record = buildRecord(def, state, idempotencyKey);
     await enqueueWrite(record);
     await rememberLastVals(def, state);
+    await updateBaselines(def, state, baselines);
     await pushRecent({
       type: def.id,
       idempotencyKey,
@@ -229,6 +246,41 @@ async function rememberLastVals(def, state) {
     if (f.remember && state[f.key] != null && state[f.key] !== '') keep[f.key] = state[f.key];
   }
   await idbSet(LASTVALS_PREFIX + def.id, keep).catch(() => {});
+}
+
+// Fold this submission's numeric fields into the rolling Welford baseline so
+// the σ net sharpens over time. Runs only after a record is safely queued.
+async function updateBaselines(def, state, baselines) {
+  if (!idbAvailable()) return;
+  const next = { ...baselines };
+  let touched = false;
+  for (const key of statFields(def.id)) {
+    const v = state[key];
+    if (v == null || v === '' || !Number.isFinite(Number(v))) continue;
+    next[key] = pushStat(next[key] || emptyStats(), Number(v));
+    touched = true;
+  }
+  if (touched) await idbSet(STATS_PREFIX + def.id, next).catch(() => {});
+}
+
+// Confirm step for sanity flags. A 'confirm' flag (unusual) offers proceed;
+// a 'block' flag (impossible) offers only "go fix" — the value must change.
+// Resolves true to submit, false to return to the form.
+function confirmSanity(def, flags) {
+  const labelFor = (key) => t(def.fields.find((f) => f.key === key)?.labelKey || key);
+  const hasBlock = flags.some((f) => f.level === 'block');
+  const rows = flags.map((f) =>
+    `<li><strong>${labelFor(f.key)}</strong>: ${f.value} <span class="h-sanity-reason">(${f.reason})</span></li>`,
+  ).join('');
+  return new Promise((resolve) => {
+    const actions = [{ label: t('go_fix'), kind: 'ghost', onClick: (close) => { close(); resolve(false); } }];
+    if (!hasBlock) {
+      // Proceed is the non-default (ghost) button so a reflexive tap doesn't
+      // wave an unusual value straight through.
+      actions.push({ label: t('confirm_correct'), kind: 'ghost', onClick: (close) => { close(); resolve(true); } });
+    }
+    showModal({ title: t('unusual_title'), bodyHtml: `<div>${t('unusual_ask')}</div><ul class="h-sanity-list">${rows}</ul>`, actions });
+  });
 }
 
 function clearDraft(type) { if (idbAvailable()) idbDel(DRAFT_PREFIX + type).catch(() => {}); }

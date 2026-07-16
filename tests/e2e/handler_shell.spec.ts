@@ -86,4 +86,27 @@ test.describe('handler PWA shell @smoke', () => {
     // Still on the form screen (did not return home).
     await expect(page.locator('.h-screen-title')).toBeVisible();
   });
+
+  test('an unusual quantity raises the 2σ sanity confirm before submitting', async ({ page }) => {
+    await page.goto(HANDLER, { waitUntil: 'domcontentloaded' });
+    // Stock depletion: item picker seeds from real config (DEF_STOCK) so it
+    // works offline, and quantity is a sanity-configured numeric field.
+    await page.locator('.h-tile[data-form="stock_deplete"]').click();
+    await page.locator('.h-field[data-key="item"] .h-chooser').click();
+    await page.locator('.h-pcard').first().click();
+    // 8000 is above the soft ceiling (5000) but below the hard cap — a
+    // "confirm", not a "block": the modal must offer a proceed button.
+    await page.locator('.h-field[data-key="quantity"] .h-input').fill('8000');
+    await page.locator('.h-submit').click();
+
+    const modal = page.locator('.h-modal-overlay');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText(/असामान्य|unusual/i);
+    await expect(modal).toContainText('8000');
+
+    // Confirming it's correct lets the record through to the queue + toast.
+    await modal.locator('button', { hasText: /सही|correct/i }).click();
+    await expect(page.locator('.h-toast')).toContainText('✓');
+    await expect(page.locator('.h-recent-row').first()).toBeVisible();
+  });
 });
