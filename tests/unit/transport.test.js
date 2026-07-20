@@ -261,3 +261,17 @@ describe('path-segment guard (review-pass regression)', () => {
       .toThrow(PermanentRejection);
   });
 });
+
+describe('shared qty derivation (rule-bounds)', () => {
+  // A whitespace-only quantity used to be read as an explicit Number(' ')=0
+  // total and permanently rejected despite valid rounds. deriveTotalQty is
+  // trim-aware AND shared with the sanity net, so the judged number and the
+  // landed number come from one function.
+  test('whitespace quantity on a replayed record still derives rounds × round_size', () => {
+    const w = recordToWrite(rec('production', {
+      job: 'sep-1', machine: 'vat_a1', worker: 'w1',
+      quantity: ' ', rounds: 25, round_size: 6,
+    }), CTX);
+    expect(w.data.qty_pcs).toBe(150);
+  });
+});

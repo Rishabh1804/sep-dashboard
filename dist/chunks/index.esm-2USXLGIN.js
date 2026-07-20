@@ -24,7 +24,7 @@ import {
 } from "./chunk-K47QRFWO.js";
 import {
   __publicField
-} from "./chunk-UM27USL5.js";
+} from "./chunk-IFG75HHC.js";
 
 // node_modules/@firebase/webchannel-wrapper/dist/bloom-blob/esm/bloom_blob_es2018.js
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
@@ -28899,4 +28899,4 @@ re2js/build/index.esm.js:
    * limitations under the License.
    *)
 */
-//# sourceMappingURL=index.esm-DW4UTHLB.js.map
+//# sourceMappingURL=index.esm-2USXLGIN.js.map

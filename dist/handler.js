@@ -27,9 +27,13 @@ import {
 import {
   APP_VERSION,
   DEF_AREAS,
-  DEF_STOCK
-} from "./chunks/chunk-IIVJ6OWL.js";
-import "./chunks/chunk-UM27USL5.js";
+  DEF_STOCK,
+  DFT_MICRON_MAX,
+  PCS_MAX,
+  QTY_MAX,
+  deriveTotalQty
+} from "./chunks/chunk-274TEG2F.js";
+import "./chunks/chunk-IFG75HHC.js";
 
 // src/handler/feedback.js
 var MUTE_KEY = "sep_handler_mute";
@@ -162,7 +166,7 @@ var PICKERS = {
 };
 var posNumber = (v) => Number(v) > 0 ? null : "> 0";
 var nonNegNumber = (v) => Number(v) >= 0 ? null : "\u2265 0";
-var dftRange = (v) => Number(v) > 50 ? "0\u201350 \xB5m" : Number(v) > 0 ? null : "> 0";
+var dftRange = (v) => Number(v) > DFT_MICRON_MAX ? `0\u2013${DFT_MICRON_MAX} \xB5m` : Number(v) > 0 ? null : "> 0";
 var qtyUnlessRounds = (s) => !(Number(s.rounds) > 0 && Number(s.round_size) > 0);
 var kgUnlessPcs = (s) => !(Number(s.received_pcs) > 0);
 var FORMS = [
@@ -399,13 +403,13 @@ function zScore(stats, x) {
 var MIN_HISTORY = 8;
 var SANITY = {
   production: {
-    quantity: { hardMin: 0, hardMax: 1e5, softMax: 4e4, z: 3 },
+    quantity: { hardMin: 0, hardMax: QTY_MAX, softMax: 4e4, z: 3 },
     rounds: { hardMin: 0, hardMax: 2e3, softMax: 500, z: 3 },
     round_size: { hardMin: 0, hardMax: 5e3, softMax: 2e3, z: 3 }
   },
   job_receipt: {
-    weight: { hardMin: 0, hardMax: 1e5, softMax: 2e4, z: 3 },
-    received_pcs: { hardMin: 0, hardMax: 1e6, softMax: 2e5, z: 3 }
+    weight: { hardMin: 0, hardMax: QTY_MAX, softMax: 2e4, z: 3 },
+    received_pcs: { hardMin: 0, hardMax: PCS_MAX, softMax: 2e5, z: 3 }
   },
   dft: {
     // No hardMax: exactly 50 µm is LEGAL in every other layer (rules <= 50,
@@ -415,22 +419,22 @@ var SANITY = {
     dft_micron: { hardMin: 0, softMin: 2, softMax: 30, z: 3 }
   },
   dispatch: {
-    weight: { hardMin: 0, hardMax: 1e5, softMax: 2e4, z: 3 }
+    weight: { hardMin: 0, hardMax: QTY_MAX, softMax: 2e4, z: 3 }
   },
   stock_refill: {
-    quantity: { hardMin: 0, hardMax: 1e5, softMax: 5e3, z: 3 },
+    quantity: { hardMin: 0, hardMax: QTY_MAX, softMax: 5e3, z: 3 },
     // No hardMin: 0 is a legitimate cost (an unpriced/free receipt); the
     // mapper only records unit_cost when cost > 0 anyway. A hardMin:0 here
     // would block-then-refuse a 0, which is not an impossible value.
     cost: { hardMax: 1e7, softMax: 1e6, z: 3 }
   },
   stock_deplete: {
-    quantity: { hardMin: 0, hardMax: 1e5, softMax: 5e3, z: 3 },
+    quantity: { hardMin: 0, hardMax: QTY_MAX, softMax: 5e3, z: 3 },
     // No hardMin: level_after: 0 is Shyam's NIL stock-take — the reorder-alert
     // signal, a VALID reading. Blocking v <= hardMin(0) would make NIL
     // unenterable. Negatives are already caught by Zod (nonnegative) + the
     // form's nonNegNumber validate.
-    level_after: { hardMax: 1e5, softMax: 2e4, z: 3 }
+    level_after: { hardMax: QTY_MAX, softMax: 2e4, z: 3 }
   }
 };
 function fieldVerdict(value, cfg, stats) {
@@ -449,6 +453,15 @@ function fieldVerdict(value, cfg, stats) {
   }
   return { level: "ok" };
 }
+var SCOPES = {
+  production: (s) => (DEF_AREAS.find((a) => a.id === s.machine) || {}).group,
+  stock_refill: (s) => s.item,
+  stock_deplete: (s) => s.item
+};
+function statKey(type, field, state = {}) {
+  const scope = SCOPES[type]?.(state);
+  return scope ? `${field}@${scope}` : field;
+}
 function checkRecord(type, state = {}, baselines = {}) {
   const cfgs = SANITY[type];
   if (!cfgs) return [];
@@ -456,7 +469,7 @@ function checkRecord(type, state = {}, baselines = {}) {
   for (const [key, cfg] of Object.entries(cfgs)) {
     const raw = state[key];
     if (raw == null || String(raw).trim() === "") continue;
-    const verdict = fieldVerdict(raw, cfg, baselines[key]);
+    const verdict = fieldVerdict(raw, cfg, baselines[statKey(type, key, state)]);
     if (verdict.level !== "ok") flags.push({ key, value: Number(raw), ...verdict });
   }
   const rank = { block: 0, confirm: 1 };
@@ -467,11 +480,9 @@ function statFields(type) {
 }
 function deriveSanityState(type, state = {}) {
   if (type !== "production") return state;
-  if (state.quantity != null && String(state.quantity).trim() !== "") return state;
-  const rounds = Number(state.rounds);
-  const roundSize = Number(state.round_size);
-  if (rounds > 0 && roundSize > 0) return { ...state, quantity: rounds * roundSize };
-  return state;
+  const total = deriveTotalQty(state);
+  if (total === void 0 || Number(state.quantity) === total) return state;
+  return { ...state, quantity: total };
 }
 
 // src/handler/form.js
@@ -670,7 +681,7 @@ function clearError(wrap) {
 function buildRecord(def, state, idempotencyKey) {
   const fields = {};
   for (const f of def.fields) {
-    if (state[f.key] != null && state[f.key] !== "") {
+    if (state[f.key] != null && String(state[f.key]).trim() !== "") {
       fields[f.key] = f.kind === "number" ? Number(state[f.key]) : state[f.key];
       if (state[`${f.key}__label`]) fields[`${f.key}__label`] = state[`${f.key}__label`];
     }
@@ -702,7 +713,8 @@ async function updateBaselines(def, state, baselines, skipKeys = /* @__PURE__ */
     if (skipKeys.has(key)) continue;
     const v = state[key];
     if (v == null || String(v).trim() === "" || !Number.isFinite(Number(v))) continue;
-    next[key] = pushStat(next[key] || emptyStats(), Number(v));
+    const sk = statKey(def.id, key, state);
+    next[sk] = pushStat(next[sk] || emptyStats(), Number(v));
     touched = true;
   }
   if (touched) await idbSet(STATS_PREFIX + def.id, next).catch(() => {
@@ -893,7 +905,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-RYVEXU7B.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-ODMNCI3K.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

@@ -10,6 +10,7 @@
 
 import { z } from 'zod';
 import { JOB_STATUSES } from './job-status.js';
+import { QTY_MAX, PCS_MAX, JOB_ROUTES } from './rule-bounds.js';
 
 export const SCHEMA_VERSION = 2;
 
@@ -65,10 +66,10 @@ export const JobSchema = z.object({
   // Zod-green doc the rules reject means a partial import; the reverse means
   // garbage lands in Firestore. The rules emulator suite's importer-parity
   // test guards one direction; this guards the other.
-  received_kg: z.number().nonnegative().lt(100000),
-  received_pcs: z.number().nonnegative().lt(1000000).optional(),
+  received_kg: z.number().nonnegative().lt(QTY_MAX),
+  received_pcs: z.number().nonnegative().lt(PCS_MAX).optional(),
   client_tier_at_receipt: z.enum(['tier-1', 'tier-2', 'default']).optional(),
-  route: z.enum(['standard', 'rework-active', 'rework-completed']),
+  route: z.enum(JOB_ROUTES),
   current_status: z.enum(JOB_STATUSES),
 }).passthrough().refine(
   (j) => j.received_kg > 0 || (j.received_pcs ?? 0) > 0,

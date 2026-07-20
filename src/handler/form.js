@@ -17,7 +17,7 @@ import { idbAvailable, idbGet, idbSet, idbDel } from './idb.js';
 import { confirmSaved, signalError } from './feedback.js';
 import { enqueueWrite, showModal } from './sync.js';
 import { pushRecent } from './recent.js';
-import { checkRecord, deriveSanityState, statFields, pushStat, emptyStats } from './sanity.js';
+import { checkRecord, deriveSanityState, statFields, statKey, pushStat, emptyStats } from './sanity.js';
 
 const DRAFT_PREFIX = 'draft:';
 const LASTVALS_PREFIX = 'lastvals:';
@@ -231,7 +231,10 @@ function clearError(wrap) { wrap.classList.remove('h-invalid'); }
 function buildRecord(def, state, idempotencyKey) {
   const fields = {};
   for (const f of def.fields) {
-    if (state[f.key] != null && state[f.key] !== '') {
+    // Trim-aware: a whitespace-only entry is "left blank", not Number(' ')=0 —
+    // an invisible space would otherwise queue an explicit zero total that the
+    // transport permanently rejects despite valid rounds (round-2 trap class).
+    if (state[f.key] != null && String(state[f.key]).trim() !== '') {
       fields[f.key] = f.kind === 'number' ? Number(state[f.key]) : state[f.key];
       if (state[`${f.key}__label`]) fields[`${f.key}__label`] = state[`${f.key}__label`];
     }
@@ -261,6 +264,9 @@ async function rememberLastVals(def, state) {
 // the σ net sharpens over time. Runs only after a record is safely queued.
 // `skipKeys`: fields that raised a confirm flag this submission — excluded so
 // a confirmed outlier doesn't poison the very baseline it was flagged against.
+// Stats are stored under statKey (unit-scoped: production per machine-group,
+// stock forms per item) — the same key checkRecord reads, so a VAT pcs entry
+// never pollutes the barrel-kg distribution.
 async function updateBaselines(def, state, baselines, skipKeys = new Set()) {
   if (!idbAvailable()) return;
   const next = { ...baselines };
@@ -269,7 +275,8 @@ async function updateBaselines(def, state, baselines, skipKeys = new Set()) {
     if (skipKeys.has(key)) continue;
     const v = state[key];
     if (v == null || String(v).trim() === '' || !Number.isFinite(Number(v))) continue;
-    next[key] = pushStat(next[key] || emptyStats(), Number(v));
+    const sk = statKey(def.id, key, state);
+    next[sk] = pushStat(next[sk] || emptyStats(), Number(v));
     touched = true;
   }
   if (touched) await idbSet(STATS_PREFIX + def.id, next).catch(() => {});
