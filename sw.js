@@ -8,7 +8,8 @@
 // alpha.6: handler form hardening (Zod write-boundary + σ sanity net) → app.js
 //   (APP_VERSION/BUILD) changed, so both bundles' bytes shift.
 // alpha.7: rule-bounds single-sourcing + zod/mini (firebase-boot chunk
-//   553->43 kB) + unit-keyed sigma baselines + edit gate -> both bundles shift.
+//   553->8.9 kB; zod/mini+schemas in a 36 kB chunk shared by both bundles)
+//   + unit-keyed sigma baselines + edit gate -> both bundles shift.
 // alpha.5: Edit tab added + shared firebase-session.js memoised → dashboard.js
 // + shared chunk hashes changed again.
 const CACHE_NAME = 'sep-v2.1.0-alpha.7';

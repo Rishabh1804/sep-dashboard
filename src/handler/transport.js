@@ -225,6 +225,15 @@ export function recordToWrite(record, ctx) {
   if (w.path.some((seg) => typeof seg !== 'string' || seg === '')) {
     throw new PermanentRejection('path: missing segment');
   }
+  // Undefined-value guard: setDoc throws client-side on ANY undefined value —
+  // an error the flush loop classifies transient, wedging the queue (same
+  // class as the path guard). The mappers assign conditionally so this never
+  // fires today; it exists for the future mapper edit that assigns a
+  // maybe-undefined unconditionally. Shallow scan matches the mappers' shape
+  // (top-level assignments only).
+  for (const [k, v] of Object.entries(w.data)) {
+    if (v === undefined) throw new PermanentRejection(`undefined value at '${k}'`);
+  }
   // Zod gate (Stage D hardening): the mapped doc must satisfy its form-type
   // schema — the exact shape Firestore receives. A failure here is
   // content-deterministic (retrying the identical doc gets the identical

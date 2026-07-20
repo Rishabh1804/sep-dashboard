@@ -132,17 +132,27 @@ export function fieldVerdict(value, cfg, stats) {
 // Declared bounds stay unscoped — they encode physical impossibility, which
 // doesn't depend on which machine ran.
 const SCOPES = {
-  production: (s) => (DEF_AREAS.find((a) => a.id === s.machine) || {}).group,
+  // Pickling areas get their own distribution per group: same unit as their
+  // plating group (transport's qty choice follows group), but a different
+  // process with different typical volumes — pooling them would widen σ for
+  // both. DEF_AREAS marks pickling areas with dep:true.
+  production: (s) => {
+    const a = DEF_AREAS.find((x) => x.id === s.machine);
+    return a ? (a.dep ? `${a.group}-pickling` : a.group) : undefined;
+  },
   stock_refill: (s) => s.item,
   stock_deplete: (s) => s.item,
 };
 
-// The persisted-stats key for one field of one submission. Unscoped when the
-// form has no scope or the scoping field is unset (falls back to the plain
-// field key — old unscoped stats simply orphan and fresh scoped ones accrue).
+// The persisted-stats key for one field of one submission. Forms without a
+// scope declaration use the plain field key. Forms WITH one never fall back
+// to it: the plain key is where the pre-scoping mixed-unit stats live, so an
+// unresolved scope (unset machine, a renamed DEF_AREAS id) buckets under '?'
+// — fresh and harmless — instead of rejoining the polluted legacy pool.
 export function statKey(type, field, state = {}) {
-  const scope = SCOPES[type]?.(state);
-  return scope ? `${field}@${scope}` : field;
+  const scopeFn = SCOPES[type];
+  if (!scopeFn) return field;
+  return `${field}@${scopeFn(state) || '?'}`;
 }
 
 /**
@@ -158,7 +168,8 @@ export function checkRecord(type, state = {}, baselines = {}) {
   const flags = [];
   for (const [key, cfg] of Object.entries(cfgs)) {
     const raw = state[key];
-    if (raw == null || String(raw).trim() === '') continue; // trim-aware, matches fieldVerdict
+    // Absent/blank/non-numeric values are fieldVerdict's 'ok' — no pre-filter
+    // here, so the absent-policy has exactly one owner.
     const verdict = fieldVerdict(raw, cfg, baselines[statKey(type, key, state)]);
     if (verdict.level !== 'ok') flags.push({ key, value: Number(raw), ...verdict });
   }

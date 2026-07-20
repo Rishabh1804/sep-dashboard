@@ -8,8 +8,9 @@ import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
-  validateEditField
-} from "./chunks/chunk-5X7B76U3.js";
+  validateEditField,
+  validateEditedDoc
+} from "./chunks/chunk-R4IRYVMN.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -3197,6 +3198,12 @@ function buildEditPayload(input) {
   if (!diffs.length) return { ok: false, error: "no changes to save" };
   for (const d of diffs) {
     const v = validateEditField(type, d.key, d.after);
+    if (!v.ok) return { ok: false, error: v.reason };
+  }
+  {
+    const merged = { ...before };
+    for (const d of diffs) merged[d.key] = d.after;
+    const v = validateEditedDoc(type, merged, diffs.map((d) => d.key));
     if (!v.ok) return { ok: false, error: v.reason };
   }
   const after = {};

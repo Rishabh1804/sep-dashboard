@@ -1173,4 +1173,44 @@ filter, `functions lint` gap) · shared `firestore-store` extraction · prod
 stand-up · smaller Round-2 leftovers (rules-CI prod-deps trim, submit-path
 IDB serialization) · stale PRs #13/#14 rebase-or-close.
 
-*Session 19 documented 20 July 2026 by Aurelius (Claude Code).*
+### Review Pass (pre-ready-flip, 5-angle + fold)
+
+3 correctness + combined-cleanup + conventions finders (the heavy cleanup
+angles had their say in Round 2 — this PR is that cleanup). Folded:
+
+- **Edit gate cross-field gap** (2 finders): per-field validation passed
+  `qty_pcs: 0` even when it zeroed the doc's only quantity. Now: CROSS_CHECKS
+  (plain predicates, single-sourced) feed both the write schema's refines AND
+  `validateEditedDoc(merged, changedKeys)` — scoped to run only when the edit
+  touches an involved field, so unrelated corrections on legacy docs aren't
+  held hostage.
+- **Factor-pollution skip gap** (2 finders): a flagged DERIVED quantity
+  skipped the fold, but the causal rounds/round_size still folded — the
+  Round-2 pollution fix one level down. Flag on `quantity` now also skips the
+  factors; judged state hoisted to one local (`judged`) so check/fold can't
+  diverge.
+- **Scoping hardening** (2 finders): pickling areas now key their own
+  distributions (`vat-pickling` / `barrel-pickling`, via DEF_AREAS dep);
+  scoped forms never fall back to the legacy pooled key (unresolved scope →
+  `@?` bucket, not the polluted pre-scoping stats).
+- **dispatch.weight_kg upper bound** — rules are silent on dispatch, so the
+  schema is the only guard; it now carries `lt(QTY_MAX)`.
+- **undefined-value guard** in recordToWrite (setDoc throws on undefined →
+  transient-classified → queue wedge; now PermanentRejection) — generalises
+  the stock_refill refine's accidental old-shape protection.
+- **cross-doc coupling test** — cross-doc.js stays dependency-free (CF
+  vendoring), so a root Jest test tethers its DFT literals to rule-bounds;
+  restructuring the vendor layout is deferred to a deploy-verifiable session.
+- Smaller: `--font-mono` → `--ff-mono` (undefined token); stale sw.js size
+  comment; checkRecord's duplicate absent-guard removed (fieldVerdict is the
+  one owner); shared `issueReason` formatter.
+
+**Not folded (tracked):** deriving registry OPTS from the enums (needs a
+value→labelKey map; the coupling test pins ⊆ but not ⊇, so an enum ADDITION
+still needs a manual registry touch) · rules-CI prod-deps trim · whitespace-
+padded picker-id trim-vs-drop nuance.
+
+**Post-fold:** unit **279** · e2e **41** · build clean.
+
+*Session 19 documented 20 July 2026 by Aurelius (Claude Code); review pass
+folded same day.*

@@ -22,7 +22,7 @@
 // own `at` is a client millis (Firestore forbids serverTimestamp sentinels
 // inside array elements), injected here for testability.
 
-import { validateEditField } from '../shared/types/handler-writes.js';
+import { validateEditField, validateEditedDoc } from '../shared/types/handler-writes.js';
 import {
   JOB_ROUTES, DEPLETION_REASONS, DFT_OUTCOMES,
   NOTE_STATUSES, NOTE_PRIORITIES, CHECK_DIRECTIONS, CHECK_SLOTS,
@@ -152,8 +152,18 @@ export function buildEditPayload(input) {
   // the ONLY content guard on the edit path — without it a steward typo
   // (micron_value 500, a misspelled status) writes a doc the handler itself
   // could never produce, and downstream aggregators/digests consume it.
+  // Per-field first (clearest error attribution), then the merged doc for
+  // the cross-field refines (e.g. zeroing the only positive quantity).
+  // NOTE an invalid field refuses the WHOLE edit — all-or-nothing is the
+  // safe semantic for a correction surface; entered values stay in the modal.
   for (const d of diffs) {
     const v = validateEditField(type, d.key, d.after);
+    if (!v.ok) return { ok: false, error: v.reason };
+  }
+  {
+    const merged = { ...before };
+    for (const d of diffs) merged[d.key] = d.after;
+    const v = validateEditedDoc(type, merged, diffs.map((d) => d.key));
     if (!v.ok) return { ok: false, error: v.reason };
   }
 

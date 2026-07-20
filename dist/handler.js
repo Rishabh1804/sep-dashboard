@@ -454,13 +454,21 @@ function fieldVerdict(value, cfg, stats) {
   return { level: "ok" };
 }
 var SCOPES = {
-  production: (s) => (DEF_AREAS.find((a) => a.id === s.machine) || {}).group,
+  // Pickling areas get their own distribution per group: same unit as their
+  // plating group (transport's qty choice follows group), but a different
+  // process with different typical volumes — pooling them would widen σ for
+  // both. DEF_AREAS marks pickling areas with dep:true.
+  production: (s) => {
+    const a = DEF_AREAS.find((x) => x.id === s.machine);
+    return a ? a.dep ? `${a.group}-pickling` : a.group : void 0;
+  },
   stock_refill: (s) => s.item,
   stock_deplete: (s) => s.item
 };
 function statKey(type, field, state = {}) {
-  const scope = SCOPES[type]?.(state);
-  return scope ? `${field}@${scope}` : field;
+  const scopeFn = SCOPES[type];
+  if (!scopeFn) return field;
+  return `${field}@${scopeFn(state) || "?"}`;
 }
 function checkRecord(type, state = {}, baselines = {}) {
   const cfgs = SANITY[type];
@@ -468,7 +476,6 @@ function checkRecord(type, state = {}, baselines = {}) {
   const flags = [];
   for (const [key, cfg] of Object.entries(cfgs)) {
     const raw = state[key];
-    if (raw == null || String(raw).trim() === "") continue;
     const verdict = fieldVerdict(raw, cfg, baselines[statKey(type, key, state)]);
     if (verdict.level !== "ok") flags.push({ key, value: Number(raw), ...verdict });
   }
@@ -616,7 +623,8 @@ async function renderForm(host, def, ctx = {}) {
       firstBad.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
-    const flags = checkRecord(def.id, deriveSanityState(def.id, state), baselines);
+    const judged = deriveSanityState(def.id, state);
+    const flags = checkRecord(def.id, judged, baselines);
     if (flags.length) {
       const proceed = await confirmSanity(def, flags);
       if (!proceed) {
@@ -627,12 +635,12 @@ async function renderForm(host, def, ctx = {}) {
     const record = buildRecord(def, state, idempotencyKey);
     await enqueueWrite(record);
     await rememberLastVals(def, state);
-    await updateBaselines(
-      def,
-      deriveSanityState(def.id, state),
-      baselines,
-      new Set(flags.map((f) => f.key))
-    );
+    const skip = new Set(flags.map((f) => f.key));
+    if (def.id === "production" && skip.has("quantity")) {
+      skip.add("rounds");
+      skip.add("round_size");
+    }
+    await updateBaselines(def, judged, baselines, skip);
     await pushRecent({
       type: def.id,
       idempotencyKey,
@@ -905,7 +913,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-ODMNCI3K.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-3WUGURKJ.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

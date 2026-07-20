@@ -2,7 +2,7 @@ import {
   OPEN_JOB_STATUSES,
   eventMillis,
   validateWrite
-} from "./chunk-5X7B76U3.js";
+} from "./chunk-R4IRYVMN.js";
 import {
   clearTransport,
   customerNamesById,
@@ -175,6 +175,9 @@ function recordToWrite(record, ctx) {
   if (w.path.some((seg) => typeof seg !== "string" || seg === "")) {
     throw new PermanentRejection("path: missing segment");
   }
+  for (const [k, v2] of Object.entries(w.data)) {
+    if (v2 === void 0) throw new PermanentRejection(`undefined value at '${k}'`);
+  }
   const v = validateWrite(record.type, w.data);
   if (!v.ok) throw new PermanentRejection(`schema: ${v.reason}`);
   return w;
@@ -275,4 +278,4 @@ function startPickerListeners({ db, fs, onChange }) {
 export {
   startFirebase
 };
-//# sourceMappingURL=firebase-boot-ODMNCI3K.js.map
+//# sourceMappingURL=firebase-boot-3WUGURKJ.js.map

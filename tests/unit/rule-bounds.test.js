@@ -90,8 +90,17 @@ describe('statKey — unit-scoped σ baselines', () => {
     expect(statKey('production', 'quantity', { machine: 'barrel' })).toBe('quantity@barrel');
     expect(statKey('stock_deplete', 'quantity', { item: 'hcl' })).toBe('quantity@hcl');
   });
-  test('unscoped fallback when the scoping field is unset', () => {
-    expect(statKey('production', 'quantity', {})).toBe('quantity');
+  test('pickling areas get their own distribution, not the plating pool', () => {
+    expect(statKey('production', 'quantity', { machine: 'pickle_vat' })).toBe('quantity@vat-pickling');
+    expect(statKey('production', 'quantity', { machine: 'pickle_barrel' })).toBe('quantity@barrel-pickling');
+  });
+  test("a scoped form NEVER falls back to the legacy pooled key ('?' bucket)", () => {
+    // The plain key is where pre-scoping mixed-unit stats live — an
+    // unresolved machine must not be judged against that polluted pool.
+    expect(statKey('production', 'quantity', {})).toBe('quantity@?');
+    expect(statKey('production', 'quantity', { machine: 'renamed_area' })).toBe('quantity@?');
+  });
+  test('forms without a scope declaration use the plain field key', () => {
     expect(statKey('dft', 'dft_micron', { machine: 'vat_a1' })).toBe('dft_micron');
   });
   test('a mature VAT baseline never judges a barrel entry', () => {
@@ -136,5 +145,32 @@ describe('edit gate — the admin path enforces the same bounds', () => {
   test('validateEditField ignores unknown collections/fields', () => {
     expect(validateEditField('unknown_coll', 'x', 'y').ok).toBe(true);
     expect(validateEditField('jobs', 'not_a_field', 123).ok).toBe(true);
+  });
+  test('cross-field: zeroing the only positive quantity is refused (merged-doc gate)', () => {
+    const before = {
+      job_id: 'j1', machine_id: 'vat_a1', worker_id: 'w1',
+      station: 'plating', qty_pcs: 450, // no qty_kg
+    };
+    const r = buildEditPayload({
+      path: 'production_entries/p1', before, values: { qty_pcs: '0' },
+      reason: 'typo', uid: 'admin-1', now: 1,
+    });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/qty/);
+  });
+});
+
+describe('coupling: cross-doc CF validators stay pinned to rule-bounds', () => {
+  // cross-doc.js is deliberately dependency-free (single-file CF vendoring),
+  // so it re-spells the DFT bound + outcome enum. This test is the tether:
+  // change rule-bounds and this forces the cross-doc (and vendored CF) edit.
+  test('validateDftMeasurement agrees with DFT_MICRON_MAX (inclusive) and DFT_OUTCOMES', async () => {
+    const { validateDftMeasurement } = await import('../../src/shared/validation/cross-doc.js');
+    const ctx = { job: { id: 'j1' } };
+    expect(validateDftMeasurement({ micron_value: DFT_MICRON_MAX, outcome: 'pass' }, ctx).ok).toBe(true);
+    expect(validateDftMeasurement({ micron_value: DFT_MICRON_MAX + 0.1, outcome: 'pass' }, ctx).ok).toBe(false);
+    for (const o of DFT_OUTCOMES) {
+      expect(validateDftMeasurement({ micron_value: 10, outcome: o }, ctx).ok).toBe(true);
+    }
   });
 });

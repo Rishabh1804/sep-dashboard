@@ -1128,7 +1128,9 @@ var CONTENT = {
   },
   dispatch: {
     job_id: str,
-    weight_kg: opt(number2().check(_gt(0)))
+    // Rules are SILENT on dispatch content — this schema is the only guard,
+    // so it carries the plausibility cap the rules would otherwise own.
+    weight_kg: opt(number2().check(_gt(0), _lt(QTY_MAX)))
   },
   stock_refill: {
     qty_received: number2().check(_gt(0)),
@@ -1157,32 +1159,40 @@ var CONTENT = {
     topic_refs: array(string2()).check(_minLength(1))
   }
 };
-var REFINES = {
-  production: refine(
-    (d) => (d.qty_pcs ?? 0) > 0 || (d.qty_kg ?? 0) > 0,
-    { error: "need a positive qty_pcs or qty_kg" }
-  ),
-  job_receipt: refine(
-    (d) => d.received_kg > 0 || (d.received_pcs ?? 0) > 0,
-    { error: "need a positive received_kg or received_pcs" }
-  ),
-  stock_refill: refine(
-    (d) => d.cost_unit == null === (d.unit_cost == null),
-    { error: "unit_cost and cost_unit travel together" }
-  )
+var CROSS_CHECKS = {
+  production: [{
+    keys: ["qty_pcs", "qty_kg"],
+    test: (d) => (d.qty_pcs ?? 0) > 0 || (d.qty_kg ?? 0) > 0,
+    error: "need a positive qty_pcs or qty_kg"
+  }],
+  job_receipt: [{
+    keys: ["received_kg", "received_pcs"],
+    test: (d) => (d.received_kg ?? 0) > 0 || (d.received_pcs ?? 0) > 0,
+    error: "need a positive received_kg or received_pcs"
+  }],
+  stock_refill: [{
+    keys: ["unit_cost", "cost_unit"],
+    test: (d) => d.cost_unit == null === (d.unit_cost == null),
+    error: "unit_cost and cost_unit travel together"
+  }]
 };
 var BY_TYPE = Object.fromEntries(Object.entries(CONTENT).map(([type, fields]) => {
-  const base = looseObject(fields);
-  return [type, REFINES[type] ? base.check(REFINES[type]) : base];
+  let schema = looseObject(fields);
+  for (const c of CROSS_CHECKS[type] || []) {
+    schema = schema.check(refine(c.test, { error: c.error }));
+  }
+  return [type, schema];
 }));
+function issueReason(result, fallbackPrefix = "") {
+  const first = result.error.issues[0];
+  const path = first?.path?.length ? `${first.path.join(".")}: ` : fallbackPrefix;
+  return `${path}${first?.message || "invalid"}`;
+}
 function validateWrite(type, data) {
   const schema = BY_TYPE[type];
   if (!schema) return { ok: false, reason: `no write schema for '${type}'` };
   const r = schema.safeParse(data);
-  if (r.success) return { ok: true };
-  const first = r.error.issues[0];
-  const path = first?.path?.length ? `${first.path.join(".")}: ` : "";
-  return { ok: false, reason: `${path}${first?.message || "invalid"}` };
+  return r.success ? { ok: true } : { ok: false, reason: issueReason(r) };
 }
 var TYPE_BY_COLLECTION = {
   production_entries: "production",
@@ -1200,9 +1210,15 @@ function validateEditField(collection, key, value) {
   const fieldSchema = type ? CONTENT[type]?.[key] : void 0;
   if (!fieldSchema) return { ok: true };
   const r = fieldSchema.safeParse(value);
-  if (r.success) return { ok: true };
-  const first = r.error.issues[0];
-  return { ok: false, reason: `${key}: ${first?.message || "invalid"}` };
+  return r.success ? { ok: true } : { ok: false, reason: `${key}: ${issueReason(r)}` };
+}
+function validateEditedDoc(collection, merged, changedKeys = []) {
+  const type = TYPE_BY_COLLECTION[collection];
+  for (const c of type && CROSS_CHECKS[type] || []) {
+    if (!c.keys.some((k) => changedKeys.includes(k))) continue;
+    if (!c.test(merged || {})) return { ok: false, reason: c.error };
+  }
+  return { ok: true };
 }
 
 export {
@@ -1210,6 +1226,7 @@ export {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   validateWrite,
-  validateEditField
+  validateEditField,
+  validateEditedDoc
 };
-//# sourceMappingURL=chunk-5X7B76U3.js.map
+//# sourceMappingURL=chunk-R4IRYVMN.js.map

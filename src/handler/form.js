@@ -165,7 +165,11 @@ export async function renderForm(host, def, ctx = {}) {
     // Production's quantity may be entered as rounds × round_size (no explicit
     // total); check the DERIVED total too so a fat-finger round_size that
     // multiplies out of band still prompts (mirrors transport's derivation).
-    const flags = checkRecord(def.id, deriveSanityState(def.id, state), baselines);
+    // The judged state IS the folded state — one derivation into one local,
+    // so the Round-2 fold-gap invariant (baselines accumulate exactly what
+    // the net judged) can't be broken by editing one call site.
+    const judged = deriveSanityState(def.id, state);
+    const flags = checkRecord(def.id, judged, baselines);
     if (flags.length) {
       const proceed = await confirmSanity(def, flags);
       if (!proceed) { signalError(t('unusual_title')); return; }
@@ -174,13 +178,16 @@ export async function renderForm(host, def, ctx = {}) {
     const record = buildRecord(def, state, idempotencyKey);
     await enqueueWrite(record);
     await rememberLastVals(def, state);
-    // Fold the DERIVED state (same view checkRecord judged — production's
-    // rounds × round_size total lands under `quantity`, so the σ baseline
-    // matures in rounds-mode too), and skip fields the user just confirmed
-    // as unusual: folding a waved-through outlier inflates σ enough that the
-    // next identical fat-finger passes silently.
-    await updateBaselines(def, deriveSanityState(def.id, state), baselines,
-      new Set(flags.map((f) => f.key)));
+    // Skip fields the user just confirmed as unusual (a waved-through outlier
+    // inflates σ enough that the next identical fat-finger passes) — and when
+    // production's DERIVED quantity flags, skip its causal factors too: the
+    // out-of-band rounds/round_size that produced it would otherwise pollute
+    // the factor baselines the flag never named.
+    const skip = new Set(flags.map((f) => f.key));
+    if (def.id === 'production' && skip.has('quantity')) {
+      skip.add('rounds'); skip.add('round_size');
+    }
+    await updateBaselines(def, judged, baselines, skip);
     await pushRecent({
       type: def.id,
       idempotencyKey,
