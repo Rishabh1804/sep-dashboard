@@ -17,7 +17,7 @@ import { idbAvailable, idbGet, idbSet, idbDel } from './idb.js';
 import { confirmSaved, signalError } from './feedback.js';
 import { enqueueWrite, showModal } from './sync.js';
 import { pushRecent } from './recent.js';
-import { checkRecord, deriveSanityState, statFields, pushStat, emptyStats } from './sanity.js';
+import { checkRecord, deriveSanityState, statFields, statKey, pushStat, emptyStats } from './sanity.js';
 
 const DRAFT_PREFIX = 'draft:';
 const LASTVALS_PREFIX = 'lastvals:';
@@ -165,7 +165,11 @@ export async function renderForm(host, def, ctx = {}) {
     // Production's quantity may be entered as rounds × round_size (no explicit
     // total); check the DERIVED total too so a fat-finger round_size that
     // multiplies out of band still prompts (mirrors transport's derivation).
-    const flags = checkRecord(def.id, deriveSanityState(def.id, state), baselines);
+    // The judged state IS the folded state — one derivation into one local,
+    // so the Round-2 fold-gap invariant (baselines accumulate exactly what
+    // the net judged) can't be broken by editing one call site.
+    const judged = deriveSanityState(def.id, state);
+    const flags = checkRecord(def.id, judged, baselines);
     if (flags.length) {
       const proceed = await confirmSanity(def, flags);
       if (!proceed) { signalError(t('unusual_title')); return; }
@@ -174,13 +178,16 @@ export async function renderForm(host, def, ctx = {}) {
     const record = buildRecord(def, state, idempotencyKey);
     await enqueueWrite(record);
     await rememberLastVals(def, state);
-    // Fold the DERIVED state (same view checkRecord judged — production's
-    // rounds × round_size total lands under `quantity`, so the σ baseline
-    // matures in rounds-mode too), and skip fields the user just confirmed
-    // as unusual: folding a waved-through outlier inflates σ enough that the
-    // next identical fat-finger passes silently.
-    await updateBaselines(def, deriveSanityState(def.id, state), baselines,
-      new Set(flags.map((f) => f.key)));
+    // Skip fields the user just confirmed as unusual (a waved-through outlier
+    // inflates σ enough that the next identical fat-finger passes) — and when
+    // production's DERIVED quantity flags, skip its causal factors too: the
+    // out-of-band rounds/round_size that produced it would otherwise pollute
+    // the factor baselines the flag never named.
+    const skip = new Set(flags.map((f) => f.key));
+    if (def.id === 'production' && skip.has('quantity')) {
+      skip.add('rounds'); skip.add('round_size');
+    }
+    await updateBaselines(def, judged, baselines, skip);
     await pushRecent({
       type: def.id,
       idempotencyKey,
@@ -231,7 +238,10 @@ function clearError(wrap) { wrap.classList.remove('h-invalid'); }
 function buildRecord(def, state, idempotencyKey) {
   const fields = {};
   for (const f of def.fields) {
-    if (state[f.key] != null && state[f.key] !== '') {
+    // Trim-aware: a whitespace-only entry is "left blank", not Number(' ')=0 —
+    // an invisible space would otherwise queue an explicit zero total that the
+    // transport permanently rejects despite valid rounds (round-2 trap class).
+    if (state[f.key] != null && String(state[f.key]).trim() !== '') {
       fields[f.key] = f.kind === 'number' ? Number(state[f.key]) : state[f.key];
       if (state[`${f.key}__label`]) fields[`${f.key}__label`] = state[`${f.key}__label`];
     }
@@ -261,6 +271,9 @@ async function rememberLastVals(def, state) {
 // the σ net sharpens over time. Runs only after a record is safely queued.
 // `skipKeys`: fields that raised a confirm flag this submission — excluded so
 // a confirmed outlier doesn't poison the very baseline it was flagged against.
+// Stats are stored under statKey (unit-scoped: production per machine-group,
+// stock forms per item) — the same key checkRecord reads, so a VAT pcs entry
+// never pollutes the barrel-kg distribution.
 async function updateBaselines(def, state, baselines, skipKeys = new Set()) {
   if (!idbAvailable()) return;
   const next = { ...baselines };
@@ -269,7 +282,8 @@ async function updateBaselines(def, state, baselines, skipKeys = new Set()) {
     if (skipKeys.has(key)) continue;
     const v = state[key];
     if (v == null || String(v).trim() === '' || !Number.isFinite(Number(v))) continue;
-    next[key] = pushStat(next[key] || emptyStats(), Number(v));
+    const sk = statKey(def.id, key, state);
+    next[sk] = pushStat(next[sk] || emptyStats(), Number(v));
     touched = true;
   }
   if (touched) await idbSet(STATS_PREFIX + def.id, next).catch(() => {});

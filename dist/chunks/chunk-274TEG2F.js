@@ -75,13 +75,49 @@ var DEF_STOCK = [
 ];
 
 // src/shared/config/app.js
-var APP_VERSION = "2.1.0-alpha.6";
-var BUILD = 3;
+var APP_VERSION = "2.1.0-alpha.7";
+var BUILD = 4;
+
+// src/shared/types/rule-bounds.js
+var QTY_MAX = 1e5;
+var PCS_MAX = 1e6;
+var DFT_MICRON_MAX = 50;
+var RULE_STATIONS = ["pickling", "plating", "inspection", "dispatch"];
+var JOB_ROUTES = ["standard", "rework-active", "rework-completed"];
+var DEPLETION_REASONS = ["production_use", "waste", "spillage", "theft", "other"];
+var COST_UNITS = ["per_kg", "per_bag", "per_liter"];
+var DFT_OUTCOMES = ["pass", "fail-rework"];
+var NOTE_STATUSES = ["active", "resolved", "archived"];
+var NOTE_PRIORITIES = ["normal", "urgent"];
+var MACHINE_STATES = ["running", "idle", "down"];
+var CHECK_DIRECTIONS = ["in", "out"];
+var CHECK_SLOTS = ["morning_ot", "regular", "evening_ot"];
+function deriveTotalQty(f = {}) {
+  if (f.quantity != null && String(f.quantity).trim() !== "") return Number(f.quantity);
+  const rounds = Number(f.rounds);
+  const roundSize = Number(f.round_size);
+  if (rounds > 0 && roundSize > 0) return rounds * roundSize;
+  return void 0;
+}
 
 export {
   DEF_AREAS,
   DEF_STOCK,
   APP_VERSION,
-  BUILD
+  BUILD,
+  QTY_MAX,
+  PCS_MAX,
+  DFT_MICRON_MAX,
+  RULE_STATIONS,
+  JOB_ROUTES,
+  DEPLETION_REASONS,
+  COST_UNITS,
+  DFT_OUTCOMES,
+  NOTE_STATUSES,
+  NOTE_PRIORITIES,
+  MACHINE_STATES,
+  CHECK_DIRECTIONS,
+  CHECK_SLOTS,
+  deriveTotalQty
 };
-//# sourceMappingURL=chunk-IIVJ6OWL.js.map
+//# sourceMappingURL=chunk-274TEG2F.js.map

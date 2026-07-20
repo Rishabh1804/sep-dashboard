@@ -20,6 +20,10 @@
 // "yes, correct" to proceed. Only physical impossibility hard-blocks — and
 // that mostly overlaps the Zod gate, so block is the belt to its braces.
 
+// rule-bounds + config are dependency-free — this module stays effectively pure.
+import { QTY_MAX, PCS_MAX, deriveTotalQty } from '../shared/types/rule-bounds.js';
+import { DEF_AREAS } from '../shared/config/areas.js';
+
 // --- Welford online mean/variance ---
 export function emptyStats() { return { n: 0, mean: 0, m2: 0 }; }
 
@@ -57,13 +61,13 @@ export const MIN_HISTORY = 8;
 // of-magnitude slip, not second-guessing a busy floor.
 export const SANITY = {
   production: {
-    quantity:   { hardMin: 0, hardMax: 100000, softMax: 40000, z: 3 },
+    quantity:   { hardMin: 0, hardMax: QTY_MAX, softMax: 40000, z: 3 },
     rounds:     { hardMin: 0, hardMax: 2000,   softMax: 500,   z: 3 },
     round_size: { hardMin: 0, hardMax: 5000,   softMax: 2000,  z: 3 },
   },
   job_receipt: {
-    weight:       { hardMin: 0, hardMax: 100000, softMax: 20000, z: 3 },
-    received_pcs: { hardMin: 0, hardMax: 1000000, softMax: 200000, z: 3 },
+    weight:       { hardMin: 0, hardMax: QTY_MAX, softMax: 20000, z: 3 },
+    received_pcs: { hardMin: 0, hardMax: PCS_MAX, softMax: 200000, z: 3 },
   },
   dft: {
     // No hardMax: exactly 50 µm is LEGAL in every other layer (rules <= 50,
@@ -73,22 +77,22 @@ export const SANITY = {
     dft_micron: { hardMin: 0, softMin: 2, softMax: 30, z: 3 },
   },
   dispatch: {
-    weight: { hardMin: 0, hardMax: 100000, softMax: 20000, z: 3 },
+    weight: { hardMin: 0, hardMax: QTY_MAX, softMax: 20000, z: 3 },
   },
   stock_refill: {
-    quantity: { hardMin: 0, hardMax: 100000, softMax: 5000, z: 3 },
+    quantity: { hardMin: 0, hardMax: QTY_MAX, softMax: 5000, z: 3 },
     // No hardMin: 0 is a legitimate cost (an unpriced/free receipt); the
     // mapper only records unit_cost when cost > 0 anyway. A hardMin:0 here
     // would block-then-refuse a 0, which is not an impossible value.
     cost:     { hardMax: 10000000, softMax: 1000000, z: 3 },
   },
   stock_deplete: {
-    quantity:    { hardMin: 0, hardMax: 100000, softMax: 5000, z: 3 },
+    quantity:    { hardMin: 0, hardMax: QTY_MAX, softMax: 5000, z: 3 },
     // No hardMin: level_after: 0 is Shyam's NIL stock-take — the reorder-alert
     // signal, a VALID reading. Blocking v <= hardMin(0) would make NIL
     // unenterable. Negatives are already caught by Zod (nonnegative) + the
     // form's nonNegNumber validate.
-    level_after: { hardMax: 100000, softMax: 20000, z: 3 },
+    level_after: { hardMax: QTY_MAX, softMax: 20000, z: 3 },
   },
 };
 
@@ -118,9 +122,43 @@ export function fieldVerdict(value, cfg, stats) {
   return { level: 'ok' };
 }
 
+// --- Baseline scoping (unit keys) -------------------------------------------
+// A rolling baseline is only meaningful over ONE distribution. Production
+// `quantity` is pcs on VAT machines and kg on barrels (Session 11 units lock)
+// — pooling them inflates σ until the net either nags on every entry or never
+// fires. Stock quantities differ per item by orders of magnitude (HCl in
+// hundreds of kg vs brightener in litres). So baselines are KEYED by the
+// distribution context: production per machine-group, stock forms per item.
+// Declared bounds stay unscoped — they encode physical impossibility, which
+// doesn't depend on which machine ran.
+const SCOPES = {
+  // Pickling areas get their own distribution per group: same unit as their
+  // plating group (transport's qty choice follows group), but a different
+  // process with different typical volumes — pooling them would widen σ for
+  // both. DEF_AREAS marks pickling areas with dep:true.
+  production: (s) => {
+    const a = DEF_AREAS.find((x) => x.id === s.machine);
+    return a ? (a.dep ? `${a.group}-pickling` : a.group) : undefined;
+  },
+  stock_refill: (s) => s.item,
+  stock_deplete: (s) => s.item,
+};
+
+// The persisted-stats key for one field of one submission. Forms without a
+// scope declaration use the plain field key. Forms WITH one never fall back
+// to it: the plain key is where the pre-scoping mixed-unit stats live, so an
+// unresolved scope (unset machine, a renamed DEF_AREAS id) buckets under '?'
+// — fresh and harmless — instead of rejoining the polluted legacy pool.
+export function statKey(type, field, state = {}) {
+  const scopeFn = SCOPES[type];
+  if (!scopeFn) return field;
+  return `${field}@${scopeFn(state) || '?'}`;
+}
+
 /**
  * Check every configured numeric field of a form's state.
- * `baselines` maps fieldKey -> stats (from IndexedDB); absent = no history.
+ * `baselines` maps statKey(type, field, state) -> stats (from IndexedDB);
+ * absent = no history for that field in that unit context.
  * Returns the flags that need attention, worst-first: [{ key, value, level, reason }].
  * An empty array means nothing looked wrong.
  */
@@ -130,8 +168,9 @@ export function checkRecord(type, state = {}, baselines = {}) {
   const flags = [];
   for (const [key, cfg] of Object.entries(cfgs)) {
     const raw = state[key];
-    if (raw == null || String(raw).trim() === '') continue; // trim-aware, matches fieldVerdict
-    const verdict = fieldVerdict(raw, cfg, baselines[key]);
+    // Absent/blank/non-numeric values are fieldVerdict's 'ok' — no pre-filter
+    // here, so the absent-policy has exactly one owner.
+    const verdict = fieldVerdict(raw, cfg, baselines[statKey(type, key, state)]);
     if (verdict.level !== 'ok') flags.push({ key, value: Number(raw), ...verdict });
   }
   const rank = { block: 0, confirm: 1 };
@@ -152,11 +191,10 @@ export function statFields(type) {
 // Other form types (and production-with-explicit-total) pass through untouched.
 export function deriveSanityState(type, state = {}) {
   if (type !== 'production') return state;
-  // Trim-aware: whitespace-only quantity is "not entered", so the rounds
-  // derivation still runs (matches validate()'s String(v).trim() emptiness).
-  if (state.quantity != null && String(state.quantity).trim() !== '') return state;
-  const rounds = Number(state.rounds);
-  const roundSize = Number(state.round_size);
-  if (rounds > 0 && roundSize > 0) return { ...state, quantity: rounds * roundSize };
-  return state;
+  // deriveTotalQty (rule-bounds.js) is the SAME derivation transport's mapper
+  // writes to Firestore — shared so the judged number and the landed number
+  // can never drift. Trim-aware there (whitespace quantity = "not entered").
+  const total = deriveTotalQty(state);
+  if (total === undefined || Number(state.quantity) === total) return state;
+  return { ...state, quantity: total };
 }

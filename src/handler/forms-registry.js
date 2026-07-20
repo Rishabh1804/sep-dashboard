@@ -14,6 +14,7 @@
 import { DEF_PERM, DEF_CW } from '../shared/config/workers.js';
 import { DEF_AREAS } from '../shared/config/areas.js';
 import { DEF_STOCK } from '../shared/config/stock.js';
+import { DFT_MICRON_MAX } from '../shared/types/rule-bounds.js';
 import { getCache } from './picker-cache.js';
 
 // --- Picker item providers ---
@@ -92,7 +93,8 @@ const PICKERS = {
 
 const posNumber = (v) => (Number(v) > 0 ? null : '> 0');
 const nonNegNumber = (v) => (Number(v) >= 0 ? null : '≥ 0');
-const dftRange = (v) => (Number(v) > 50 ? '0–50 µm' : Number(v) > 0 ? null : '> 0');
+// DFT_MICRON_MAX is INCLUSIVE (rules <= 50) — reject only strictly above it.
+const dftRange = (v) => (Number(v) > DFT_MICRON_MAX ? `0–${DFT_MICRON_MAX} µm` : Number(v) > 0 ? null : '> 0');
 
 // Production quantity is required unless rounds × round size carries the
 // count; job-receipt weight is required unless the challan is NOS-only.

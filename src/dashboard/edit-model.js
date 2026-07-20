@@ -22,6 +22,13 @@
 // own `at` is a client millis (Firestore forbids serverTimestamp sentinels
 // inside array elements), injected here for testability.
 
+import { validateEditField, validateEditedDoc } from '../shared/types/handler-writes.js';
+import {
+  JOB_ROUTES, DEPLETION_REASONS, DFT_OUTCOMES,
+  NOTE_STATUSES, NOTE_PRIORITIES, CHECK_DIRECTIONS, CHECK_SLOTS,
+} from '../shared/types/rule-bounds.js';
+import { JOB_STATUSES } from '../shared/types/job-status.js';
+
 // Structured reason enum (STEWARD_AFFORDANCES §edit-with-reason). Free text is
 // only meaningful when reason === 'other' — and a high 'other' rate is itself
 // the signal that the enum is missing a category.
@@ -52,12 +59,12 @@ export const FIELD_SPECS = {
   ],
   dft_measurements: [
     { key: 'micron_value', label: 'DFT (µm)', kind: 'number' },
-    { key: 'outcome', label: 'Outcome', kind: 'select', options: ['pass', 'fail-rework'] },
+    { key: 'outcome', label: 'Outcome', kind: 'select', options: DFT_OUTCOMES },
     { key: 'notes', label: 'Notes', kind: 'text' },
   ],
   jobs: [
-    { key: 'current_status', label: 'Status', kind: 'select', options: ['in-flight', 'ready', 'dispatched'] },
-    { key: 'route', label: 'Route', kind: 'select', options: ['standard', 'rework-active', 'rework-completed'] },
+    { key: 'current_status', label: 'Status', kind: 'select', options: JOB_STATUSES },
+    { key: 'route', label: 'Route', kind: 'select', options: JOB_ROUTES },
     { key: 'challan_no', label: 'Challan no.', kind: 'text' },
     { key: 'notes', label: 'Notes', kind: 'text' },
   ],
@@ -67,17 +74,17 @@ export const FIELD_SPECS = {
   ],
   notes: [
     { key: 'summary', label: 'Summary', kind: 'text' },
-    { key: 'status', label: 'Status', kind: 'select', options: ['active', 'resolved', 'archived'] },
-    { key: 'priority', label: 'Priority', kind: 'select', options: ['normal', 'urgent'] },
+    { key: 'status', label: 'Status', kind: 'select', options: NOTE_STATUSES },
+    { key: 'priority', label: 'Priority', kind: 'select', options: NOTE_PRIORITIES },
   ],
   shifts: [
-    { key: 'direction', label: 'Direction', kind: 'select', options: ['in', 'out'] },
-    { key: 'slot', label: 'OT slot', kind: 'select', options: ['morning_ot', 'regular', 'evening_ot'] },
+    { key: 'direction', label: 'Direction', kind: 'select', options: CHECK_DIRECTIONS },
+    { key: 'slot', label: 'OT slot', kind: 'select', options: CHECK_SLOTS },
   ],
   depletions: [
     { key: 'qty_depleted', label: 'Qty depleted', kind: 'number' },
     { key: 'level_after', label: 'Level after (0 = NIL)', kind: 'number' },
-    { key: 'reason', label: 'Reason', kind: 'select', options: ['production_use', 'waste', 'spillage', 'theft', 'other'] },
+    { key: 'reason', label: 'Reason', kind: 'select', options: DEPLETION_REASONS },
   ],
 };
 
@@ -139,6 +146,26 @@ export function buildEditPayload(input) {
     if (d) diffs.push(d);
   }
   if (!diffs.length) return { ok: false, error: 'no changes to save' };
+
+  // Schema gate (same bounds the handler's write gate enforces). Admin writes
+  // short-circuit the rules' content validation (isAdmin() ||), so this is
+  // the ONLY content guard on the edit path — without it a steward typo
+  // (micron_value 500, a misspelled status) writes a doc the handler itself
+  // could never produce, and downstream aggregators/digests consume it.
+  // Per-field first (clearest error attribution), then the merged doc for
+  // the cross-field refines (e.g. zeroing the only positive quantity).
+  // NOTE an invalid field refuses the WHOLE edit — all-or-nothing is the
+  // safe semantic for a correction surface; entered values stay in the modal.
+  for (const d of diffs) {
+    const v = validateEditField(type, d.key, d.after);
+    if (!v.ok) return { ok: false, error: v.reason };
+  }
+  {
+    const merged = { ...before };
+    for (const d of diffs) merged[d.key] = d.after;
+    const v = validateEditedDoc(type, merged, diffs.map((d) => d.key));
+    if (!v.ok) return { ok: false, error: v.reason };
+  }
 
   const after = {};
   const beforeChanged = {};

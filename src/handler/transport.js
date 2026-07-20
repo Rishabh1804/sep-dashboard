@@ -28,6 +28,7 @@ import { DEF_AREAS } from '../shared/config/areas.js';
 import { DEF_STOCK } from '../shared/config/stock.js';
 import { BUILD } from '../shared/config/app.js';
 import { validateWrite } from '../shared/types/handler-writes.js';
+import { RULE_STATIONS, deriveTotalQty } from '../shared/types/rule-bounds.js';
 
 export class PermanentRejection extends Error {
   constructor(message) {
@@ -36,8 +37,6 @@ export class PermanentRejection extends Error {
     this.permanent = true;
   }
 }
-
-const RULE_STATIONS = ['pickling', 'plating', 'inspection', 'dispatch'];
 
 function areaById(id) { return DEF_AREAS.find((a) => a.id === id) || null; }
 
@@ -78,10 +77,12 @@ const MAPPERS = {
     // Register grain: total quantity, or rounds × per-round size ("108-round",
     // "25×6"). When both are given the explicit total wins; rounds are kept
     // on the doc either way — they're the productivity denominator.
+    // deriveTotalQty is the SHARED derivation (rule-bounds.js) — the same
+    // function the sanity net judges with, so the confirm modal and the doc
+    // that lands in Firestore can never disagree.
     const rounds = f.rounds != null ? num(f.rounds) : null;
     const roundSize = f.round_size != null ? num(f.round_size) : null;
-    const qty = f.quantity != null ? num(f.quantity)
-      : (rounds > 0 && roundSize > 0 ? rounds * roundSize : NaN);
+    const qty = deriveTotalQty(f) ?? NaN;
     if (!(qty > 0)) {
       throw new PermanentRejection('quantity missing: need a total or rounds × round size');
     }
@@ -223,6 +224,15 @@ export function recordToWrite(record, ctx) {
   // Absence here is content-deterministic → permanent, like the schema gate.
   if (w.path.some((seg) => typeof seg !== 'string' || seg === '')) {
     throw new PermanentRejection('path: missing segment');
+  }
+  // Undefined-value guard: setDoc throws client-side on ANY undefined value —
+  // an error the flush loop classifies transient, wedging the queue (same
+  // class as the path guard). The mappers assign conditionally so this never
+  // fires today; it exists for the future mapper edit that assigns a
+  // maybe-undefined unconditionally. Shallow scan matches the mappers' shape
+  // (top-level assignments only).
+  for (const [k, v] of Object.entries(w.data)) {
+    if (v === undefined) throw new PermanentRejection(`undefined value at '${k}'`);
   }
   // Zod gate (Stage D hardening): the mapped doc must satisfy its form-type
   // schema — the exact shape Firestore receives. A failure here is

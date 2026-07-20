@@ -23,7 +23,7 @@ import {
   registerVersion,
   setLogLevel
 } from "./chunk-K47QRFWO.js";
-import "./chunk-UM27USL5.js";
+import "./chunk-IFG75HHC.js";
 
 // node_modules/firebase/app/dist/esm/index.esm.js
 var name = "firebase";
@@ -74,4 +74,4 @@ firebase/app/dist/esm/index.esm.js:
    * limitations under the License.
    *)
 */
-//# sourceMappingURL=index.esm-62TRSYO7.js.map
+//# sourceMappingURL=index.esm-4SWAQBD2.js.map

@@ -5,15 +5,25 @@ import {
   escAttr
 } from "./chunks/chunk-IIQMR7WS.js";
 import {
+  JOB_STATUSES,
   OPEN_JOB_STATUSES,
-  eventMillis
-} from "./chunks/chunk-3NX3JH6O.js";
+  eventMillis,
+  validateEditField,
+  validateEditedDoc
+} from "./chunks/chunk-R4IRYVMN.js";
 import {
   APP_VERSION,
+  CHECK_DIRECTIONS,
+  CHECK_SLOTS,
   DEF_AREAS,
-  DEF_STOCK
-} from "./chunks/chunk-IIVJ6OWL.js";
-import "./chunks/chunk-UM27USL5.js";
+  DEF_STOCK,
+  DEPLETION_REASONS,
+  DFT_OUTCOMES,
+  JOB_ROUTES,
+  NOTE_PRIORITIES,
+  NOTE_STATUSES
+} from "./chunks/chunk-274TEG2F.js";
+import "./chunks/chunk-IFG75HHC.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -2906,7 +2916,7 @@ function renderLive() {
 }
 async function boot() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RVEYXFX3.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
     session = await bootFirebaseSession();
     if (!session) {
       bootState = "no-config";
@@ -3121,12 +3131,12 @@ var FIELD_SPECS = {
   ],
   dft_measurements: [
     { key: "micron_value", label: "DFT (\xB5m)", kind: "number" },
-    { key: "outcome", label: "Outcome", kind: "select", options: ["pass", "fail-rework"] },
+    { key: "outcome", label: "Outcome", kind: "select", options: DFT_OUTCOMES },
     { key: "notes", label: "Notes", kind: "text" }
   ],
   jobs: [
-    { key: "current_status", label: "Status", kind: "select", options: ["in-flight", "ready", "dispatched"] },
-    { key: "route", label: "Route", kind: "select", options: ["standard", "rework-active", "rework-completed"] },
+    { key: "current_status", label: "Status", kind: "select", options: JOB_STATUSES },
+    { key: "route", label: "Route", kind: "select", options: JOB_ROUTES },
     { key: "challan_no", label: "Challan no.", kind: "text" },
     { key: "notes", label: "Notes", kind: "text" }
   ],
@@ -3136,17 +3146,17 @@ var FIELD_SPECS = {
   ],
   notes: [
     { key: "summary", label: "Summary", kind: "text" },
-    { key: "status", label: "Status", kind: "select", options: ["active", "resolved", "archived"] },
-    { key: "priority", label: "Priority", kind: "select", options: ["normal", "urgent"] }
+    { key: "status", label: "Status", kind: "select", options: NOTE_STATUSES },
+    { key: "priority", label: "Priority", kind: "select", options: NOTE_PRIORITIES }
   ],
   shifts: [
-    { key: "direction", label: "Direction", kind: "select", options: ["in", "out"] },
-    { key: "slot", label: "OT slot", kind: "select", options: ["morning_ot", "regular", "evening_ot"] }
+    { key: "direction", label: "Direction", kind: "select", options: CHECK_DIRECTIONS },
+    { key: "slot", label: "OT slot", kind: "select", options: CHECK_SLOTS }
   ],
   depletions: [
     { key: "qty_depleted", label: "Qty depleted", kind: "number" },
     { key: "level_after", label: "Level after (0 = NIL)", kind: "number" },
-    { key: "reason", label: "Reason", kind: "select", options: ["production_use", "waste", "spillage", "theft", "other"] }
+    { key: "reason", label: "Reason", kind: "select", options: DEPLETION_REASONS }
   ]
 };
 function docTypeFromPath(path) {
@@ -3186,6 +3196,16 @@ function buildEditPayload(input) {
     if (d) diffs.push(d);
   }
   if (!diffs.length) return { ok: false, error: "no changes to save" };
+  for (const d of diffs) {
+    const v = validateEditField(type, d.key, d.after);
+    if (!v.ok) return { ok: false, error: v.reason };
+  }
+  {
+    const merged = { ...before };
+    for (const d of diffs) merged[d.key] = d.after;
+    const v = validateEditedDoc(type, merged, diffs.map((d) => d.key));
+    if (!v.ok) return { ok: false, error: v.reason };
+  }
   const after = {};
   const beforeChanged = {};
   for (const d of diffs) {
@@ -3262,7 +3282,7 @@ function renderEdit() {
 }
 async function boot2() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RVEYXFX3.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
     session2 = await bootFirebaseSession();
     if (!session2) {
       bootState2 = "no-config";

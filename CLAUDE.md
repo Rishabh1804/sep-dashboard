@@ -1117,3 +1117,100 @@ extraction (Live + Edit) · prod project stand-up.
 
 *Session 18 documented 16 July 2026 by Aurelius (Claude Code); Round-2 review
 folded same day.*
+
+---
+
+## Session 19: The Four Fast-Follows — Single-Sourcing, zod/mini, Unit Keys, Edit Gate (20 July 2026)
+
+### What Shipped
+
+All four Round-2 fast-follows, built in dependency order in one session:
+
+1. **Rule-bounds single-sourcing** — new `src/shared/types/rule-bounds.js`:
+   dependency-free constants for every rules bound/enum the client encodes
+   (QTY_MAX exclusive · PCS_MAX exclusive · **DFT_MICRON_MAX inclusive** —
+   inclusivity documented per constant, per the Round-2 lesson) + the ONE
+   production-quantity derivation `deriveTotalQty` (trim-aware), now consumed
+   by BOTH transport's mapper and sanity's `deriveSanityState` — the judged
+   number and the landed number come from one function. Consumers rewired:
+   schemas.js, forms-registry (dftRange), sanity (caps), transport (stations +
+   derivation), edit-model (select options). Also fixed en route: `buildRecord`
+   + the transport mapper were still whitespace-blind (a `' '` quantity became
+   an explicit `Number(' ')=0` total → PermanentRejection despite valid rounds).
+2. **zod → zod/mini** in `handler-writes.js`, restructured as per-type
+   **CONTENT field maps** (flat field→schema) + cross-field REFINES applied
+   only on the full doc. **Measured: firebase-boot chunk 553.8 kB → 8.9 kB**,
+   with zod/mini + schemas in a **36 kB shared chunk** used by both bundles
+   (esbuild splitting; dashboard now imports the same schemas via the edit
+   gate). ~15× cut on the boot-critical path.
+3. **Unit-keyed σ baselines** — `statKey(type, field, state)` scopes rolling
+   stats: production per **machine-group** (VAT pcs vs barrel kg), stock forms
+   per **item**; declared bounds stay unscoped (physical impossibility doesn't
+   depend on the machine). checkRecord reads and updateBaselines writes the
+   same scoped key; old unscoped stats orphan harmlessly (no real floor data
+   yet — the reason this shipped BEFORE rollout). Unit test pins: a mature VAT
+   baseline never judges a barrel entry.
+4. **Edit-tab schema gate** — `validateEditField(collection, key, value)`
+   exported from handler-writes (CONTENT gives per-field schemas for free);
+   `buildEditPayload` refuses out-of-bounds edits (micron 500, status typo)
+   with the field named. Admin writes short-circuit the rules' content checks
+   (`isAdmin() ||`), so this is the ONLY content guard on the edit path.
+   Fields the rules don't judge (notes, challan_no) stay freely editable;
+   cross-field refines deliberately don't apply to partial edits (documented).
+
+### Tests / Versions
+
+Unit **257 → 275** (rule-bounds derivation + coupling suite pinning registry
+options ⊆ enums, edit options ⊆ enums, sanity caps = rules caps, the
+inclusive/exclusive boundary semantics, statKey scoping, edit-gate accept/
+refuse) · e2e **41** · build clean. `BUILD 3→4`, `APP_VERSION 2.1.0-alpha.7`,
+both SW caches bumped.
+
+### Still Open (unchanged queue)
+
+CF cross-doc validation (deploy-gated) · Session-17 fast-follows (audit-noise
+filter, `functions lint` gap) · shared `firestore-store` extraction · prod
+stand-up · smaller Round-2 leftovers (rules-CI prod-deps trim, submit-path
+IDB serialization) · stale PRs #13/#14 rebase-or-close.
+
+### Review Pass (pre-ready-flip, 5-angle + fold)
+
+3 correctness + combined-cleanup + conventions finders (the heavy cleanup
+angles had their say in Round 2 — this PR is that cleanup). Folded:
+
+- **Edit gate cross-field gap** (2 finders): per-field validation passed
+  `qty_pcs: 0` even when it zeroed the doc's only quantity. Now: CROSS_CHECKS
+  (plain predicates, single-sourced) feed both the write schema's refines AND
+  `validateEditedDoc(merged, changedKeys)` — scoped to run only when the edit
+  touches an involved field, so unrelated corrections on legacy docs aren't
+  held hostage.
+- **Factor-pollution skip gap** (2 finders): a flagged DERIVED quantity
+  skipped the fold, but the causal rounds/round_size still folded — the
+  Round-2 pollution fix one level down. Flag on `quantity` now also skips the
+  factors; judged state hoisted to one local (`judged`) so check/fold can't
+  diverge.
+- **Scoping hardening** (2 finders): pickling areas now key their own
+  distributions (`vat-pickling` / `barrel-pickling`, via DEF_AREAS dep);
+  scoped forms never fall back to the legacy pooled key (unresolved scope →
+  `@?` bucket, not the polluted pre-scoping stats).
+- **dispatch.weight_kg upper bound** — rules are silent on dispatch, so the
+  schema is the only guard; it now carries `lt(QTY_MAX)`.
+- **undefined-value guard** in recordToWrite (setDoc throws on undefined →
+  transient-classified → queue wedge; now PermanentRejection) — generalises
+  the stock_refill refine's accidental old-shape protection.
+- **cross-doc coupling test** — cross-doc.js stays dependency-free (CF
+  vendoring), so a root Jest test tethers its DFT literals to rule-bounds;
+  restructuring the vendor layout is deferred to a deploy-verifiable session.
+- Smaller: `--font-mono` → `--ff-mono` (undefined token); stale sw.js size
+  comment; checkRecord's duplicate absent-guard removed (fieldVerdict is the
+  one owner); shared `issueReason` formatter.
+
+**Not folded (tracked):** deriving registry OPTS from the enums (needs a
+value→labelKey map; the coupling test pins ⊆ but not ⊇, so an enum ADDITION
+still needs a manual registry touch) · rules-CI prod-deps trim · whitespace-
+padded picker-id trim-vs-drop nuance.
+
+**Post-fold:** unit **279** · e2e **41** · build clean.
+
+*Session 19 documented 20 July 2026 by Aurelius (Claude Code); review pass
+folded same day.*

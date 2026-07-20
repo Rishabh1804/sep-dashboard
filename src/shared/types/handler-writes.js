@@ -18,111 +18,131 @@
 //      (state) — they gate those on auth/token/role only. Here is the only
 //      client-side content guard for those three. Garbage enums would land.
 //
-// All schemas .passthrough(): the mapped doc carries the envelope
-// (author_user_id, created_at serverTimestamp SENTINEL, app_version, client_ts,
-// idempotency_key) plus optional derived fields (rounds, part_number, …). We
-// constrain the domain fields the rules judge and let the rest ride.
+// zod/mini, NOT zod classic: this module rides the handler's boot-critical
+// firebase-boot chunk (via transport.js) AND the dashboard bundle (via
+// edit-model.js). Classic measured ~530 kB unminified in the chunk; mini is
+// ~19× smaller for the same schemas. Every bound/enum comes from
+// rule-bounds.js / job-status.js — the single sources — so a rules change is
+// a one-file edit here.
+//
+// All object schemas are LOOSE (classic .passthrough()): the mapped doc
+// carries the envelope (author_user_id, created_at serverTimestamp SENTINEL,
+// app_version, client_ts, idempotency_key) plus optional derived fields
+// (rounds, part_number, …). We constrain the domain fields the rules judge
+// and let the rest ride.
 
-import { z } from 'zod';
+import * as z from 'zod/mini';
+import { JOB_STATUSES } from './job-status.js';
+import {
+  QTY_MAX, PCS_MAX, DFT_MICRON_MAX,
+  RULE_STATIONS, JOB_ROUTES, DEPLETION_REASONS, COST_UNITS, DFT_OUTCOMES,
+  NOTE_STATUSES, NOTE_PRIORITIES, MACHINE_STATES, CHECK_DIRECTIONS, CHECK_SLOTS,
+} from './rule-bounds.js';
 
-const str = z.string().min(1);
-// Envelope's created_at is a serverTimestamp() sentinel (an object) on the
-// happy path and a stub in tests — never constrained here; passthrough carries it.
+const str = z.string().check(z.minLength(1));
+const qtyField = z.number().check(z.gte(0), z.lt(QTY_MAX));
+const opt = z.optional;
 
-// production_entries — mirror isValidProductionEntry. At least one of
-// qty_pcs / qty_kg present and > 0; both bounded [0, 100000).
-const qtyField = z.number().nonnegative().lt(100000);
-export const ProductionWrite = z.object({
-  job_id: str,
-  machine_id: str,
-  worker_id: str,
-  station: z.enum(['pickling', 'plating', 'inspection', 'dispatch']),
-  qty_pcs: qtyField.optional(),
-  qty_kg: qtyField.optional(),
-}).passthrough().refine(
-  (d) => (d.qty_pcs ?? 0) > 0 || (d.qty_kg ?? 0) > 0,
-  { message: 'need a positive qty_pcs or qty_kg' },
-);
-
-// jobs (job receipt) — mirror isValidJob.
-export const JobReceiptWrite = z.object({
-  customer_id: str,
-  received_kg: z.number().nonnegative().lt(100000),
-  received_pcs: z.number().nonnegative().lt(1000000).optional(),
-  route: z.enum(['standard', 'rework-active', 'rework-completed']),
-  current_status: z.enum(['in-flight', 'ready', 'dispatched']),
-}).passthrough().refine(
-  (d) => d.received_kg > 0 || (d.received_pcs ?? 0) > 0,
-  { message: 'need a positive received_kg or received_pcs' },
-);
-
-// dft_measurements — mirror isValidDftMeasurement (0 < micron ≤ 50).
-export const DftWrite = z.object({
-  job_id: str,
-  micron_value: z.number().positive().max(50),
-  outcome: z.enum(['pass', 'fail-rework']),
-}).passthrough();
-
-// dispatch_events — rules are SILENT on content; this is the only guard.
-export const DispatchWrite = z.object({
-  job_id: str,
-  weight_kg: z.number().positive().optional(),
-}).passthrough();
-
-// stock_items/{sid}/receipts — mirror isValidStockReceipt (cost/supplier
-// optional; cost_unit must accompany unit_cost).
-export const StockRefillWrite = z.object({
-  qty_received: z.number().positive(),
-  unit_cost: z.number().positive().optional(),
-  cost_unit: z.enum(['per_kg', 'per_bag', 'per_liter']).optional(),
-  supplier_id: str.optional(),
-}).passthrough().refine(
-  (d) => !('cost_unit' in d) || d.unit_cost != null,
-  { message: 'cost_unit without unit_cost' },
-).refine(
-  (d) => d.unit_cost == null || d.cost_unit != null,
-  { message: 'unit_cost without cost_unit' },
-);
-
-// stock_items/{sid}/depletions — mirror isValidStockDepletion.
-export const StockDepleteWrite = z.object({
-  qty_depleted: z.number().positive(),
-  reason: z.enum(['production_use', 'waste', 'spillage', 'theft', 'other']),
-  level_after: z.number().nonnegative().optional(),
-}).passthrough();
-
-// machines/{mid}/state_transitions — rules SILENT on the state enum.
-export const MachineStateWrite = z.object({
-  state: z.enum(['running', 'idle', 'down']),
-}).passthrough();
-
-// workers/{wid}/shifts — rules SILENT on direction / slot enums.
-export const CheckInWrite = z.object({
-  direction: z.enum(['in', 'out']),
-  slot: z.enum(['morning_ot', 'regular', 'evening_ot']).optional(),
-}).passthrough();
-
-// notes — mirror isValidNote (summary 1..120, non-empty topic_refs, status).
-export const NoteWrite = z.object({
-  created_by: z.object({ uid: str }).passthrough(),
-  summary: z.string().min(1).max(120),
-  body: z.string(),
-  status: z.enum(['active', 'resolved', 'archived']),
-  priority: z.enum(['normal', 'urgent']),
-  topic_refs: z.array(z.string()).min(1),
-}).passthrough();
-
-const BY_TYPE = {
-  production: ProductionWrite,
-  job_receipt: JobReceiptWrite,
-  dft: DftWrite,
-  dispatch: DispatchWrite,
-  stock_refill: StockRefillWrite,
-  stock_deplete: StockDepleteWrite,
-  machine_state: MachineStateWrite,
-  check_in: CheckInWrite,
-  note: NoteWrite,
+// --- Content fields: the domain fields the rules judge, per record type. ---
+// One flat field→schema map per type so the Edit gate can validate a SINGLE
+// changed field against the exact bound the write gate enforces.
+const CONTENT = {
+  production: {
+    job_id: str,
+    machine_id: str,
+    worker_id: str,
+    station: z.enum(RULE_STATIONS),
+    qty_pcs: opt(qtyField),
+    qty_kg: opt(qtyField),
+  },
+  job_receipt: {
+    customer_id: str,
+    received_kg: qtyField,
+    received_pcs: opt(z.number().check(z.gte(0), z.lt(PCS_MAX))),
+    route: z.enum(JOB_ROUTES),
+    current_status: z.enum(JOB_STATUSES),
+  },
+  dft: {
+    job_id: str,
+    // 0 < µm <= DFT_MICRON_MAX — the cap is INCLUSIVE (see rule-bounds.js).
+    micron_value: z.number().check(z.gt(0), z.lte(DFT_MICRON_MAX)),
+    outcome: z.enum(DFT_OUTCOMES),
+  },
+  dispatch: {
+    job_id: str,
+    // Rules are SILENT on dispatch content — this schema is the only guard,
+    // so it carries the plausibility cap the rules would otherwise own.
+    weight_kg: opt(z.number().check(z.gt(0), z.lt(QTY_MAX))),
+  },
+  stock_refill: {
+    qty_received: z.number().check(z.gt(0)),
+    unit_cost: opt(z.number().check(z.gt(0))),
+    cost_unit: opt(z.enum(COST_UNITS)),
+    supplier_id: opt(str),
+  },
+  stock_deplete: {
+    qty_depleted: z.number().check(z.gt(0)),
+    reason: z.enum(DEPLETION_REASONS),
+    level_after: opt(z.number().check(z.gte(0))),
+  },
+  machine_state: {
+    state: z.enum(MACHINE_STATES),
+  },
+  check_in: {
+    direction: z.enum(CHECK_DIRECTIONS),
+    slot: opt(z.enum(CHECK_SLOTS)),
+  },
+  note: {
+    created_by: z.looseObject({ uid: str }),
+    summary: z.string().check(z.minLength(1), z.maxLength(120)),
+    body: z.string(),
+    status: z.enum(NOTE_STATUSES),
+    priority: z.enum(NOTE_PRIORITIES),
+    topic_refs: z.array(z.string()).check(z.minLength(1)),
+  },
 };
+
+// --- Cross-field invariants — only meaningful on a WHOLE doc. ---
+// Plain predicates, single-sourced: the write gate applies them as zod
+// refines on the full mapped doc; the edit gate applies them directly to the
+// merged (before ⊕ changes) doc. `in`-style key-presence AND null both count
+// as absent, so an explicitly-undefined key can't satisfy or dodge a pairing.
+// `keys` scopes the edit-path application: the check runs only when the edit
+// touched one of them (an untouched invariant is pre-existing state — the
+// edit surface must not hold an unrelated correction hostage to it).
+const CROSS_CHECKS = {
+  production: [{
+    keys: ['qty_pcs', 'qty_kg'],
+    test: (d) => (d.qty_pcs ?? 0) > 0 || (d.qty_kg ?? 0) > 0,
+    error: 'need a positive qty_pcs or qty_kg',
+  }],
+  job_receipt: [{
+    keys: ['received_kg', 'received_pcs'],
+    test: (d) => (d.received_kg ?? 0) > 0 || (d.received_pcs ?? 0) > 0,
+    error: 'need a positive received_kg or received_pcs',
+  }],
+  stock_refill: [{
+    keys: ['unit_cost', 'cost_unit'],
+    test: (d) => (d.cost_unit == null) === (d.unit_cost == null),
+    error: 'unit_cost and cost_unit travel together',
+  }],
+};
+
+const BY_TYPE = Object.fromEntries(Object.entries(CONTENT).map(([type, fields]) => {
+  let schema = z.looseObject(fields);
+  for (const c of CROSS_CHECKS[type] || []) {
+    schema = schema.check(z.refine(c.test, { error: c.error }));
+  }
+  return [type, schema];
+}));
+
+// One formatter for every gate's failure string, so the rejected-store and
+// the edit modal describe identical violations identically.
+function issueReason(result, fallbackPrefix = '') {
+  const first = result.error.issues[0];
+  const path = first?.path?.length ? `${first.path.join('.')}: ` : fallbackPrefix;
+  return `${path}${first?.message || 'invalid'}`;
+}
 
 /**
  * Validate a mapped write doc against its form-type schema.
@@ -134,8 +154,56 @@ export function validateWrite(type, data) {
   const schema = BY_TYPE[type];
   if (!schema) return { ok: false, reason: `no write schema for '${type}'` };
   const r = schema.safeParse(data);
-  if (r.success) return { ok: true };
-  const first = r.error.issues[0];
-  const path = first?.path?.length ? `${first.path.join('.')}: ` : '';
-  return { ok: false, reason: `${path}${first?.message || 'invalid'}` };
+  return r.success ? { ok: true } : { ok: false, reason: issueReason(r) };
+}
+
+// --- Edit-surface gate -------------------------------------------------------
+// The dashboard's Edit tab writes with the admin identity, which the deployed
+// rules short-circuit past content validation (isAdmin() ||) — so this module
+// is the ONLY content guard on that path too. Field-level on purpose: an edit
+// is a partial (changed fields + revision bookkeeping), so cross-field refines
+// don't apply; each changed value is judged against the same per-field bound
+// the write gate enforces. Keys are the dashboard's collection names (doc
+// path), mapped to record types here.
+const TYPE_BY_COLLECTION = {
+  production_entries: 'production',
+  jobs: 'job_receipt',
+  dft_measurements: 'dft',
+  dispatch_events: 'dispatch',
+  receipts: 'stock_refill',
+  depletions: 'stock_deplete',
+  state_transitions: 'machine_state',
+  shifts: 'check_in',
+  notes: 'note',
+};
+
+/**
+ * Validate one edited field value for a collection. Fields the rules don't
+ * judge (notes, labels, challan_no) pass — the gate constrains exactly what
+ * the write gate constrains, nothing more. Returns { ok } or { ok:false, reason }.
+ */
+export function validateEditField(collection, key, value) {
+  const type = TYPE_BY_COLLECTION[collection];
+  const fieldSchema = type ? CONTENT[type]?.[key] : undefined;
+  if (!fieldSchema) return { ok: true };
+  const r = fieldSchema.safeParse(value);
+  return r.success ? { ok: true } : { ok: false, reason: `${key}: ${issueReason(r)}` };
+}
+
+/**
+ * Validate the CROSS-FIELD invariants on the whole edited doc (before ⊕
+ * changed fields) — what a per-field check can't see. Closes the
+ * zero-quantity class: an admin edit of qty_pcs to 0 on an entry whose
+ * qty_kg is absent passes every field bound yet produces a doc the handler
+ * could never queue. Deliberately NOT the full CONTENT schema: unchanged
+ * fields of a legacy doc must not make the doc uneditable — the per-field
+ * gate already guards everything the edit touches.
+ */
+export function validateEditedDoc(collection, merged, changedKeys = []) {
+  const type = TYPE_BY_COLLECTION[collection];
+  for (const c of (type && CROSS_CHECKS[type]) || []) {
+    if (!c.keys.some((k) => changedKeys.includes(k))) continue;
+    if (!c.test(merged || {})) return { ok: false, reason: c.error };
+  }
+  return { ok: true };
 }
