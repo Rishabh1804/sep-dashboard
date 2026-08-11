@@ -1279,7 +1279,9 @@ The sandbox ships Chromium 1194; this Playwright expects a 1217 headless shell a
 
 ### ⚠ Carried, not resolved
 
-**`Area 1 = vat_a1` and `Area 2 = vat_a2` is PROPOSED, not confirmed** — soma-internal **T-EL**. No document asserts it; it rests on both being VAT lines in the same order and on Area 2's *"one tank, two lines"* fitting `vat_a2`'s lower capacity reference. `DEF_FLOOR_AREAS` carries the warning inline. **Until it closes, nothing may join a tank-level fact to a station-level fact** — a wrong mapping would attribute one line's output to the other line's tanks, and both readings are plausible, so the error would be invisible.
+✅ **`Area 1 = vat_a1` CONFIRMED same day** (BM, 11 Aug): *"A1 is the room with 4 tanks, only 3 are operational."* soma-internal **T-EL** closed. ⭐ **The answer independently corroborates this repo's own Session-11 floor model** — 4 machines, 3 functional, written in April from a different conversation. Two sources arrived at separately agreeing on both numbers. `Area 2 = vat_a2` follows by elimination on a closed set of two VAT areas.
+
+🔴 **But it surfaces soma-internal T-EN, which reaches into this repo.** `vat_a1`'s capacity reference — 3,116 NOS/day, from the W24 per-area mean — **was measured with one of four tanks down.** It is a three-tank number being read as the line's ceiling, so the A1 capacity index measures against a degraded baseline. Noted inline in `DEF_FLOOR_AREAS`. **Do not scale it by 4/3** — a four-tank number has to be measured, since jigs, crew and rectifier capacity are all in the loop. And `vat_a1`'s `caps` ladder is likewise a three-tank ladder: whether a fourth tank needs a fifth hand is unknown, and it is the same question that produced the `r:5` defect fixed in this PR.
 
 Intermediate `caps` rungs (33/66, 25/50/75) have **no register counterpart** and remain unverified. Only the top rung is confirmed.
 

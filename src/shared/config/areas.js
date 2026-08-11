@@ -84,9 +84,13 @@ export const DEF_AREAS = [
 
 // Physical floor registry — the `area` axis. Machine counts per the Session-11
 // domain lock; the station mapping per work-areas.md.
-// NOTE: Area 1 = vat_a1 and Area 2 = vat_a2 is PROPOSED, not confirmed —
-// soma-internal T-EL. Do not join a tank-level fact to a station-level fact
-// until it closes.
+// Area 1 = vat_a1 CONFIRMED by BM 11 Aug 2026: "A1 is the room with 4 tanks,
+// only 3 are operational" — which independently corroborates the Session-11
+// counts below (4 machines, 3 functional), written in April from a different
+// conversation. Area 2 = vat_a2 follows by elimination on a closed set of two
+// VAT areas. soma-internal T-EL closed.
+// NOTE (soma-internal T-EN): vat_a1's capacity reference is a THREE-tank
+// number — measured while machine 2 was down. It is not the line's ceiling.
 export const DEF_FLOOR_AREAS = [
   { id: 'area_1', name: 'Area 1', process: 'VAT, cyanide zinc', machines: 4, functional: 3, stations: ['vat_a1'] },
   { id: 'area_2', name: 'Area 2', process: 'VAT (1 tank, 2 lines)', machines: 2, functional: 2, stations: ['vat_a2'] },
