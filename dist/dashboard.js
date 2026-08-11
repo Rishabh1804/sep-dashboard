@@ -10,7 +10,7 @@ import {
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-TBLPQXV7.js";
+} from "./chunks/chunk-DLMR6RFF.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-WQLP4QOJ.js";
+} from "./chunks/chunk-VNLF2HMA.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -166,7 +166,12 @@ function setState(patch) {
 
 // src/shared/config/wage.js
 var DEF_CFG = {
-  hourRate: 41.25,
+  // 47.50, not 41.25. soma-internal tasks.md:27 — "T-CJ (Champai rate):
+  // Rs 380/day confirmed (= Rs 47.50/hr; NOT Rs 41.25) … T-CJ resolved."
+  // The 11-Jun EXTRA ruling also pays the pool at a flat Rs 47.50/hr. 41.25 was
+  // a de-facto rate superseded 4 May 2026 and left here, making every EXTRA
+  // rupee this app computed 13% low. Corrected 11 Aug 2026; pinned by test.
+  hourRate: 47.5,
   snackRate: 20,
   permOtMultiplier: 1.1,
   permOtBaseRate: 496,
@@ -367,6 +372,11 @@ function initProdDay() {
     confirmed: false,
     timeline: []
   };
+}
+function selectAssigned(area, periodKey, prod, areas, present, claimed) {
+  const eligible = area.roster.filter((id) => present.includes(id) && !claimed.has(id));
+  const req = getReq(area.id, periodKey, prod, areas);
+  return req > 0 ? eligible.slice(0, req) : eligible;
 }
 function getReq(areaId, periodKey, prod, areas) {
   const a = areas.find((x) => x.id === areaId);
@@ -1667,11 +1677,6 @@ function autoAssignRosters(prod, periodKey, present) {
   });
   autoPickling(prod, periodKey);
 }
-function selectAssigned(area, periodKey, prod, areas, present, claimed) {
-  const eligible = area.roster.filter((id) => present.includes(id) && !claimed.has(id));
-  const req = getReq(area.id, periodKey, prod, areas);
-  return req > 0 ? eligible.slice(0, req) : eligible;
-}
 function autoPickling(prod, periodKey) {
   const areas = getAreas();
   const period = prod.periods[periodKey];
@@ -1685,7 +1690,7 @@ function autoPickling(prod, periodKey) {
       const present = prod.present || [];
       period.areas[pa.id].cap = 1;
       const claimed = new Set(
-        areas.filter((a) => !a.dep).flatMap((a) => period.areas[a.id]?.assigned || [])
+        areas.filter((a) => a.id !== pa.id).flatMap((a) => period.areas[a.id]?.assigned || [])
       );
       period.areas[pa.id].assigned = selectAssigned(pa, periodKey, prod, areas, present, claimed);
     }

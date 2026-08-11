@@ -4,11 +4,14 @@
 
 import { DEF_AREAS, DEF_FLOOR_AREAS, FLOOR_ESTABLISHMENT } from '../../src/shared/config/areas.js';
 import { DEF_PERM, DEF_CW } from '../../src/shared/config/workers.js';
-import { getReq, initProdDay, recalcExtra, BLOCK_HOURS } from '../../src/shared/utils/calc-prod.js';
+import { getReq, initProdDay, recalcExtra, BLOCK_HOURS, selectAssigned } from '../../src/shared/utils/calc-prod.js';
+import { DEF_CFG } from '../../src/shared/config/wage.js';
 
-// The ratified establishment, confirmed against the register: Fri 7 / Sat 8 Aug
-// 2026 are the only zero-EXTRA days of W32 and the only two with every station
-// at these numbers.
+// The ratified establishment. Origin: BM ruling of 11 Jun 2026 (soma-internal
+// decisions/2026-06-11.md §2). Corroborated by the register: on Fri 7 / Sat 8
+// Aug 2026 — the only zero-EXTRA days of W32 — every GENERAL-SHIFT PRODUCTION
+// station sits at these numbers. (Not "every station": Fri 7's gate was
+// unmanned and several OT rows sit below establishment.)
 const ESTABLISHMENT = {
   vat_a1: 4, vat_a2: 4, barrel: 3, pickle_barrel: 2, pickle_vat: 3,
 };
@@ -146,57 +149,75 @@ describe('area rosters resolve against the worker registry', () => {
 });
 
 describe('eligibility is not assignment (the 11 Aug roster regression)', () => {
-  // `roster` is deliberately wide — 9 names against an establishment of 4 on
-  // the VAT stations. Before 11 Aug the assignment path filtered `present`
-  // against it directly, so widening a roster monotonically SUPPRESSED the
-  // EXTRA deficit and one present hand could satisfy three stations at once.
-  // Simulated against the register, Mon 3 Aug booked 16 h against a written 56.
-  // These pin the two invariants that stop it recurring. They model the
-  // selection rule directly; the wiring lives in tabs/production.js, which
-  // needs a DOM and is covered by e2e.
+  // `roster` is deliberately wide — 9 names against an establishment of 4 on the
+  // VAT stations. Before 11 Aug the assignment path filtered `present` against
+  // it directly, so widening a roster monotonically SUPPRESSED the EXTRA deficit
+  // and one hand could satisfy three stations at once. Simulated against the
+  // register, Mon 3 Aug booked 16 h against a written 56.
+  //
+  // These call the REAL selectAssigned from Layer 1. An earlier version of this
+  // suite re-implemented the rule inline and therefore could not fail — Cipher
+  // Edict V, 11 Aug.
 
-  const REQ = Object.fromEntries(DEF_AREAS.map((a) => [a.id, a.establishment]));
-
-  function assignFloor(present) {
-    const claimed = new Set();
-    const out = {};
-    DEF_AREAS.forEach((a) => {
-      const eligible = a.roster.filter((id) => present.includes(id) && !claimed.has(id));
-      out[a.id] = eligible.slice(0, REQ[a.id]);
-      out[a.id].forEach((id) => claimed.add(id));
-    });
-    return out;
+  function fullDay() {
+    const prod = initProdDay();
+    prod.periods.standard.areas = Object.fromEntries(
+      DEF_AREAS.map((a) => [a.id, { cap: 100, assigned: [] }]),
+    );
+    return prod;
   }
 
+  function assignFloor(present) {
+    const prod = fullDay();
+    const claimed = new Set();
+    DEF_AREAS.forEach((a) => {
+      const got = selectAssigned(a, 'standard', prod, DEF_AREAS, present, claimed);
+      prod.periods.standard.areas[a.id].assigned = got;
+      got.forEach((id) => claimed.add(id));
+    });
+    return prod;
+  }
+
+  const everyone = () => [...new Set(DEF_AREAS.flatMap((a) => a.roster))];
+
   it('no hand is credited to two stations in the same period', () => {
-    const everyone = [...new Set(DEF_AREAS.flatMap((a) => a.roster))];
-    const assigned = Object.values(assignFloor(everyone)).flat();
-    expect(assigned.length).toBe(new Set(assigned).size);
+    const prod = assignFloor(everyone());
+    const all = DEF_AREAS.flatMap((a) => prod.periods.standard.areas[a.id].assigned);
+    expect(all.length).toBe(new Set(all).size);
   });
 
   it('no station is assigned more hands than its establishment', () => {
-    const everyone = [...new Set(DEF_AREAS.flatMap((a) => a.roster))];
-    const assigned = assignFloor(everyone);
+    const prod = assignFloor(everyone());
     DEF_AREAS.forEach((a) => {
-      expect([a.id, assigned[a.id].length <= a.establishment]).toEqual([a.id, true]);
+      const n = prod.periods.standard.areas[a.id].assigned.length;
+      expect([a.id, n <= a.establishment]).toEqual([a.id, true]);
     });
   });
 
   it('widening a roster cannot reduce the booked deficit', () => {
-    // The regression, stated as a property. One hand present, eligible
-    // everywhere: he fills exactly one slot, so the floor deficit is 15 not 11.
-    const solo = ['sai'];
-    const assigned = assignFloor(solo);
-    const filled = Object.values(assigned).flat().length;
+    // The regression as a property. One hand, eligible at three stations:
+    // he fills exactly one slot, so the floor deficit is 15, not 13.
+    const prod = assignFloor(['vijay']);   // on vat_a1, vat_a2 and pickle_vat
+    const filled = DEF_AREAS
+      .flatMap((a) => prod.periods.standard.areas[a.id].assigned).length;
     expect(filled).toBe(1);
-    expect(FLOOR_ESTABLISHMENT - filled).toBe(15);
+    recalcExtra(prod, DEF_AREAS, DEF_CFG);
+    expect(prod.totals.extraHours).toBe((FLOOR_ESTABLISHMENT - 1) * BLOCK_HOURS.standard);
   });
 
-  it('the tie-break is roster order (BM, 11 Aug) — first req names win', () => {
+  it('the tie-break is roster order (BM, 11 Aug) — the first req names win', () => {
     const a1 = DEF_AREAS.find((a) => a.id === 'vat_a1');
-    const present = [...a1.roster];              // all 9 eligible present
-    const assigned = assignFloor(present);
-    expect(assigned.vat_a1).toEqual(a1.roster.slice(0, a1.establishment));
+    const prod = assignFloor([...a1.roster]);
+    expect(prod.periods.standard.areas.vat_a1.assigned)
+      .toEqual(a1.roster.slice(0, a1.establishment));
+  });
+
+  it('a hand claimed by an earlier station is not offered to a later one', () => {
+    // sharat_mahato heads no roster but sits on both VAT stations. Alone, he is
+    // credited to vat_a1 (first in DEF_AREAS order) and vat_a2 gets nobody.
+    const prod = assignFloor(['sharat_mahato']);
+    expect(prod.periods.standard.areas.vat_a1.assigned).toEqual(['sharat_mahato']);
+    expect(prod.periods.standard.areas.vat_a2.assigned).toEqual([]);
   });
 });
 
@@ -227,5 +248,16 @@ describe('the physical floor registry is pinned to the canon', () => {
     expect(got).toEqual({
       area_1: [4, 3], area_2: [2, 2], area_3: [8, 4], area_4: [6, null],
     });
+  });
+});
+
+describe('the contract wage rate', () => {
+  it('is Rs 47.50/hr — the value the codex ruled, not the 41.25 it ruled against', () => {
+    // soma-internal tasks.md:27 — "T-CJ (Champai rate): Rs 380/day confirmed
+    // (= Rs 47.50/hr; NOT Rs 41.25) … T-CJ resolved." The 11-Jun EXTRA ruling
+    // pays the pool at a flat Rs 47.50/hr. 41.25 was superseded 4 May 2026 and
+    // sat here until 11 Aug, making every EXTRA rupee 13% low.
+    expect(DEF_CFG.hourRate).toBe(47.5);
+    expect(DEF_CFG.hourRate * 8).toBe(380);   // one body-block = one day rate
   });
 });

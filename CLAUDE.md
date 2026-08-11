@@ -1250,7 +1250,11 @@ Fixed by separating the axes: **`roster` means ELIGIBLE HERE** (wide, register-d
 
 **3. `vat_a1`'s top capacity rung was 5 against an establishment of 4.** `recalcExtra` has implemented the deficit formula since Stage A, keyed on `caps[].r`; the top rung must equal the establishment. Four of five stations already agreed. A1 credited one phantom body-block on every full-capacity A1 day **staffed below five** — which, on the W32 register, is all six days. Worth 8 h = **₹330** at this app's configured ₹41.25/hr. Fixed to 4, giving A1 the same top-rung plateau `vat_a2` and `barrel` already have. The 66 rung stays meaningful: `getReq('pickle_vat')` returns 3 only when both VAT caps are 100.
 
-🔴 **₹380 was wrong and is withdrawn.** The first cut quoted ₹380 = 8 × ₹47.50, the *register's* contract rate. **This app is configured at ₹41.25/hr** (`wage.js`), so a body-block is ₹330. The underlying divergence is the finding: the dashboard prices EXTRA **13% below what the floor is actually paid**, and `soma-internal staff-aliases.md` already carries the same ₹41.25-vs-₹47.50 gap for Champai under T-CJ. Not silently changed here — it needs the rate reconciliation, not a config edit.
+🔧 **The ₹380/₹330 confusion, resolved in the right direction.** The first cut quoted ₹380 = 8 × ₹47.50, the register's contract rate, while `wage.js` ran **₹41.25/hr** — so the block really was ₹330, and the fold said the 13% gap was *"already tracked for Champai under T-CJ."*
+
+🔴 **Cipher Edict V found that claim false in both directions.** soma-internal `tasks.md:27`: *"**T-CJ (Champai rate)** — **₹380/day** confirmed (= ₹47.50/hr; **NOT ₹41.25**) … **T-CJ resolved.**"* T-CJ is **closed**, and it closed **against** 41.25. So this was not an open divergence awaiting reconciliation — it was **a constant the codex had already ruled wrong**, and the fix had been deferred onto a task that could not receive it.
+
+✅ **Corrected here rather than re-deferred**: `hourRate: 47.50`, pinned by a test asserting `47.50 × 8 = 380` — one body-block is one contract day-rate, which makes the ruling self-checking. ⚠ **Stored production days keep whatever `extraCost` they were saved with, and any day confirmed under 41.25 is 13% low.** Not retroactively recomputed — that touches booked payroll. → soma-internal **T-EP**.
 
 ### The deployment gap — the fix does not reach an installed dashboard
 
@@ -1280,7 +1284,11 @@ Sandbox ships Chromium 1194; this Playwright expects a 1217 headless shell it ca
 
 Unit **279 → 300** · e2e **41** · build clean. `BUILD 4→5`, `APP_VERSION 2.1.0-alpha.8`, both SW caches bumped, `K.prodAreas` → v2.
 
-New coupling cases pin what would have caught this session's own regressions: **no hand credited to two stations in one period** · **no station assigned above establishment** · **widening a roster cannot reduce the booked deficit** · **the roster-order tie-break** · **block hours additive to the payout's clock spans** · **`DEF_FLOOR_AREAS` machine counts tethered to `work-areas.md`** (Janus: the one table that was pure restatement with no coupling). The `recalcExtra` arithmetic test was renamed — it hand-feeds assignments and would have stayed green through the whole roster regression, which the old name concealed.
+New coupling cases pin what would have caught this session's own regressions: **no hand credited to two stations in one period** · **no station assigned above establishment** · **widening a roster cannot reduce the booked deficit** · **the roster-order tie-break** · **a hand claimed by an earlier station is not offered to a later one** · **block hours additive to the payout's clock spans** · **`DEF_FLOOR_AREAS` machine counts tethered to `work-areas.md`** · **`hourRate` = 47.50 and 47.50 × 8 = 380**.
+
+🔧 **Those assignment tests were themselves rewritten at Cipher Edict V.** The first version **re-implemented the selection rule inline**, so it modelled a property the code did not have and **could not fail** — and its own disclosure that the wiring was "covered by e2e" was false: no e2e exercises `autoAssignRosters` / `selectAssigned` / `autoPickling`. **`selectAssigned` was therefore promoted to Layer 1** (`calc-prod.js`), where the tests call the real function; `tabs/production.js` imports it. The `recalcExtra` arithmetic test was also renamed — it hand-feeds assignments and stays green through the entire roster regression, which the old register-flavoured name concealed.
+
+🔧 **And `autoPickling` was dropping the exclusion** it had just been given: it rebuilt `claimed` from non-dep areas only, so a dep-to-dep overlap would double-count. Zero impact today (Area 4's two rosters are disjoint) — but the register moves Naren, Sambhu, Birsa, Rakesh and Vijay across Area 4 constantly, and the first overlapping edit would have re-opened the exact defect. Now claims from every other area, dep included.
 
 ### Still Open (unchanged queue)
 

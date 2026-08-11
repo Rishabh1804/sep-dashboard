@@ -33,6 +33,28 @@ export function initProdDay() {
   };
 }
 
+// THE assignment rule. `roster` means ELIGIBLE HERE, not assigned here — the
+// registry lists everyone the register has ever placed at a station, so the VAT
+// rosters run 9 names against an establishment of 4. Filtering `present`
+// against that directly (what tabs/production.js did before 11 Aug 2026) lets
+// one hand satisfy three stations at once and monotonically SUPPRESSES the
+// EXTRA deficit: simulated against the register, Mon 3 Aug booked 16 h where
+// the register wrote 56.
+//
+// Tie-break is ROSTER ORDER (BM, 11 Aug 2026) — when more eligible hands are
+// present than the station needs, the first `req` names in the roster array are
+// credited. That allocation is real money under the 11-Jun pro-rata ruling, so
+// the order is a deliberate default and NOT a fact about who stood where. The
+// operator overrides it per period; an operator-set assignment is not re-derived.
+//
+// Lives in Layer 1 rather than in the tab so it is directly testable — the
+// previous test re-implemented this rule and therefore could not fail.
+export function selectAssigned(area, periodKey, prod, areas, present, claimed) {
+  const eligible = area.roster.filter((id) => present.includes(id) && !claimed.has(id));
+  const req = getReq(area.id, periodKey, prod, areas);
+  return req > 0 ? eligible.slice(0, req) : eligible;
+}
+
 // Required headcount for a single area in a single period.
 // `areas` is the area registry; `prod` carries the current period state.
 export function getReq(areaId, periodKey, prod, areas) {

@@ -16,7 +16,7 @@ import { monthOf } from '../../shared/utils/month.js';
 import { isSunday, tnow, getWeekEnd } from '../../shared/utils/date.js';
 import { formatCurrency, sepRound } from '../../shared/utils/currency.js';
 import { esc } from '../../shared/utils/format.js';
-import { initProdDay, getReq, recalcExtra } from '../../shared/utils/calc-prod.js';
+import { initProdDay, getReq, recalcExtra, selectAssigned } from '../../shared/utils/calc-prod.js';
 import { renderHome } from './home.js';
 
 export function renderProduction() {
@@ -180,29 +180,6 @@ function autoAssignRosters(prod, periodKey, present) {
   autoPickling(prod, periodKey);
 }
 
-// `roster` means ELIGIBLE HERE, not assigned here — the registry lists everyone
-// the W32 register has ever placed at a station, so the VAT rosters run 9 names
-// against an establishment of 4. Filtering `present` against that directly
-// (which is what this did before 11 Aug 2026) lets one hand satisfy three
-// stations at once and monotonically SUPPRESSES the EXTRA deficit: simulated
-// against the register, Mon 3 Aug booked 16 h where the register wrote 56.
-//
-// So eligibility is filtered, then capped at the station's requirement, and a
-// hand already claimed by an earlier station is not counted twice.
-//
-// Tie-break is ROSTER ORDER (BM, 11 Aug 2026) — when more eligible hands are
-// present than the station needs, the first `req` names in the roster array are
-// credited. That allocation is real money under the 11-Jun ruling (the deficit
-// is absorbed pro-rata by the station's present crew), so the order is a
-// deliberate default and NOT a fact about who actually stood where. The
-// operator overrides it per period on the production tab; an operator-set
-// assignment is never re-derived.
-function selectAssigned(area, periodKey, prod, areas, present, claimed) {
-  const eligible = area.roster.filter((id) => present.includes(id) && !claimed.has(id));
-  const req = getReq(area.id, periodKey, prod, areas);
-  return req > 0 ? eligible.slice(0, req) : eligible;
-}
-
 function autoPickling(prod, periodKey) {
   const areas = getAreas();
   const period = prod.periods[periodKey];
@@ -219,8 +196,14 @@ function autoPickling(prod, periodKey) {
       // Same eligibility-vs-assignment rule as the independent areas: cap at
       // the derived requirement, and never double-count a hand already
       // credited to a VAT/barrel station in this period.
+      // Claim from EVERY area already assigned this period, dep ones included —
+      // rebuilding from non-dep areas only would drop the dep-to-dep exclusion
+      // autoAssignRosters just established. Harmless today because Area 4's two
+      // rosters are disjoint, but the register moves Naren/Sambhu/Birsa/Rakesh/
+      // Vijay across Area 4 constantly, and the first overlapping edit would
+      // re-open the double-counting this whole change exists to close.
       const claimed = new Set(
-        areas.filter((a) => !a.dep)
+        areas.filter((a) => a.id !== pa.id)
           .flatMap((a) => period.areas[a.id]?.assigned || []),
       );
       period.areas[pa.id].assigned = selectAssigned(pa, periodKey, prod, areas, present, claimed);

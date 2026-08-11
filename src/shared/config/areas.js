@@ -17,8 +17,10 @@
 // which set these five norms, the deficit formula AND the pro-rata payee split.
 // Corroborated by the register: on Fri 7 / Sat 8 Aug 2026 — the only two days
 // of W32 carrying zero EXTRA — every GENERAL-SHIFT PRODUCTION station sits at
-// these numbers. (Not "every station": Fri 7's gate was unmanned, and four OT
-// rows on those two days sit below establishment with no tag written.)
+// these numbers. (Not "every station": Fri 7's gate was unmanned, and SIX OT
+// rows on those two days sit below establishment with no tag written — a live
+// Rs 2,470 question in soma-internal, since BM ruled 11 Aug that the deficit
+// rule reaches OT blocks too.)
 //
 // Station ids here deliberately retain the pre-canon spelling (pickle_vat /
 // pickle_barrel vs the canon's vat_pickling / barrel_pickling) because statKey
@@ -47,9 +49,9 @@ export const DEF_AREAS = [
       // 11 Aug: was r:5, which exceeded the register's establishment of 4 and
       // credited one phantom body-block of EXTRA on every full-capacity A1 day
       // STAFFED BELOW FIVE — which, on the W32 register, is all six days.
-      // Worth 8 h = Rs 330 at this app's configured 41.25/hr (the register pays
-      // 47.50 — a 13% divergence tracked under soma-internal T-CJ, not fixed
-      // here). Now plateaus at the top exactly as vat_a2 (75/100 both 4) and
+      // Worth 8 h = Rs 380 at the ruled 47.50/hr. (Until 11 Aug this app ran
+      // 41.25 and the block was Rs 330 — a value soma-internal T-CJ had already
+      // ruled AGAINST and closed on; corrected in the same PR, see T-EP.) Now plateaus at the top exactly as vat_a2 (75/100 both 4) and
       // barrel (75/100 both 3). The 66 rung stays meaningful: getReq for
       // pickle_vat returns 3 only when BOTH VAT caps are 100, else 2.
       { l: 100, lb: '100%', r: 4 },
