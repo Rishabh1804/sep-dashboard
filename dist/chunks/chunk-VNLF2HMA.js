@@ -6,13 +6,33 @@ var DEF_AREAS = [
     group: "vat",
     dep: false,
     depOn: [],
+    area: "area_1",
+    establishment: 4,
     caps: [
       { l: 0, lb: "Off", r: 0 },
       { l: 33, lb: "33%", r: 3 },
       { l: 66, lb: "66%", r: 4 },
-      { l: 100, lb: "100%", r: 5 }
+      // 11 Aug: was r:5, which exceeded the register's establishment of 4 and
+      // credited one phantom body-block of EXTRA on every full-capacity A1 day
+      // STAFFED BELOW FIVE — which, on the W32 register, is all six days.
+      // Worth 8 h = Rs 380 at the ruled 47.50/hr. (Until 11 Aug this app ran
+      // 41.25 and the block was Rs 330 — a value soma-internal T-CJ had already
+      // ruled AGAINST and closed on; corrected in the same PR, see T-EP.) Now plateaus at the top exactly as vat_a2 (75/100 both 4) and
+      // barrel (75/100 both 3). The 66 rung stays meaningful: getReq for
+      // pickle_vat returns 3 only when BOTH VAT caps are 100, else 2.
+      { l: 100, lb: "100%", r: 4 }
     ],
-    roster: ["sharat_mahato", "bp_sharma", "lk_das", "lal", "suklal"]
+    roster: [
+      "lk_das",
+      "bp_sharma",
+      "vijay",
+      "birsa",
+      "sharat_mahato",
+      "rupa_bera",
+      "sai",
+      "rakesh",
+      "lal"
+    ]
   },
   {
     id: "vat_a2",
@@ -20,6 +40,8 @@ var DEF_AREAS = [
     group: "vat",
     dep: false,
     depOn: [],
+    area: "area_2",
+    establishment: 4,
     caps: [
       { l: 0, lb: "Off", r: 0 },
       { l: 25, lb: "25%", r: 2 },
@@ -27,7 +49,17 @@ var DEF_AREAS = [
       { l: 75, lb: "75%", r: 4 },
       { l: 100, lb: "100%", r: 4 }
     ],
-    roster: ["sharat_mahato", "sai", "shambhu", "mantu"]
+    roster: [
+      "sharat_mahato",
+      "rupa_bera",
+      "sai",
+      "rocky",
+      "lk_das",
+      "bp_sharma",
+      "vijay",
+      "shambhu",
+      "lal"
+    ]
   },
   {
     id: "barrel",
@@ -35,6 +67,8 @@ var DEF_AREAS = [
     group: "barrel",
     dep: false,
     depOn: [],
+    area: "area_3",
+    establishment: 3,
     caps: [
       { l: 0, lb: "Off", r: 0 },
       { l: 25, lb: "25%", r: 2 },
@@ -42,7 +76,7 @@ var DEF_AREAS = [
       { l: 75, lb: "75%", r: 3 },
       { l: 100, lb: "100%", r: 3 }
     ],
-    roster: ["sunil_mahato", "birsa", "tuklu"]
+    roster: ["shyam_bera", "sunil_mahato", "suklal"]
   },
   {
     id: "pickle_vat",
@@ -50,8 +84,10 @@ var DEF_AREAS = [
     group: "vat",
     dep: true,
     depOn: ["vat_a1", "vat_a2"],
+    area: "area_4",
+    establishment: 3,
     caps: [],
-    roster: ["lk_das", "lal", "suklal"]
+    roster: ["naren", "sripati", "rakesh", "birsa", "vijay"]
   },
   {
     id: "pickle_barrel",
@@ -59,10 +95,13 @@ var DEF_AREAS = [
     group: "barrel",
     dep: true,
     depOn: ["barrel"],
+    area: "area_4",
+    establishment: 2,
     caps: [],
-    roster: ["rupa_bera", "bp_sharma"]
+    roster: ["shambhu", "budheswar"]
   }
 ];
+var FLOOR_ESTABLISHMENT = DEF_AREAS.reduce((n, a) => n + a.establishment, 0);
 
 // src/shared/config/stock.js
 var DEF_STOCK = [
@@ -75,8 +114,8 @@ var DEF_STOCK = [
 ];
 
 // src/shared/config/app.js
-var APP_VERSION = "2.1.0-alpha.7";
-var BUILD = 4;
+var APP_VERSION = "2.1.0-alpha.8";
+var BUILD = 5;
 
 // src/shared/types/rule-bounds.js
 var QTY_MAX = 1e5;
@@ -120,4 +159,4 @@ export {
   CHECK_SLOTS,
   deriveTotalQty
 };
-//# sourceMappingURL=chunk-274TEG2F.js.map
+//# sourceMappingURL=chunk-VNLF2HMA.js.map

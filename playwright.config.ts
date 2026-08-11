@@ -1,5 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Some sandboxes ship a Chromium build that differs from the one this
+// Playwright version expects, and downloading the matching build is disabled
+// there. The SessionStart hook detects that case and points this at the browser
+// that IS present. Unset everywhere else, where Playwright's own resolution is
+// correct and should be left alone. Same pattern as sep-invoicing.
+const chromiumPath = process.env.PW_CHROMIUM_PATH;
+const launchOptions = chromiumPath ? { executablePath: chromiumPath } : {};
+
 const PORT = Number(process.env.SEP_TEST_PORT ?? 4173);
 const BASE_URL = `http://localhost:${PORT}/sep-dashboard/`;
 
@@ -30,7 +38,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], launchOptions },
     },
   ],
 });

@@ -25,7 +25,7 @@ test.beforeEach(async ({ context, page }) => {
 test.describe('dash-3-2b ops-layer validation guards @smoke', () => {
   test('A2 #2: over-advance badge surfaces when CW advance > wage', async ({ page }) => {
     // Seed one CW worker present 1 day this week, with an advance that
-    // exceeds the calculated wage. CW hourRate * 8h = ₹330/day; advance ₹500
+    // exceeds the calculated wage. CW hourRate * 8h = ₹380/day; advance ₹500
     // beats that.
     await page.evaluate(() => {
       const today = new Date();

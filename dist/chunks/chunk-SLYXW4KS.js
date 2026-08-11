@@ -46,9 +46,9 @@ async function _boot() {
   const config = getFirebaseConfig();
   if (!config) return null;
   const [{ initializeApp }, fs, fbAuth] = await Promise.all([
-    import("./index.esm-4SWAQBD2.js"),
-    import("./index.esm-2USXLGIN.js"),
-    import("./index.esm-IODVGKBZ.js")
+    import("./index.esm-YCKMX627.js"),
+    import("./index.esm-PSUINTKR.js"),
+    import("./index.esm-SEISHXRY.js")
   ]);
   const app = initializeApp(config);
   const db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache() });
@@ -77,4 +77,4 @@ async function signInFromUrlFragment(auth, fbAuth) {
 export {
   bootFirebaseSession
 };
-//# sourceMappingURL=chunk-DTFB4KXG.js.map
+//# sourceMappingURL=chunk-SLYXW4KS.js.map

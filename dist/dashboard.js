@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-IIQMR7WS.js";
+} from "./chunks/chunk-C7BKPTGD.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-R4IRYVMN.js";
+} from "./chunks/chunk-DLMR6RFF.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,8 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-274TEG2F.js";
-import "./chunks/chunk-IFG75HHC.js";
+} from "./chunks/chunk-VNLF2HMA.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -58,8 +57,10 @@ function saveJSON(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
     emit("data:saved", { key });
+    return true;
   } catch (e) {
     console.error("Save error:", e);
+    return false;
   }
 }
 
@@ -81,8 +82,17 @@ var K = {
   stockLog: "sep_stock_log_v1",
   // Production
   prodLog: "sep_prod_log_v1",
-  prodAreas: "sep_prod_areas_v1",
+  // v2 (11 Aug 2026): forces a one-shot re-seed of the area registry so
+  // installed dashboards pick up the ratified establishment, the vat_a1
+  // caps fix (r:5 -> 4) and the corrected rosters. getAreas() returns the
+  // saved array WHOLESALE with no merge, so a key bump is the only way the
+  // fix reaches an install short of Reset All Data — which destroys payroll
+  // history. The v1 value is left in place, unread, as a rollback.
+  prodAreas: "sep_prod_areas_v2",
   prodCfg: "sep_prod_cfg_v1",
+  // Applied data migrations, keyed by id -> report. Makes runPendingMigrations
+  // idempotent and keeps the before/after record queryable after the fact.
+  migrations: "sep_migrations_v1",
   permSnack: "sep_perm_snack_log_v1",
   // System
   settings: "sep_settings_v1",
@@ -95,6 +105,302 @@ var K = {
   invoices: "sep_inv_v1",
   invCfg: "sep_inv_cfg_v1"
 };
+
+// src/shared/config/wage.js
+var DEF_CFG = {
+  // 47.50, not 41.25. soma-internal tasks.md:27 — "T-CJ (Champai rate):
+  // Rs 380/day confirmed (= Rs 47.50/hr; NOT Rs 41.25) … T-CJ resolved."
+  // The 11-Jun EXTRA ruling also pays the pool at a flat Rs 47.50/hr. 41.25 was
+  // a de-facto rate superseded 4 May 2026 and left here, making every EXTRA
+  // rupee this app computed 13% low. Corrected 11 Aug 2026; pinned by test.
+  hourRate: 47.5,
+  snackRate: 20,
+  permOtMultiplier: 1.1,
+  permOtBaseRate: 496,
+  guardIds: ["uday"],
+  excludedIds: ["rounak"],
+  standardShift: { start: "08:30", end: "17:00", hours: 8 },
+  sundayHolidayShift: { start: "06:00", end: "14:00", hours: 8 },
+  morningOT: { start: "06:00", end: "08:30", hours: 3 },
+  // 17:00-24:00 = 7 h (BM, 11 Aug). Was 20:00 / 3 h, which made the production
+  // tab render "Evening OT 17:00-20:00 (3h)" while recalcExtra booked the
+  // deficit at 7 — the operator shown two different evening blocks on one
+  // screen (Castor MEDIUM-4). Mirrors BLOCK_HOURS.eveningOT; keep in step.
+  // NOTE: shadowed on existing installs — initData seeded the whole DEF_CFG
+  // into K.prodCfg in May, so saved values win. See migrations.js.
+  eveningOT: { start: "17:00", end: "24:00", hours: 7 }
+};
+
+// src/shared/storage/production.js
+function getAreas() {
+  return loadJSON(K.prodAreas, DEF_AREAS);
+}
+function getCfg() {
+  const saved = loadJSON(K.prodCfg, {});
+  return {
+    ...DEF_CFG,
+    ...saved,
+    standardShift: { ...DEF_CFG.standardShift, ...saved.standardShift || {} },
+    sundayHolidayShift: { ...DEF_CFG.sundayHolidayShift, ...saved.sundayHolidayShift || {} },
+    morningOT: { ...DEF_CFG.morningOT, ...saved.morningOT || {} },
+    eveningOT: { ...DEF_CFG.eveningOT, ...saved.eveningOT || {} }
+  };
+}
+function getProdLogs() {
+  return loadJSON(K.prodLog, {});
+}
+function getProdDay(date) {
+  const logs = getProdLogs();
+  return logs[date] || null;
+}
+function saveProdDay(date, dayData) {
+  const logs = getProdLogs();
+  logs[date] = dayData;
+  saveJSON(K.prodLog, logs);
+}
+
+// src/shared/utils/currency.js
+function sepRound(n) {
+  return Math.floor(Number(n) || 0);
+}
+function formatCurrency(n) {
+  return "\u20B9" + sepRound(n).toLocaleString("en-IN");
+}
+
+// src/shared/utils/calc-prod.js
+var BLOCK_HOURS = { morningOT: 3, standard: 8, eveningOT: 7 };
+function initProdDay() {
+  return {
+    periods: {
+      morningOT: { active: false, hours: BLOCK_HOURS.morningOT, areas: {}, workers: [] },
+      standard: { active: true, hours: BLOCK_HOURS.standard, areas: {}, workers: null },
+      // 11 Aug 2026: was 3. The evening block runs 5 PM -> 12 AM = 7 hours.
+      // At 3 the dashboard understated Thu 6 Aug's evening EXTRA by 20 h
+      // (15 booked against the register's 35). Stored production days keep
+      // whatever `hours` they were saved with — this changes the default only.
+      eveningOT: { active: false, hours: BLOCK_HOURS.eveningOT, areas: {}, workers: [] }
+    },
+    totals: { pieces: 0, weight: 0, extraHours: 0, extraCost: 0, snackCost: 0 },
+    confirmed: false,
+    timeline: []
+  };
+}
+function selectAssigned(area, periodKey, prod, areas, present, claimed) {
+  const eligible = area.roster.filter((id) => present.includes(id) && !claimed.has(id));
+  const req = getReq(area.id, periodKey, prod, areas);
+  return req > 0 ? eligible.slice(0, req) : eligible;
+}
+function getReq(areaId, periodKey, prod, areas) {
+  const a = areas.find((x) => x.id === areaId);
+  if (!a) return 0;
+  const pa = prod.periods[periodKey]?.areas?.[areaId];
+  if (!pa) return 0;
+  if (!a.dep) {
+    if (pa.cap === 0) return 0;
+    const cl = a.caps.find((c) => c.l === pa.cap);
+    return cl ? cl.r : 0;
+  }
+  if (areaId === "pickle_vat") {
+    const a1c = prod.periods[periodKey].areas.vat_a1?.cap || 0;
+    const a2c = prod.periods[periodKey].areas.vat_a2?.cap || 0;
+    if (a1c === 0 && a2c === 0) return 0;
+    if (a1c === 100 && a2c === 100) return 3;
+    return 2;
+  }
+  if (areaId === "pickle_barrel") {
+    const bc = prod.periods[periodKey].areas.barrel?.cap || 0;
+    if (bc === 0) return 0;
+    if (bc <= 50) return 1;
+    return 2;
+  }
+  return 0;
+}
+function recalcExtra(prod, areas, cfg) {
+  let totalExtraH = 0;
+  let totalExtraCost = 0;
+  ["morningOT", "standard", "eveningOT"].forEach((pk) => {
+    const period = prod.periods[pk];
+    if (!period || pk !== "standard" && !period.active) return;
+    const hours = period.hours || BLOCK_HOURS[pk] || 0;
+    let shortfall = 0;
+    areas.forEach((area) => {
+      const pa = period.areas?.[area.id];
+      if (!pa) return;
+      const req = getReq(area.id, pk, prod, areas);
+      const assigned = pa.assigned?.length || 0;
+      if (req > assigned) shortfall += req - assigned;
+    });
+    const periodExtra = sepRound(shortfall * hours * cfg.hourRate);
+    totalExtraH += shortfall * hours;
+    totalExtraCost += periodExtra;
+  });
+  let snackCost = 0;
+  const eveningOT = prod.periods.eveningOT;
+  if (eveningOT?.active) {
+    const snackWorkers = eveningOT.workers?.length || 0;
+    snackCost = snackWorkers * cfg.snackRate;
+  }
+  prod.totals = prod.totals || {};
+  prod.totals.extraHours = totalExtraH;
+  prod.totals.extraCost = totalExtraCost;
+  prod.totals.snackCost = snackCost;
+}
+
+// src/shared/storage/migrations.js
+var MIGRATION_ID = "2026-08-11-extra-rate";
+var OLD_HOUR_RATE = 41.25;
+var OLD_VAT_A1_TOP_REQ = 5;
+var OLD_BLOCK_HOURS = { ...BLOCK_HOURS, eveningOT: 3 };
+function planCfgRateFix(savedCfg) {
+  if (!savedCfg || savedCfg.hourRate === void 0) return { cfg: savedCfg, changed: false };
+  if (savedCfg.hourRate === OLD_HOUR_RATE) {
+    return { cfg: { ...savedCfg, hourRate: DEF_CFG.hourRate }, changed: true };
+  }
+  return { cfg: savedCfg, changed: false, unexpected: savedCfg.hourRate !== DEF_CFG.hourRate };
+}
+function oldConfigFrom(areas, cfg) {
+  return {
+    areas: areas.map((a) => a.id !== "vat_a1" ? a : {
+      ...a,
+      caps: a.caps.map((c) => c.l === 100 ? { ...c, r: OLD_VAT_A1_TOP_REQ } : c)
+    }),
+    cfg: { ...cfg, hourRate: OLD_HOUR_RATE }
+  };
+}
+var cloneDay = (day) => JSON.parse(JSON.stringify(day));
+function totalsUnder(day, areas, cfg, blockHours) {
+  const copy = cloneDay(day);
+  if (blockHours) {
+    Object.entries(copy.periods || {}).forEach(([pk, per]) => {
+      if (per && !per.hours) per.hours = blockHours[pk];
+    });
+  }
+  recalcExtra(copy, areas, cfg);
+  return {
+    extraHours: copy.totals.extraHours,
+    extraCost: copy.totals.extraCost
+  };
+}
+var money = (n) => n < 0 ? -sepRound(-n) : sepRound(n);
+function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
+  const old = oldConfigFrom(areas, cfg);
+  const out = {};
+  const report = {
+    migration: MIGRATION_ID,
+    at: at || null,
+    scanned: 0,
+    corrected: 0,
+    unchanged: 0,
+    skippedUnreproducible: 0,
+    skippedNoTotals: 0,
+    deltaCost: 0,
+    deltaHours: 0,
+    raisedByRate: 0,
+    loweredByEstablishment: 0,
+    eveningHours3Days: 0,
+    deferredEveningHours: [],
+    flagged: [],
+    changes: []
+  };
+  Object.keys(logs).sort().forEach((date) => {
+    const day = logs[date];
+    out[date] = day;
+    report.scanned += 1;
+    if (!day || !day.totals || !day.periods) {
+      report.skippedNoTotals += 1;
+      return;
+    }
+    if (day.periods.eveningOT?.active && day.periods.eveningOT.hours === 3) {
+      report.eveningHours3Days += 1;
+      report.deferredEveningHours.push({
+        date,
+        stored: { extraHours: day.totals.extraHours || 0, extraCost: day.totals.extraCost || 0 },
+        why: "evening block booked at 3 h where the ruling says 7 \u2014 correcting the rate here would produce a figure that is still wrong, and stamping corrections[] on it would assert otherwise. Needs the slip span."
+      });
+      return;
+    }
+    const stored = {
+      extraHours: day.totals.extraHours || 0,
+      extraCost: day.totals.extraCost || 0
+    };
+    const underOld = totalsUnder(day, old.areas, old.cfg, OLD_BLOCK_HOURS);
+    const reproduces = underOld.extraHours === stored.extraHours && Math.abs(underOld.extraCost - stored.extraCost) < 0.01;
+    if (!reproduces) {
+      report.skippedUnreproducible += 1;
+      report.flagged.push({
+        date,
+        stored,
+        expectedUnderOldConfig: underOld,
+        why: "does not reproduce under the old config \u2014 hand-edited, or written under a configuration this migration does not model. Left untouched."
+      });
+      return;
+    }
+    const next = totalsUnder(day, areas, cfg);
+    if (next.extraHours === stored.extraHours && Math.abs(next.extraCost - stored.extraCost) < 0.01) {
+      report.unchanged += 1;
+      return;
+    }
+    const rateOnly = totalsUnder(day, old.areas, cfg);
+    report.raisedByRate += money(rateOnly.extraCost - stored.extraCost);
+    report.loweredByEstablishment += money(next.extraCost - rateOnly.extraCost);
+    const corrected = cloneDay(day);
+    corrected.totals.extraHours = next.extraHours;
+    corrected.totals.extraCost = next.extraCost;
+    corrected.corrections = [...day.corrections || [], {
+      migration: MIGRATION_ID,
+      at: at || null,
+      field: "totals.extraHours + totals.extraCost",
+      before: stored,
+      after: next,
+      reason: "hourRate 41.25 -> 47.50 (T-CJ ruled 47.50 and closed; 41.25 was superseded 4 May 2026) and vat_a1 top-rung requirement 5 -> 4 (exceeded the ratified establishment). Authorised by BM 11 Aug 2026."
+    }];
+    out[date] = corrected;
+    report.corrected += 1;
+    report.deltaHours += next.extraHours - stored.extraHours;
+    report.deltaCost += next.extraCost - stored.extraCost;
+    report.changes.push({ date, before: stored, after: next });
+  });
+  report.deltaCost = money(report.deltaCost);
+  report.raisedByRate = money(report.raisedByRate);
+  report.loweredByEstablishment = money(report.loweredByEstablishment);
+  return { logs: out, report };
+}
+function getMigrationRecords() {
+  return loadJSON(K.migrations, {});
+}
+function runPendingMigrations({ at } = {}) {
+  const stamp = at || (/* @__PURE__ */ new Date()).toISOString();
+  const rateFix = planCfgRateFix(loadJSON(K.prodCfg, {}));
+  if (rateFix.changed && !saveJSON(K.prodCfg, rateFix.cfg)) {
+    console.error(`[migration ${MIGRATION_ID}] rate un-shadow failed to persist; aborting, will retry next boot`);
+    return null;
+  }
+  const { logs, report } = planExtraRateRecompute(
+    getProdLogs(),
+    getAreas(),
+    getCfg(),
+    { at: stamp }
+  );
+  report.storedRateUnshadowed = rateFix.changed;
+  report.unexpectedStoredRate = rateFix.unexpected ? loadJSON(K.prodCfg, {}).hourRate : null;
+  report.wageSideDisclosure = rateFix.changed ? {
+    note: "The rate un-shadow also restates every historical figure derived from cfg.hourRate on read. These are NOT gated, trailed or counted below.",
+    consumers: [
+      "payroll.js calcDayWages / calcMonthWages  (finance month rollup)",
+      "payroll.js calcCWWeeklyPay                (each CW weekly wage line)",
+      "finance.js OT cost",
+      "finance-export.js OT cost                 (CSV export)"
+    ],
+    magnitude: "+15.15% on every affected wage figure",
+    alsoNote: "finance.markCWPaid persists the amount PAID at the old rate while the card recomputes gross at the new one, so an already-paid week now shows a permanent paid-vs-computed divergence."
+  } : null;
+  if (report.corrected > 0 && !saveJSON(K.prodLog, logs)) {
+    console.error(`[migration ${MIGRATION_ID}] prod-log write failed; NOT recording as applied`);
+    return null;
+  }
+  saveJSON(K.migrations, { ...getMigrationRecords(), [MIGRATION_ID]: report });
+  return report;
+}
 
 // src/shared/utils/date.js
 function localDateStr(d) {
@@ -158,20 +464,6 @@ function setState(patch) {
   Object.assign(_state, patch);
   return _state;
 }
-
-// src/shared/config/wage.js
-var DEF_CFG = {
-  hourRate: 41.25,
-  snackRate: 20,
-  permOtMultiplier: 1.1,
-  permOtBaseRate: 496,
-  guardIds: ["uday"],
-  excludedIds: ["rounak"],
-  standardShift: { start: "08:30", end: "17:00", hours: 8 },
-  sundayHolidayShift: { start: "06:00", end: "14:00", hours: 8 },
-  morningOT: { start: "06:00", end: "08:30", hours: 3 },
-  eveningOT: { start: "17:00", end: "20:00", hours: 3 }
-};
 
 // src/shared/config/invoice.js
 var DEF_INV_CFG = {
@@ -246,34 +538,6 @@ function initFab(actions) {
   };
 }
 
-// src/shared/storage/production.js
-function getAreas() {
-  return loadJSON(K.prodAreas, DEF_AREAS);
-}
-function getCfg() {
-  const saved = loadJSON(K.prodCfg, {});
-  return {
-    ...DEF_CFG,
-    ...saved,
-    standardShift: { ...DEF_CFG.standardShift, ...saved.standardShift || {} },
-    sundayHolidayShift: { ...DEF_CFG.sundayHolidayShift, ...saved.sundayHolidayShift || {} },
-    morningOT: { ...DEF_CFG.morningOT, ...saved.morningOT || {} },
-    eveningOT: { ...DEF_CFG.eveningOT, ...saved.eveningOT || {} }
-  };
-}
-function getProdLogs() {
-  return loadJSON(K.prodLog, {});
-}
-function getProdDay(date) {
-  const logs = getProdLogs();
-  return logs[date] || null;
-}
-function saveProdDay(date, dayData) {
-  const logs = getProdLogs();
-  logs[date] = dayData;
-  saveJSON(K.prodLog, logs);
-}
-
 // src/shared/storage/workers.js
 function getPermWorkers() {
   return loadJSON(K.peEmp, DEF_PERM);
@@ -335,83 +599,6 @@ function monthDates(monthStr) {
     out.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
   return out;
-}
-
-// src/shared/utils/currency.js
-function sepRound(n) {
-  return Math.floor(Number(n) || 0);
-}
-function formatCurrency(n) {
-  return "\u20B9" + sepRound(n).toLocaleString("en-IN");
-}
-
-// src/shared/utils/calc-prod.js
-function initProdDay() {
-  return {
-    periods: {
-      morningOT: { active: false, hours: 3, areas: {}, workers: [] },
-      standard: { active: true, hours: 8, areas: {}, workers: null },
-      eveningOT: { active: false, hours: 3, areas: {}, workers: [] }
-    },
-    totals: { pieces: 0, weight: 0, extraHours: 0, extraCost: 0, snackCost: 0 },
-    confirmed: false,
-    timeline: []
-  };
-}
-function getReq(areaId, periodKey, prod, areas) {
-  const a = areas.find((x) => x.id === areaId);
-  if (!a) return 0;
-  const pa = prod.periods[periodKey]?.areas?.[areaId];
-  if (!pa) return 0;
-  if (!a.dep) {
-    if (pa.cap === 0) return 0;
-    const cl = a.caps.find((c) => c.l === pa.cap);
-    return cl ? cl.r : 0;
-  }
-  if (areaId === "pickle_vat") {
-    const a1c = prod.periods[periodKey].areas.vat_a1?.cap || 0;
-    const a2c = prod.periods[periodKey].areas.vat_a2?.cap || 0;
-    if (a1c === 0 && a2c === 0) return 0;
-    if (a1c === 100 && a2c === 100) return 3;
-    return 2;
-  }
-  if (areaId === "pickle_barrel") {
-    const bc = prod.periods[periodKey].areas.barrel?.cap || 0;
-    if (bc === 0) return 0;
-    if (bc <= 50) return 1;
-    return 2;
-  }
-  return 0;
-}
-function recalcExtra(prod, areas, cfg) {
-  let totalExtraH = 0;
-  let totalExtraCost = 0;
-  ["morningOT", "standard", "eveningOT"].forEach((pk) => {
-    const period = prod.periods[pk];
-    if (!period || pk !== "standard" && !period.active) return;
-    const hours = period.hours || (pk === "standard" ? 8 : 3);
-    let shortfall = 0;
-    areas.forEach((area) => {
-      const pa = period.areas?.[area.id];
-      if (!pa) return;
-      const req = getReq(area.id, pk, prod, areas);
-      const assigned = pa.assigned?.length || 0;
-      if (req > assigned) shortfall += req - assigned;
-    });
-    const periodExtra = sepRound(shortfall * hours * cfg.hourRate);
-    totalExtraH += shortfall * hours;
-    totalExtraCost += periodExtra;
-  });
-  let snackCost = 0;
-  const eveningOT = prod.periods.eveningOT;
-  if (eveningOT?.active) {
-    const snackWorkers = eveningOT.workers?.length || 0;
-    snackCost = snackWorkers * cfg.snackRate;
-  }
-  prod.totals = prod.totals || {};
-  prod.totals.extraHours = totalExtraH;
-  prod.totals.extraCost = totalExtraCost;
-  prod.totals.snackCost = snackCost;
 }
 
 // src/components/worker-picker.js
@@ -1642,6 +1829,7 @@ function autoAssignRosters(prod, periodKey, present) {
   const areas = getAreas();
   const period = prod.periods[periodKey];
   if (!period.areas) period.areas = {};
+  const claimed = /* @__PURE__ */ new Set();
   areas.forEach((area) => {
     if (!period.areas[area.id]) {
       period.areas[area.id] = {
@@ -1651,8 +1839,8 @@ function autoAssignRosters(prod, periodKey, present) {
     }
     const pa = period.areas[area.id];
     if (pa.cap === 0 && !area.dep) return;
-    const rosterPresent = area.roster.filter((id) => present.includes(id));
-    pa.assigned = rosterPresent;
+    pa.assigned = selectAssigned(area, periodKey, prod, areas, present, claimed);
+    pa.assigned.forEach((id) => claimed.add(id));
   });
   autoPickling(prod, periodKey);
 }
@@ -1668,7 +1856,10 @@ function autoPickling(prod, periodKey) {
     } else {
       const present = prod.present || [];
       period.areas[pa.id].cap = 1;
-      period.areas[pa.id].assigned = pa.roster.filter((id) => present.includes(id));
+      const claimed = new Set(
+        areas.filter((a) => a.id !== pa.id).flatMap((a) => period.areas[a.id]?.assigned || [])
+      );
+      period.areas[pa.id].assigned = selectAssigned(pa, periodKey, prod, areas, present, claimed);
     }
   });
 }
@@ -2916,7 +3107,7 @@ function renderLive() {
 }
 async function boot() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-XN3KAJKZ.js");
     session = await bootFirebaseSession();
     if (!session) {
       bootState = "no-config";
@@ -3282,7 +3473,7 @@ function renderEdit() {
 }
 async function boot2() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-XN3KAJKZ.js");
     session2 = await bootFirebaseSession();
     if (!session2) {
       bootState2 = "no-config";
@@ -3863,6 +4054,15 @@ function initData() {
   if (!localStorage.getItem(K.prodCfg)) saveJSON(K.prodCfg, DEF_CFG);
   if (!localStorage.getItem(K.stock)) saveJSON(K.stock, DEF_STOCK);
   if (!localStorage.getItem(K.invCfg)) saveJSON(K.invCfg, DEF_INV_CFG);
+  let report = null;
+  try {
+    report = runPendingMigrations();
+  } catch (e) {
+    console.error("[migration] failed; continuing boot", e);
+  }
+  if (report && (report.corrected || report.skippedUnreproducible)) {
+    console.info(`[migration ${report.migration}] ${report.corrected} day(s) corrected, Rs ${report.deltaCost.toFixed(2)} net; ${report.skippedUnreproducible} flagged, ${report.unchanged} unchanged.`, report);
+  }
 }
 function initDataActionDelegation() {
   document.addEventListener("click", (e) => {

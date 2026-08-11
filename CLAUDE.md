@@ -1214,3 +1214,106 @@ padded picker-id trim-vs-drop nuance.
 
 *Session 19 documented 20 July 2026 by Aurelius (Claude Code); review pass
 folded same day.*
+
+---
+
+## Session 20: Work Areas + EXTRA — the Establishment Contract (11 August 2026)
+
+### What Shipped
+
+Not a feature — a **definition**, and the config defects it exposed. soma-internal ratified a canonical area / station / establishment model on 11 Aug (`operations/work-areas.md`) and this repo was one of **seven** live area vocabularies that disagreed. `DEF_AREAS` is now the code-side carrier of that contract.
+
+Ran the full canon-cc-008 QA chain (Castor · Vulcanus · Janus in parallel → Vesta synthesis). **All three returned AMEND.** Everything below is post-fold; several claims in the first cut did not survive and are marked as withdrawn rather than deleted.
+
+### The ruling being carried
+
+Two axes, because pickling is **one physical area** (Area 4, six tanks) and **two staffing slots** (split by whether it feeds VAT or barrel):
+
+- **`area`** = physical place → new `DEF_FLOOR_AREAS` (Area 1–4, machine counts, station lists)
+- **`station`** = crew-assignment slot → the existing `DEF_AREAS` ids, now carrying `area` + `establishment`
+
+**Establishment**: `vat_a1` 4 · `vat_a2` 4 · `barrel` 3 · `pickle_barrel` 2 · `pickle_vat` 3 = **16 floor hands**.
+
+⭐ **Origin: a BM ruling of 11 June 2026** (`soma-internal decisions/2026-06-11.md` §2), which set the five norms, the deficit formula **and** the pro-rata payee split with a worked example. The 11 Aug session rediscovered it independently and only found the June ruling at the Castor audit. **The codex had this, closed a task on it, and lost it inside eight weeks** — that is the finding, not the rediscovery.
+
+**EXTRA** (BM, 11 Aug, matching the June ruling): `EXTRA hours = (establishment − present) × block hours`, when the station ran at 100%.
+
+✅ **And BM ruled the same day that the deficit rule REACHES OT BLOCKS, not just the general shift** — which retroactively validates `recalcExtra`'s three-period loop (`['morningOT','standard','eveningOT']`), in place since Stage A, and makes the `eveningOT.hours` 3 → 7 correction below load-bearing rather than cosmetic. ⚠ **One thing the ruling opens that this repo does not yet model: an OT block's establishment is the sum of the stations that actually RAN in it, not all five.** `recalcExtra` sums the deficit across every area present in `period.areas`, so an OT period must be populated with only the stations that ran or it will over-book. Tracked in soma-internal — three of four unexplained register tags fit only by adding barrel-pickling, which the relay names in none of them.
+
+### Three real defects in this repo, in order of what they cost
+
+**1. `eveningOT.hours` was 3 where the block runs 7.** `calc-prod.js` seeded the evening period at 3 hours and `recalcExtra`'s fallback repeated it. The evening block is 5 PM → 12 AM. On Thu 6 Aug the dashboard would compute 15 EXTRA hours against the register's 35 — **₹950 understated in one day.** Found by Castor; larger than the defect this session set out to fix. Block hours now live in one exported `BLOCK_HOURS = {morningOT: 3, standard: 8, eveningOT: 7}`, with the additivity property recorded inline (3+8 = the 11 h 6 AM→5 PM span; 3+8+7 = the 18 h 6 AM→12 AM span — the 0.5 h by which 3 overstates the morning block is exactly the 0.5 h by which 8 understates the general one, which is why block-booking and the payout's span-booking agree).
+
+**2. The roster rebuild suppressed EXTRA — a regression introduced by this session's own first cut.** `autoAssignRosters` did `assigned = roster.filter(present)` with no cap and no de-duplication, so **widening a roster monotonically reduces the booked deficit.** The first cut widened the VAT rosters 5→9 and 4→9 with nine ids on two or three stations at once; simulated against the register, **Mon 3 Aug booked 16 h where the register wrote 56.** Found by Janus.
+
+Fixed by separating the axes: **`roster` means ELIGIBLE HERE** (wide, register-derived) and a new `selectAssigned` caps the assignment at the station's requirement and refuses to credit one hand at two stations in a period. **Tie-break is roster order (BM, 11 Aug), operator-overridable** — that allocation is real money under the June ruling's pro-rata split, so the default is deliberate and is not a claim about who actually stood where.
+
+**3. `vat_a1`'s top capacity rung was 5 against an establishment of 4.** `recalcExtra` has implemented the deficit formula since Stage A, keyed on `caps[].r`; the top rung must equal the establishment. Four of five stations already agreed. A1 credited one phantom body-block on every full-capacity A1 day **staffed below five** — which, on the W32 register, is all six days. Worth 8 h = **₹380** at the ruled ₹47.50/hr — ₹330 under the 41.25 this app carried until today. Fixed to 4, giving A1 the same top-rung plateau `vat_a2` and `barrel` already have. The 66 rung stays meaningful: `getReq('pickle_vat')` returns 3 only when both VAT caps are 100.
+
+🔧 **The ₹380/₹330 confusion, resolved in the right direction.** The first cut quoted ₹380 = 8 × ₹47.50, the register's contract rate, while `wage.js` ran **₹41.25/hr** — so the block really was ₹330, and the fold said the 13% gap was *"already tracked for Champai under T-CJ."*
+
+🔴 **Cipher Edict V found that claim false in both directions.** soma-internal `tasks.md:27`: *"**T-CJ (Champai rate)** — **₹380/day** confirmed (= ₹47.50/hr; **NOT ₹41.25**) … **T-CJ resolved.**"* T-CJ is **closed**, and it closed **against** 41.25. So this was not an open divergence awaiting reconciliation — it was **a constant the codex had already ruled wrong**, and the fix had been deferred onto a task that could not receive it.
+
+✅ **Corrected here rather than re-deferred**: `hourRate: 47.50`, pinned by a test asserting `47.50 × 8 = 380` — one body-block is one contract day-rate, which makes the ruling self-checking.
+
+### The historical recompute (BM-authorised, 11 Aug)
+
+Stored `extraCost` lives in `localStorage` on the devices, not in the repo, so correcting it is a **migration** — `src/shared/storage/migrations.js`, the first in this codebase, run once from `initData()` and recorded under `K.migrations`.
+
+**It is not a flat 15.15% uplift, because two config values were wrong, not one:**
+
+| | |
+|---|---|
+| `hourRate` 41.25 → 47.50 | **raises** every non-zero `extraCost` |
+| `vat_a1` `caps[100].r` 5 → 4 | **lowers** the deficit on full-capacity A1 days — the phantom body-block |
+
+A day carrying both moves in both directions, so the report decomposes `raisedByRate` and `loweredByEstablishment` separately rather than quoting a net.
+
+**The safety property.** Before replacing a stored figure the migration **recomputes it under the OLD config and requires the result to match what is stored.** A day that does not reproduce was hand-edited, or written under a configuration this migration does not model — it is **flagged and skipped, never overwritten**. That is the difference between a migration and a bulk overwrite, and it is unit-tested against a day with a typed-over total.
+
+**What it deliberately does not touch.** `assigned`, `cap`, `present` and `period.hours` are operator-entered and stay exactly as saved. In particular **`eveningOT.hours` is NOT corrected 3 → 7** even though the block runs seven hours — a stored 3 may be an operator recording a genuinely short evening, and overwriting it would be inventing data. Days carrying it are **counted and reported** so the call stays with BM.
+
+**The month lock is bypassed, deliberately and on the record.** The lock guards operator edits against a finalised month; this corrects a figure the codex had already ruled wrong, and nearly every affected day sits inside a locked month — a migration that respected the lock would correct nothing. Each corrected day carries an append-only `corrections[]` entry (before / after / reason), same pattern as the dashboard's `revisions[]`, which is what makes the bypass auditable rather than silent.
+
+→ soma-internal **T-EP**.
+
+### The deployment gap — the fix does not reach an installed dashboard
+
+`getAreas()` returns saved localStorage **wholesale, with no merge**, and `sep_prod_areas_v1` has been populated since Stage A in May. There is no areas-editing UI; the only reset path destroys payroll history. So a live install would have pulled the new bundle and kept `r:5` and the AWOL rosters — **every claim above true of the repo and false of the running app.**
+
+`K.prodAreas` bumped to **`sep_prod_areas_v2`**, forcing a one-shot re-seed; v1 is left unread as a rollback. The `production.js` header comment claimed defaults are merged — true of `getCfg()`, **false of `getAreas()` directly below it**, which is why this was easy to miss. Corrected to say which accessor does what.
+
+### Roster corrections — twenty on the floor, twenty-one config entries, the wrong twenty-one
+
+`area.roster` drives assignment, so all four were live: **Tuklu** (AWOL confirmed 18 May) and **Kusu** (off pool) were being offered; **Rakesh** (joined W22, on every payout since W29) and **Vijay** (joined 14 Jul, the 19→20 event) were absent entirely. Kusu and Tuklu retained as ids so historical attendance resolves, flagged `inactive`. Rosters rebuilt from the W32 register — Janus verified them as strict *subsets* of the register's placements, under-inclusive and never over.
+
+Display names to codex canonical per HR-4: Lucky → **Lakhi**, Shambhu → **Sambhu**, Mantu → **Montu**, Sharat → **Sarat**, and Budheswar → **Buddheswar** 🔧 *(the first cut wrote "Budheswer", which `staff-aliases.md` lists as a variant — HR-4 broken in the line citing HR-4, caught by Janus)*. Ids frozen; Janus verified no name-keyed lookup exists (`getAttKey` and `statKey` both key on id).
+
+### Also: the e2e suite was unrunnable in a web session
+
+Sandbox ships Chromium 1194; this Playwright expects a 1217 headless shell it cannot download, so **all 41 e2e tests failed to launch a browser** — which is how it was found. sep-invoicing has solved this since 30 Jul; pattern ported (`PW_CHROMIUM_PATH` in `playwright.config.ts`, ignored when unset, plus SessionStart hook detection).
+
+### ⚠ Withdrawn at the QA chain
+
+- **"Independent corroboration" of the Area 1 = `vat_a1` mapping.** BM confirmed it (*"A1 is the room with 4 tanks, only 3 are operational"*), and it is consistent with the Session-11 floor model — **but that model is also BM-sourced**, recorded in April from a Cowork Q&A where BM supplied the layouts. One source at two dates, not two sources. Worse, the identification was circular: converting *"A1 is the 4-tank room"* into *"Area 1 = A1"* needs the premise *"Area 1 is the 4-tank room"*, which exists only in that table — an **input** to the conclusion. The mapping stands; the strength claim does not. (Vulcanus BLOCKER-2.)
+- **"`vat_a1`'s capacity reference was measured with one tank down."** A 30 May BM-corrected plan records **all four running**, nine days before the W24 measurement window, and no repair or failure event is logged anywhere between April and August. **The tank state during W24 is UNKNOWN.** (Vulcanus BLOCKER-1.)
+- **"3,116 is the line's ceiling."** It is a **6-day mean the line beat on 3 of those 6 days**, peak 3,600 (115.5%). (Vulcanus HIGH-1.)
+- **"A fourth A1 tank does not compete for A2's jigs."** All 8 A1 hands also work A2 — on three June days the register lists the identical names under both — and A1 ran **zero crew on two of six days in W26** while three working tanks stood idle. Crew is the binding constraint. Vulcanus's alternative number: A1 runs at **61.7% of its own demonstrated three-tank peak**, so the unrealised headroom (1,100–1,378 NOS/day) exceeds a fourth tank's naive value (1,039/day), at zero capex. (Vulcanus HIGH-2 / DEFENDABLE-2.)
+- **"Area 3's 8 barrels / 4 functional is latent capacity."** Four dead barrels are being **sold, not repaired** (BM, 20 May) to free floor space for a new VAT line. Noted inline.
+
+### Tests / Versions
+
+Unit **279 → 300** · e2e **41** · build clean. `BUILD 4→5`, `APP_VERSION 2.1.0-alpha.8`, both SW caches bumped, `K.prodAreas` → v2.
+
+New coupling cases pin what would have caught this session's own regressions: **no hand credited to two stations in one period** · **no station assigned above establishment** · **widening a roster cannot reduce the booked deficit** · **the roster-order tie-break** · **a hand claimed by an earlier station is not offered to a later one** · **block hours additive to the payout's clock spans** · **`DEF_FLOOR_AREAS` machine counts tethered to `work-areas.md`** · **`hourRate` = 47.50 and 47.50 × 8 = 380**.
+
+🔧 **Those assignment tests were themselves rewritten at Cipher Edict V.** The first version **re-implemented the selection rule inline**, so it modelled a property the code did not have and **could not fail** — and its own disclosure that the wiring was "covered by e2e" was false: no e2e exercises `autoAssignRosters` / `selectAssigned` / `autoPickling`. **`selectAssigned` was therefore promoted to Layer 1** (`calc-prod.js`), where the tests call the real function; `tabs/production.js` imports it. The `recalcExtra` arithmetic test was also renamed — it hand-feeds assignments and stays green through the entire roster regression, which the old register-flavoured name concealed.
+
+🔧 **And `autoPickling` was dropping the exclusion** it had just been given: it rebuilt `claimed` from non-dep areas only, so a dep-to-dep overlap would double-count. Zero impact today (Area 4's two rosters are disjoint) — but the register moves Naren, Sambhu, Birsa, Rakesh and Vijay across Area 4 constantly, and the first overlapping edit would have re-opened the exact defect. Now claims from every other area, dep included.
+
+### Still Open (unchanged queue)
+
+CF cross-doc validation (deploy-gated) · Session-17 fast-follows (audit-noise filter, `functions lint` gap) · shared `firestore-store` extraction · prod stand-up · rules-CI prod-deps trim · submit-path IDB serialization · stale PRs #13/#14 rebase-or-close.
+**New**: the stored-`extraCost` reconciliation under soma-internal **T-EP** — the rate itself is fixed and the historical recompute has shipped; what remains is the `eveningOT.hours = 3` days the migration reports but will not touch, and whether any already-paid slip needs restating · `DEF_FLOOR_AREAS` / `FLOOR_ESTABLISHMENT` have no production consumer yet (forward-looking, for the floor view) · role labels in `DEF_PERM` are stale against the rosters beside them.
+
+*Session 20 documented 11 August 2026 by Aurelius (Claude Code); QA chain folded same day.*

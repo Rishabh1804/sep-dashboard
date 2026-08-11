@@ -16,7 +16,7 @@ import { monthOf } from '../../shared/utils/month.js';
 import { isSunday, tnow, getWeekEnd } from '../../shared/utils/date.js';
 import { formatCurrency, sepRound } from '../../shared/utils/currency.js';
 import { esc } from '../../shared/utils/format.js';
-import { initProdDay, getReq, recalcExtra } from '../../shared/utils/calc-prod.js';
+import { initProdDay, getReq, recalcExtra, selectAssigned } from '../../shared/utils/calc-prod.js';
 import { renderHome } from './home.js';
 
 export function renderProduction() {
@@ -160,6 +160,9 @@ function autoAssignRosters(prod, periodKey, present) {
   const period = prod.periods[periodKey];
   if (!period.areas) period.areas = {};
 
+  // One hand fills one station per period — see selectAssigned below.
+  const claimed = new Set();
+
   areas.forEach((area) => {
     if (!period.areas[area.id]) {
       period.areas[area.id] = {
@@ -170,8 +173,8 @@ function autoAssignRosters(prod, periodKey, present) {
     const pa = period.areas[area.id];
     if (pa.cap === 0 && !area.dep) return;
 
-    const rosterPresent = area.roster.filter((id) => present.includes(id));
-    pa.assigned = rosterPresent;
+    pa.assigned = selectAssigned(area, periodKey, prod, areas, present, claimed);
+    pa.assigned.forEach((id) => claimed.add(id));
   });
 
   autoPickling(prod, periodKey);
@@ -190,7 +193,20 @@ function autoPickling(prod, periodKey) {
     } else {
       const present = prod.present || [];
       period.areas[pa.id].cap = 1;
-      period.areas[pa.id].assigned = pa.roster.filter((id) => present.includes(id));
+      // Same eligibility-vs-assignment rule as the independent areas: cap at
+      // the derived requirement, and never double-count a hand already
+      // credited to a VAT/barrel station in this period.
+      // Claim from EVERY area already assigned this period, dep ones included —
+      // rebuilding from non-dep areas only would drop the dep-to-dep exclusion
+      // autoAssignRosters just established. Harmless today because Area 4's two
+      // rosters are disjoint, but the register moves Naren/Sambhu/Birsa/Rakesh/
+      // Vijay across Area 4 constantly, and the first overlapping edit would
+      // re-open the double-counting this whole change exists to close.
+      const claimed = new Set(
+        areas.filter((a) => a.id !== pa.id)
+          .flatMap((a) => period.areas[a.id]?.assigned || []),
+      );
+      period.areas[pa.id].assigned = selectAssigned(pa, periodKey, prod, areas, present, claimed);
     }
   });
 }

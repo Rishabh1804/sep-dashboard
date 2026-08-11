@@ -11,6 +11,7 @@
 
 import { saveJSON } from '../shared/storage/storage.js';
 import { K } from '../shared/storage/keys.js';
+import { runPendingMigrations } from '../shared/storage/migrations.js';
 import { getState, setState } from '../shared/storage/state.js';
 import { formatDate } from '../shared/utils/date.js';
 import { DEF_PERM, DEF_CW } from '../shared/config/workers.js';
@@ -124,6 +125,24 @@ function initData() {
   if (!localStorage.getItem(K.prodCfg))   saveJSON(K.prodCfg, DEF_CFG);
   if (!localStorage.getItem(K.stock))     saveJSON(K.stock, DEF_STOCK);
   if (!localStorage.getItem(K.invCfg))    saveJSON(K.invCfg, DEF_INV_CFG);
+
+  // Data corrections that must reach an existing install. Idempotent and
+  // self-recording; runs after the seed so getAreas()/getCfg() are populated.
+  // Wrapped: initDataActionDelegation() and renderTab() run AFTER this, so an
+  // uncaught throw here leaves a blank shell with no Settings and therefore no
+  // Reset All Data — no in-app recovery, deterministically, every boot
+  // (Janus HIGH-5). A migration is not worth the app.
+  let report = null;
+  try {
+    report = runPendingMigrations();
+  } catch (e) {
+    console.error('[migration] failed; continuing boot', e);
+  }
+  if (report && (report.corrected || report.skippedUnreproducible)) {
+    console.info(`[migration ${report.migration}] ${report.corrected} day(s) corrected, `
+      + `Rs ${report.deltaCost.toFixed(2)} net; ${report.skippedUnreproducible} flagged, `
+      + `${report.unchanged} unchanged.`, report);
+  }
 }
 
 // --- Data-action delegation (static markup) ---
