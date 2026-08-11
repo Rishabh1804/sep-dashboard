@@ -30,13 +30,20 @@ import { loadJSON, saveJSON } from './storage.js';
 import { K } from './keys.js';
 import { getAreas, getCfg, getProdLogs } from './production.js';
 import { DEF_CFG } from '../config/wage.js';
-import { recalcExtra } from '../utils/calc-prod.js';
+import { recalcExtra, BLOCK_HOURS } from '../utils/calc-prod.js';
+import { sepRound } from '../utils/currency.js';
 
 export const MIGRATION_ID = '2026-08-11-extra-rate';
 
 // The configuration these records were written under.
 const OLD_HOUR_RATE = 41.25;
 const OLD_VAT_A1_TOP_REQ = 5;
+// recalcExtra's own hours fallback changed in this PR (evening 3 -> 7), so the
+// gate must model the old CODE as well as the old config — otherwise a day with
+// an active evening period and no `hours` field is judged by a rule it was never
+// written under, fails to reproduce, and gets flagged as hand-edited when it is
+// nothing of the sort (Janus MEDIUM-6).
+const OLD_BLOCK_HOURS = { ...BLOCK_HOURS, eveningOT: 3 };
 
 
 // THE SAME TRAP AS getAreas(), ONE FILE OVER — and worth spelling out, because
@@ -77,8 +84,14 @@ function oldConfigFrom(areas, cfg) {
 // periods[].areas[].assigned, so the input must not be shared with the caller.
 const cloneDay = (day) => JSON.parse(JSON.stringify(day));
 
-function totalsUnder(day, areas, cfg) {
+function totalsUnder(day, areas, cfg, blockHours) {
   const copy = cloneDay(day);
+  if (blockHours) {
+    // Materialise the old fallback so recalcExtra reads it from period.hours.
+    Object.entries(copy.periods || {}).forEach(([pk, per]) => {
+      if (per && !per.hours) per.hours = blockHours[pk];
+    });
+  }
   recalcExtra(copy, areas, cfg);
   return {
     extraHours: copy.totals.extraHours,
@@ -86,7 +99,10 @@ function totalsUnder(day, areas, cfg) {
   };
 }
 
-const money = (n) => Math.round(n * 100) / 100;
+// The app's own rounding. sepRound is Math.floor to WHOLE RUPEES (currency.js),
+// so a 2-dp report figure describes precision the stored data cannot carry
+// (Janus LOW). Aggregate the same way the values were booked.
+const money = (n) => (n < 0 ? -sepRound(-n) : sepRound(n));
 
 /**
  * Pure core. Takes the stored production log and both configs; returns the
@@ -112,6 +128,7 @@ export function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
     raisedByRate: 0,
     loweredByEstablishment: 0,
     eveningHours3Days: 0,
+    deferredEveningHours: [],
     flagged: [],
     changes: [],
   };
@@ -123,15 +140,34 @@ export function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
 
     if (!day || !day.totals || !day.periods) { report.skippedNoTotals += 1; return; }
 
+    // A day whose evening block is still booked at 3 hours cannot be "corrected".
+    // period.hours is NOT merely an operator record: confirmProduction() writes
+    // otHours = morningOT.hours + eveningOT.hours into cwAtt/peAtt, and payroll
+    // prices dayH = 8 + otHours. A stored 3 costs each evening worker 4 hr x
+    // Rs 47.50 = Rs 190/day in the app's own wage line. Stamping corrections[]
+    // on such a day records a forensic assurance that is false — worse than
+    // leaving it alone (Castor BLOCKER-2).
+    //
+    // Not blanket-corrected either: the distinguishing evidence is the slip's
+    // clock span (8+3+7 = 18 matches; 8+3+3 = 14 matches nothing on any slip),
+    // which this migration cannot see. So the day is DEFERRED, with the reason.
     if (day.periods.eveningOT?.active && day.periods.eveningOT.hours === 3) {
       report.eveningHours3Days += 1;
+      report.deferredEveningHours.push({
+        date,
+        stored: { extraHours: day.totals.extraHours || 0, extraCost: day.totals.extraCost || 0 },
+        why: 'evening block booked at 3 h where the ruling says 7 — correcting the '
+           + 'rate here would produce a figure that is still wrong, and stamping '
+           + 'corrections[] on it would assert otherwise. Needs the slip span.',
+      });
+      return;
     }
 
     const stored = {
       extraHours: day.totals.extraHours || 0,
       extraCost: day.totals.extraCost || 0,
     };
-    const underOld = totalsUnder(day, old.areas, old.cfg);
+    const underOld = totalsUnder(day, old.areas, old.cfg, OLD_BLOCK_HOURS);
 
     // Reproducibility gate. Hours must match exactly; cost is compared in
     // paise because sepRound floors and the stored value may predate it.
@@ -157,11 +193,15 @@ export function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
       return;
     }
 
-    // Decompose: rate alone, then establishment alone.
+    // SEQUENTIAL decomposition, not marginal. Measuring both legs against
+    // `stored` holds the other factor at its old value, so the interaction term
+    // is double-counted and the legs do not sum to deltaCost — on four synthetic
+    // days that left Rs 200 unexplained (Castor MEDIUM-3 / Janus HIGH-3). This
+    // report is what BM signs a payroll restatement against, so it has to
+    // reconcile with itself: (rateOnly - stored) + (next - rateOnly) === delta.
     const rateOnly = totalsUnder(day, old.areas, cfg);
-    const estOnly = totalsUnder(day, areas, old.cfg);
     report.raisedByRate += money(rateOnly.extraCost - stored.extraCost);
-    report.loweredByEstablishment += money(estOnly.extraCost - stored.extraCost);
+    report.loweredByEstablishment += money(next.extraCost - rateOnly.extraCost);
 
     const corrected = cloneDay(day);
     corrected.totals.extraHours = next.extraHours;
@@ -195,32 +235,72 @@ export function getMigrationRecords() { return loadJSON(K.migrations, {}); }
 export function hasRun(id) { return Boolean(getMigrationRecords()[id]); }
 
 /**
- * Storage-touching wrapper. Idempotent via K.migrations; safe to call on
- * every boot.
+ * Storage-touching wrapper. Safe to call on every boot.
  *
- * Deliberately IGNORES the month lock. The lock guards operator edits against
- * a finalised month; this corrects a figure the codex had already ruled wrong,
- * and the affected days are almost all inside locked months — a migration that
- * respected the lock would correct nothing. The `corrections[]` entry on each
- * day and the stored report are what make that auditable rather than silent.
+ * IDEMPOTENCE IS THE GATE'S JOB, NOT A FLAG'S. An earlier cut short-circuited
+ * on `hasRun(MIGRATION_ID)`. That guard lives in `K.migrations` while the data
+ * it protects lives in `sep_prod_log_v1` — two keys that can be replaced
+ * independently, and `importData()` MERGES a backup without clearing. Every
+ * backup in existence predates today, so restoring one reverted the data and
+ * the rate while the applied-record survived, and the guard then prevented
+ * re-correction permanently (Janus BLOCKER-2, reproduced). The reproducibility
+ * gate already refuses an already-corrected day, so re-running is free.
+ *
+ * WRITE ORDER. The data write is confirmed before the audit record is written.
+ * `saveJSON` used to swallow its exception and return void, so a quota failure
+ * on the prod-log write followed by a successful record write marked the
+ * migration applied against an uncorrected log — permanently, and with a report
+ * asserting corrections that never happened (Janus BLOCKER-1, reproduced).
+ *
+ * MONTH LOCK. Deliberately bypassed for `totals.extraHours` / `totals.extraCost`,
+ * which carry a per-record `corrections[]` trail. ⚠ The `K.prodCfg` rate write
+ * below ALSO crosses the lock and restates derived wage figures in locked months
+ * with no such trail — see `wageSideDisclosure` (Castor BLOCKER-1).
  */
 export function runPendingMigrations({ at } = {}) {
-  if (hasRun(MIGRATION_ID)) return null;
   const stamp = at || new Date().toISOString();
 
-  // STEP 1 — un-shadow the rate. Must run BEFORE the recompute, or getCfg()
-  // hands the recompute the very value it exists to correct.
+  // STEP 1 — un-shadow the rate. Must precede the recompute, or getCfg() hands
+  // it the very value it exists to correct.
   const rateFix = planCfgRateFix(loadJSON(K.prodCfg, {}));
-  if (rateFix.changed) saveJSON(K.prodCfg, rateFix.cfg);
+  if (rateFix.changed && !saveJSON(K.prodCfg, rateFix.cfg)) {
+    console.error(`[migration ${MIGRATION_ID}] rate un-shadow failed to persist; aborting, will retry next boot`);
+    return null;
+  }
 
-  // STEP 2 — recompute the derived totals against the now-correct config.
+  // STEP 2 — recompute derived totals against the now-correct config.
   const { logs, report } = planExtraRateRecompute(
     getProdLogs(), getAreas(), getCfg(), { at: stamp },
   );
   report.storedRateUnshadowed = rateFix.changed;
   report.unexpectedStoredRate = rateFix.unexpected ? loadJSON(K.prodCfg, {}).hourRate : null;
 
-  if (report.corrected > 0) saveJSON(K.prodLog, logs);
+  // ⚠ THE HALF THIS MIGRATION DOES NOT CORRECT, disclosed rather than implied.
+  // `hourRate` has five consumers; only the first is gated, trailed and reported.
+  // The other four derive on READ from stored attendance, so the un-shadow above
+  // reprices every historical CW wage line by +15.15% the instant it runs — with
+  // no reproducibility gate, no corrections[] entry and no per-record trail. On
+  // the W32 slip alone that is ~Rs 3,625 against this migration's ~Rs 1,444:
+  // the unaudited half is 2.5x the audited one (Castor BLOCKER-1).
+  report.wageSideDisclosure = rateFix.changed ? {
+    note: 'The rate un-shadow also restates every historical figure derived from '
+        + 'cfg.hourRate on read. These are NOT gated, trailed or counted below.',
+    consumers: [
+      'payroll.js calcDayWages / calcMonthWages  (finance month rollup)',
+      'payroll.js calcCWWeeklyPay                (each CW weekly wage line)',
+      'finance.js OT cost',
+      'finance-export.js OT cost                 (CSV export)',
+    ],
+    magnitude: '+15.15% on every affected wage figure',
+    alsoNote: 'finance.markCWPaid persists the amount PAID at the old rate while '
+            + 'the card recomputes gross at the new one, so an already-paid week '
+            + 'now shows a permanent paid-vs-computed divergence.',
+  } : null;
+
+  if (report.corrected > 0 && !saveJSON(K.prodLog, logs)) {
+    console.error(`[migration ${MIGRATION_ID}] prod-log write failed; NOT recording as applied`);
+    return null;                      // retried next boot; nothing marked done
+  }
   saveJSON(K.migrations, { ...getMigrationRecords(), [MIGRATION_ID]: report });
   return report;
 }

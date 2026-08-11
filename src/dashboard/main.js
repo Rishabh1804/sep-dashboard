@@ -128,7 +128,16 @@ function initData() {
 
   // Data corrections that must reach an existing install. Idempotent and
   // self-recording; runs after the seed so getAreas()/getCfg() are populated.
-  const report = runPendingMigrations();
+  // Wrapped: initDataActionDelegation() and renderTab() run AFTER this, so an
+  // uncaught throw here leaves a blank shell with no Settings and therefore no
+  // Reset All Data — no in-app recovery, deterministically, every boot
+  // (Janus HIGH-5). A migration is not worth the app.
+  let report = null;
+  try {
+    report = runPendingMigrations();
+  } catch (e) {
+    console.error('[migration] failed; continuing boot', e);
+  }
   if (report && (report.corrected || report.skippedUnreproducible)) {
     console.info(`[migration ${report.migration}] ${report.corrected} day(s) corrected, `
       + `Rs ${report.deltaCost.toFixed(2)} net; ${report.skippedUnreproducible} flagged, `

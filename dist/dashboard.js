@@ -57,8 +57,10 @@ function saveJSON(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
     emit("data:saved", { key });
+    return true;
   } catch (e) {
     console.error("Save error:", e);
+    return false;
   }
 }
 
@@ -120,7 +122,13 @@ var DEF_CFG = {
   standardShift: { start: "08:30", end: "17:00", hours: 8 },
   sundayHolidayShift: { start: "06:00", end: "14:00", hours: 8 },
   morningOT: { start: "06:00", end: "08:30", hours: 3 },
-  eveningOT: { start: "17:00", end: "20:00", hours: 3 }
+  // 17:00-24:00 = 7 h (BM, 11 Aug). Was 20:00 / 3 h, which made the production
+  // tab render "Evening OT 17:00-20:00 (3h)" while recalcExtra booked the
+  // deficit at 7 — the operator shown two different evening blocks on one
+  // screen (Castor MEDIUM-4). Mirrors BLOCK_HOURS.eveningOT; keep in step.
+  // NOTE: shadowed on existing installs — initData seeded the whole DEF_CFG
+  // into K.prodCfg in May, so saved values win. See migrations.js.
+  eveningOT: { start: "17:00", end: "24:00", hours: 7 }
 };
 
 // src/shared/storage/production.js
@@ -242,6 +250,7 @@ function recalcExtra(prod, areas, cfg) {
 var MIGRATION_ID = "2026-08-11-extra-rate";
 var OLD_HOUR_RATE = 41.25;
 var OLD_VAT_A1_TOP_REQ = 5;
+var OLD_BLOCK_HOURS = { ...BLOCK_HOURS, eveningOT: 3 };
 function planCfgRateFix(savedCfg) {
   if (!savedCfg || savedCfg.hourRate === void 0) return { cfg: savedCfg, changed: false };
   if (savedCfg.hourRate === OLD_HOUR_RATE) {
@@ -259,15 +268,20 @@ function oldConfigFrom(areas, cfg) {
   };
 }
 var cloneDay = (day) => JSON.parse(JSON.stringify(day));
-function totalsUnder(day, areas, cfg) {
+function totalsUnder(day, areas, cfg, blockHours) {
   const copy = cloneDay(day);
+  if (blockHours) {
+    Object.entries(copy.periods || {}).forEach(([pk, per]) => {
+      if (per && !per.hours) per.hours = blockHours[pk];
+    });
+  }
   recalcExtra(copy, areas, cfg);
   return {
     extraHours: copy.totals.extraHours,
     extraCost: copy.totals.extraCost
   };
 }
-var money = (n) => Math.round(n * 100) / 100;
+var money = (n) => n < 0 ? -sepRound(-n) : sepRound(n);
 function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
   const old = oldConfigFrom(areas, cfg);
   const out = {};
@@ -284,6 +298,7 @@ function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
     raisedByRate: 0,
     loweredByEstablishment: 0,
     eveningHours3Days: 0,
+    deferredEveningHours: [],
     flagged: [],
     changes: []
   };
@@ -297,12 +312,18 @@ function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
     }
     if (day.periods.eveningOT?.active && day.periods.eveningOT.hours === 3) {
       report.eveningHours3Days += 1;
+      report.deferredEveningHours.push({
+        date,
+        stored: { extraHours: day.totals.extraHours || 0, extraCost: day.totals.extraCost || 0 },
+        why: "evening block booked at 3 h where the ruling says 7 \u2014 correcting the rate here would produce a figure that is still wrong, and stamping corrections[] on it would assert otherwise. Needs the slip span."
+      });
+      return;
     }
     const stored = {
       extraHours: day.totals.extraHours || 0,
       extraCost: day.totals.extraCost || 0
     };
-    const underOld = totalsUnder(day, old.areas, old.cfg);
+    const underOld = totalsUnder(day, old.areas, old.cfg, OLD_BLOCK_HOURS);
     const reproduces = underOld.extraHours === stored.extraHours && Math.abs(underOld.extraCost - stored.extraCost) < 0.01;
     if (!reproduces) {
       report.skippedUnreproducible += 1;
@@ -320,9 +341,8 @@ function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
       return;
     }
     const rateOnly = totalsUnder(day, old.areas, cfg);
-    const estOnly = totalsUnder(day, areas, old.cfg);
     report.raisedByRate += money(rateOnly.extraCost - stored.extraCost);
-    report.loweredByEstablishment += money(estOnly.extraCost - stored.extraCost);
+    report.loweredByEstablishment += money(next.extraCost - rateOnly.extraCost);
     const corrected = cloneDay(day);
     corrected.totals.extraHours = next.extraHours;
     corrected.totals.extraCost = next.extraCost;
@@ -348,14 +368,13 @@ function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
 function getMigrationRecords() {
   return loadJSON(K.migrations, {});
 }
-function hasRun(id) {
-  return Boolean(getMigrationRecords()[id]);
-}
 function runPendingMigrations({ at } = {}) {
-  if (hasRun(MIGRATION_ID)) return null;
   const stamp = at || (/* @__PURE__ */ new Date()).toISOString();
   const rateFix = planCfgRateFix(loadJSON(K.prodCfg, {}));
-  if (rateFix.changed) saveJSON(K.prodCfg, rateFix.cfg);
+  if (rateFix.changed && !saveJSON(K.prodCfg, rateFix.cfg)) {
+    console.error(`[migration ${MIGRATION_ID}] rate un-shadow failed to persist; aborting, will retry next boot`);
+    return null;
+  }
   const { logs, report } = planExtraRateRecompute(
     getProdLogs(),
     getAreas(),
@@ -364,7 +383,21 @@ function runPendingMigrations({ at } = {}) {
   );
   report.storedRateUnshadowed = rateFix.changed;
   report.unexpectedStoredRate = rateFix.unexpected ? loadJSON(K.prodCfg, {}).hourRate : null;
-  if (report.corrected > 0) saveJSON(K.prodLog, logs);
+  report.wageSideDisclosure = rateFix.changed ? {
+    note: "The rate un-shadow also restates every historical figure derived from cfg.hourRate on read. These are NOT gated, trailed or counted below.",
+    consumers: [
+      "payroll.js calcDayWages / calcMonthWages  (finance month rollup)",
+      "payroll.js calcCWWeeklyPay                (each CW weekly wage line)",
+      "finance.js OT cost",
+      "finance-export.js OT cost                 (CSV export)"
+    ],
+    magnitude: "+15.15% on every affected wage figure",
+    alsoNote: "finance.markCWPaid persists the amount PAID at the old rate while the card recomputes gross at the new one, so an already-paid week now shows a permanent paid-vs-computed divergence."
+  } : null;
+  if (report.corrected > 0 && !saveJSON(K.prodLog, logs)) {
+    console.error(`[migration ${MIGRATION_ID}] prod-log write failed; NOT recording as applied`);
+    return null;
+  }
   saveJSON(K.migrations, { ...getMigrationRecords(), [MIGRATION_ID]: report });
   return report;
 }
@@ -4021,7 +4054,12 @@ function initData() {
   if (!localStorage.getItem(K.prodCfg)) saveJSON(K.prodCfg, DEF_CFG);
   if (!localStorage.getItem(K.stock)) saveJSON(K.stock, DEF_STOCK);
   if (!localStorage.getItem(K.invCfg)) saveJSON(K.invCfg, DEF_INV_CFG);
-  const report = runPendingMigrations();
+  let report = null;
+  try {
+    report = runPendingMigrations();
+  } catch (e) {
+    console.error("[migration] failed; continuing boot", e);
+  }
   if (report && (report.corrected || report.skippedUnreproducible)) {
     console.info(`[migration ${report.migration}] ${report.corrected} day(s) corrected, Rs ${report.deltaCost.toFixed(2)} net; ${report.skippedUnreproducible} flagged, ${report.unchanged} unchanged.`, report);
   }

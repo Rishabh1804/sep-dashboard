@@ -125,7 +125,7 @@ describe('extraCost recompute', () => {
     expect(out['2026-08-06'].totals.extraCost).toBe(0);
   });
 
-  it('counts days carrying eveningOT.hours = 3 without changing them', () => {
+  it('DEFERS a day whose evening block is still booked at 3 — no false corrections[]', () => {
     const logs = { '2026-08-04': storedDay({ a1: n(3), barrel: n(2) }) };
     logs['2026-08-04'].periods.eveningOT.active = true;
     logs['2026-08-04'].periods.eveningOT.hours = 3;   // block actually runs 7
@@ -133,8 +133,13 @@ describe('extraCost recompute', () => {
 
     const { logs: out, report } = plan(logs);
     expect(report.eveningHours3Days).toBe(1);
-    // Reported, never rewritten — a stored 3 may be a genuinely short evening.
+    expect(report.deferredEveningHours).toHaveLength(1);
+    expect(report.deferredEveningHours[0].date).toBe('2026-08-04');
+    // Not rewritten, and NOT stamped as corrected — a corrections[] entry on a
+    // day whose evening is still 3 asserts an assurance that is false.
     expect(out['2026-08-04'].periods.eveningOT.hours).toBe(3);
+    expect(out['2026-08-04'].corrections).toBeUndefined();
+    expect(report.corrected).toBe(0);
   });
 
   it('tolerates malformed or empty day records', () => {
@@ -189,5 +194,116 @@ describe('the stored-config shadow — the same trap as getAreas(), one file ove
   it('is a no-op on a config that carries no rate at all', () => {
     expect(planCfgRateFix({}).changed).toBe(false);
     expect(planCfgRateFix(null).changed).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The MECHANISM. Janus HIGH-4 mutation-verified that none of the above catches
+// a broken runPendingMigrations: reversing STEP 1 and STEP 2 — the headline fix
+// of the commit that introduced it — left 317/317 green, and so did deleting
+// every durable write. The pure planner was tested; the thing that runs was not.
+// ---------------------------------------------------------------------------
+
+import { runPendingMigrations, getMigrationRecords } from '../../src/shared/storage/migrations.js';
+import { K } from '../../src/shared/storage/keys.js';
+
+function seedInstall({ rate = 41.25, quotaOn = null } = {}) {
+  localStorage.clear();
+  // A day the OLD app wrote: A1 3 of 4 under the old ladder, at the old rate.
+  const day = storedDay({ a1: n(3), a2: n(4), barrel: n(2) });
+  localStorage.setItem(K.prodLog, JSON.stringify({ '2026-08-03': day }));
+  localStorage.setItem(K.prodCfg, JSON.stringify({ ...DEF_CFG, hourRate: rate }));
+  localStorage.setItem(K.prodAreas, JSON.stringify(DEF_AREAS));
+  if (quotaOn) failWritesTo(quotaOn);
+  return day.totals.extraCost;
+}
+
+// Plain stub — this suite runs in ESM mode, where the `jest` global is absent.
+let realSetItem = null;
+function failWritesTo(key) {
+  realSetItem = realSetItem || Storage.prototype.setItem;
+  Storage.prototype.setItem = function (k, v) {
+    if (k === key) throw new Error('QuotaExceededError');
+    return realSetItem.call(this, k, v);
+  };
+}
+function restoreWrites() {
+  if (realSetItem) { Storage.prototype.setItem = realSetItem; realSetItem = null; }
+}
+
+describe('runPendingMigrations — the mechanism', () => {
+  afterEach(() => { restoreWrites(); localStorage.clear(); });
+
+  it('ORDER: un-shadows the stored rate BEFORE recomputing', () => {
+    // The mutation Janus proved undetectable. If STEP 2 ran first it would read
+    // the stored 41.25 as the "new" rate, find nothing changed, and record that
+    // there was nothing to correct.
+    const before = seedInstall({ rate: 41.25 });
+    const report = runPendingMigrations({ at: AT });
+
+    expect(report.storedRateUnshadowed).toBe(true);
+    expect(JSON.parse(localStorage.getItem(K.prodCfg)).hourRate).toBe(47.5);
+    expect(report.corrected).toBe(1);
+    const after = JSON.parse(localStorage.getItem(K.prodLog))['2026-08-03'].totals.extraCost;
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it('QUOTA: a failed data write is NOT recorded as applied, and retries', () => {
+    seedInstall({ rate: 41.25, quotaOn: K.prodLog });
+    expect(runPendingMigrations({ at: AT })).toBeNull();
+    expect(getMigrationRecords()[MIGRATION_ID]).toBeUndefined();
+
+    restoreWrites();                              // quota clears
+    const retry = runPendingMigrations({ at: AT });
+    expect(retry.corrected).toBe(1);              // the retry lands
+  });
+
+  it('RESTORE: a merged backup reverts the data, and the next boot re-corrects', () => {
+    // importData() merges without clearing, so a pre-today backup restores the
+    // old log and rate while the applied-record survives. Idempotence is the
+    // gate's job, not a flag's — so this must still correct.
+    const before = seedInstall({ rate: 41.25 });
+    expect(runPendingMigrations({ at: AT }).corrected).toBe(1);
+
+    seedInstall({ rate: 41.25 });                 // the restore, record retained
+    localStorage.setItem(K.migrations, JSON.stringify({ [MIGRATION_ID]: { corrected: 1 } }));
+
+    const after = runPendingMigrations({ at: AT });
+    expect(after.corrected).toBe(1);
+    expect(JSON.parse(localStorage.getItem(K.prodLog))['2026-08-03'].totals.extraCost)
+      .toBeGreaterThan(before);
+  });
+
+  it('DOUBLE BOOT: the second run corrects nothing and rewrites nothing', () => {
+    seedInstall({ rate: 41.25 });
+    const first = runPendingMigrations({ at: AT });
+    const afterFirst = localStorage.getItem(K.prodLog);
+
+    const second = runPendingMigrations({ at: AT });
+    expect(second.corrected).toBe(0);
+    expect(localStorage.getItem(K.prodLog)).toBe(afterFirst);
+    expect(first.corrected).toBe(1);
+  });
+
+  it('DISCLOSES the wage-side repricing it does not audit', () => {
+    seedInstall({ rate: 41.25 });
+    const report = runPendingMigrations({ at: AT });
+    expect(report.wageSideDisclosure).not.toBeNull();
+    expect(report.wageSideDisclosure.consumers).toHaveLength(4);
+  });
+});
+
+describe('the report reconciles with itself', () => {
+  it('the two legs telescope to deltaCost', () => {
+    // Measured against `stored` they were one-factor-at-a-time marginals and
+    // double-counted the interaction — Rs 200 unexplained on four days.
+    // BM signs a payroll restatement against this report.
+    const logs = {
+      '2026-08-03': storedDay({ a1: n(3), a2: n(4), barrel: n(2) }),
+      '2026-08-06': storedDay({ a1: n(4), a2: n(4), barrel: n(3), pv: n(3), pb: n(2) }),
+      '2026-08-04': storedDay({ a1: n(2), barrel: n(1) }),
+    };
+    const { report } = plan(logs);
+    expect(report.raisedByRate + report.loweredByEstablishment).toBe(report.deltaCost);
   });
 });
