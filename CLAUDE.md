@@ -1221,7 +1221,9 @@ folded same day.*
 
 ### What Shipped
 
-Not a feature — a **definition**, and the config corrections it exposed. soma-internal ratified a canonical area / station / establishment model on 11 Aug (`operations/work-areas.md`) and this repo was one of **seven** live area vocabularies that disagreed. `DEF_AREAS` is now the code-side carrier of that contract, and three real defects fell out of aligning to it.
+Not a feature — a **definition**, and the config defects it exposed. soma-internal ratified a canonical area / station / establishment model on 11 Aug (`operations/work-areas.md`) and this repo was one of **seven** live area vocabularies that disagreed. `DEF_AREAS` is now the code-side carrier of that contract.
+
+Ran the full canon-cc-008 QA chain (Castor · Vulcanus · Janus in parallel → Vesta synthesis). **All three returned AMEND.** Everything below is post-fold; several claims in the first cut did not survive and are marked as withdrawn rather than deleted.
 
 ### The ruling being carried
 
@@ -1230,67 +1232,57 @@ Two axes, because pickling is **one physical area** (Area 4, six tanks) and **tw
 - **`area`** = physical place → new `DEF_FLOOR_AREAS` (Area 1–4, machine counts, station lists)
 - **`station`** = crew-assignment slot → the existing `DEF_AREAS` ids, now carrying `area` + `establishment`
 
-**Establishment**: `vat_a1` 4 · `vat_a2` 4 · `barrel` 3 · `pickle_barrel` 2 · `pickle_vat` 3 = **16 floor hands**. Confirmed against the soma-internal register, not asserted — Fri 7 / Sat 8 Aug are the only two days of W32 carrying zero EXTRA and they are exactly the two days every station sits at these numbers.
+**Establishment**: `vat_a1` 4 · `vat_a2` 4 · `barrel` 3 · `pickle_barrel` 2 · `pickle_vat` 3 = **16 floor hands**.
 
-**And BM ruled what EXTRA is**, after eleven weeks open as *"27.4% of the payout with no payee"*:
+⭐ **Origin: a BM ruling of 11 June 2026** (`soma-internal decisions/2026-06-11.md` §2), which set the five norms, the deficit formula **and** the pro-rata payee split with a worked example. The 11 Aug session rediscovered it independently and only found the June ruling at the Castor audit. **The codex had this, closed a task on it, and lost it inside eight weeks** — that is the finding, not the rediscovery.
 
-> `EXTRA hours = (establishment − present) × block hours`, when the station ran at 100%.
+**EXTRA** (BM, 11 Aug, matching the June ruling): `EXTRA hours = (establishment − present) × block hours`, when the station ran at 100%.
 
-### ⭐ The finding: this repo already computed EXTRA correctly, with one wrong number
+### Three real defects in this repo, in order of what they cost
 
-`recalcExtra` has implemented `shortfall × hours × hourRate` since Stage A — the ruling's exact shape, arrived at independently. It keys on `caps[].r`, the per-capacity-level headcount ladder, whose **top rung must equal the establishment**. Four of five stations already agreed. `vat_a1` did not:
+**1. `eveningOT.hours` was 3 where the block runs 7.** `calc-prod.js` seeded the evening period at 3 hours and `recalcExtra`'s fallback repeated it. The evening block is 5 PM → 12 AM. On Thu 6 Aug the dashboard would compute 15 EXTRA hours against the register's 35 — **₹950 understated in one day.** Found by Castor; larger than the defect this session set out to fix. Block hours now live in one exported `BLOCK_HOURS = {morningOT: 3, standard: 8, eveningOT: 7}`, with the additivity property recorded inline (3+8 = the 11 h 6 AM→5 PM span; 3+8+7 = the 18 h 6 AM→12 AM span — the 0.5 h by which 3 overstates the morning block is exactly the 0.5 h by which 8 understates the general one, which is why block-booking and the payout's span-booking agree).
 
-| Station | `caps[100].r` | Establishment | |
-|---|---:|---:|---|
-| `vat_a1` | **5** | **4** | ✗ **+1 phantom body-block on every full-capacity A1 day** — 8 hr / ₹380 of EXTRA credited for a hand the floor does not staff |
-| `vat_a2` | 4 | 4 | ✓ |
-| `barrel` | 3 | 3 | ✓ |
-| `pickle_vat` (via `getReq`) | 3 | 3 | ✓ |
-| `pickle_barrel` (via `getReq`) | 2 | 2 | ✓ |
+**2. The roster rebuild suppressed EXTRA — a regression introduced by this session's own first cut.** `autoAssignRosters` did `assigned = roster.filter(present)` with no cap and no de-duplication, so **widening a roster monotonically reduces the booked deficit.** The first cut widened the VAT rosters 5→9 and 4→9 with nine ids on two or three stations at once; simulated against the register, **Mon 3 Aug booked 16 h where the register wrote 56.** Found by Janus.
 
-Fixed to 4, which also gives A1 the **same top-rung plateau its two siblings already have** (`vat_a2` 75→4/100→4, `barrel` 75→3/100→3) — the minimal change, not a re-invented ladder. Two `calc-prod` tests encoded the old 5 and were updated with the reason recorded inline.
+Fixed by separating the axes: **`roster` means ELIGIBLE HERE** (wide, register-derived) and a new `selectAssigned` caps the assignment at the station's requirement and refuses to credit one hand at two stations in a period. **Tie-break is roster order (BM, 11 Aug), operator-overridable** — that allocation is real money under the June ruling's pro-rata split, so the default is deliberate and is not a claim about who actually stood where.
 
-### The roster was wrong in four places — twenty on the floor, twenty-one in config, the wrong twenty-one
+**3. `vat_a1`'s top capacity rung was 5 against an establishment of 4.** `recalcExtra` has implemented the deficit formula since Stage A, keyed on `caps[].r`; the top rung must equal the establishment. Four of five stations already agreed. A1 credited one phantom body-block on every full-capacity A1 day **staffed below five** — which, on the W32 register, is all six days. Worth 8 h = **₹330** at this app's configured ₹41.25/hr. Fixed to 4, giving A1 the same top-rung plateau `vat_a2` and `barrel` already have. The 66 rung stays meaningful: `getReq('pickle_vat')` returns 3 only when both VAT caps are 100.
 
-`area.roster` drives worker-to-area assignment in `tabs/production.js`, so these were live:
+🔴 **₹380 was wrong and is withdrawn.** The first cut quoted ₹380 = 8 × ₹47.50, the *register's* contract rate. **This app is configured at ₹41.25/hr** (`wage.js`), so a body-block is ₹330. The underlying divergence is the finding: the dashboard prices EXTRA **13% below what the floor is actually paid**, and `soma-internal staff-aliases.md` already carries the same ₹41.25-vs-₹47.50 gap for Champai under T-CJ. Not silently changed here — it needs the rate reconciliation, not a config edit.
 
-- **Tuklu** — AWOL confirmed 18 May 2026 — was rostered on `barrel` and offered for assignment
-- **Kusu** — off the active pool after 5+ consecutive absences — was offered
-- **Rakesh** — joined W22, on every weekly payout since W29 — **absent from the config entirely**
-- **Vijay** — joined 14 Jul 2026, the roster 19→20 event — **absent from the config entirely**
+### The deployment gap — the fix does not reach an installed dashboard
 
-Kusu and Tuklu are retained as ids (historical attendance still resolves) and flagged `inactive`. Rakesh and Vijay added. **Rosters rebuilt from the W32 register** — the primary production source since the 8-Aug ruling — not from the 8-May roster file, which soma-internal marks stale under T-CJ.
+`getAreas()` returns saved localStorage **wholesale, with no merge**, and `sep_prod_areas_v1` has been populated since Stage A in May. There is no areas-editing UI; the only reset path destroys payroll history. So a live install would have pulled the new bundle and kept `r:5` and the AWOL rosters — **every claim above true of the repo and false of the running app.**
 
-Display names moved to the codex canonical spelling per HR-4: **Lucky → Lakhi** (not an alias anyone uses; `staff-aliases.md` has Laxmi Kant Das as Lakhi / Laxmi / LK), Shambhu → Sambhu, Mantu → Montu, Budheswar → Budheswer, Sharat → Sarat. Ids frozen — stored attendance and σ-baseline keys reference them.
+`K.prodAreas` bumped to **`sep_prod_areas_v2`**, forcing a one-shot re-seed; v1 is left unread as a rollback. The `production.js` header comment claimed defaults are merged — true of `getCfg()`, **false of `getAreas()` directly below it**, which is why this was easy to miss. Corrected to say which accessor does what.
+
+### Roster corrections — twenty on the floor, twenty-one config entries, the wrong twenty-one
+
+`area.roster` drives assignment, so all four were live: **Tuklu** (AWOL confirmed 18 May) and **Kusu** (off pool) were being offered; **Rakesh** (joined W22, on every payout since W29) and **Vijay** (joined 14 Jul, the 19→20 event) were absent entirely. Kusu and Tuklu retained as ids so historical attendance resolves, flagged `inactive`. Rosters rebuilt from the W32 register — Janus verified them as strict *subsets* of the register's placements, under-inclusive and never over.
+
+Display names to codex canonical per HR-4: Lucky → **Lakhi**, Shambhu → **Sambhu**, Mantu → **Montu**, Sharat → **Sarat**, and Budheswar → **Buddheswar** 🔧 *(the first cut wrote "Budheswer", which `staff-aliases.md` lists as a variant — HR-4 broken in the line citing HR-4, caught by Janus)*. Ids frozen; Janus verified no name-keyed lookup exists (`getAttKey` and `statKey` both key on id).
 
 ### Also: the e2e suite was unrunnable in a web session
 
-The sandbox ships Chromium 1194; this Playwright expects a 1217 headless shell and cannot download it. **All 41 e2e tests failed to launch a browser** — which is how it was found. sep-invoicing has solved this since 30 Jul; the pattern is now ported: `playwright.config.ts` reads `PW_CHROMIUM_PATH` (ignored when unset, so local resolution is untouched) and the SessionStart hook sets it when the expected binary is missing and `$PLAYWRIGHT_BROWSERS_PATH/chromium` is present.
+Sandbox ships Chromium 1194; this Playwright expects a 1217 headless shell it cannot download, so **all 41 e2e tests failed to launch a browser** — which is how it was found. sep-invoicing has solved this since 30 Jul; pattern ported (`PW_CHROMIUM_PATH` in `playwright.config.ts`, ignored when unset, plus SessionStart hook detection).
 
-### Deliverables
+### ⚠ Withdrawn at the QA chain
 
-| Area | Detail |
-|---|---|
-| `src/shared/config/areas.js` | `area` + `establishment` per station · `vat_a1` top rung 5→4 · `DEF_FLOOR_AREAS` (physical axis) · `FLOOR_ESTABLISHMENT` derived, not restated · rosters rebuilt from the register · canonical-source header |
-| `src/shared/config/workers.js` | Rakesh + Vijay added · Kusu + Tuklu inactive · canonical display names |
-| `tests/unit/work-areas.test.js` | 14 coupling cases — establishment values · sum = 16 · **top rung == establishment for every independent area** · dependent pickling reaches establishment at full upstream · the EXTRA formula on the two register days (fully-manned → 0; the Mon 3 Aug shape → 56 hr) · no negative EXTRA on an over-filled station · bidirectional area↔station mapping · every rostered id active · every station manned to establishment |
-| `tests/unit/calc-prod.test.js` | Two stale `r:5` expectations updated |
-| `playwright.config.ts` · `.claude/hooks/session-start.sh` | `PW_CHROMIUM_PATH` fallback ported from sep-invoicing |
-
-### ⚠ Carried, not resolved
-
-✅ **`Area 1 = vat_a1` CONFIRMED same day** (BM, 11 Aug): *"A1 is the room with 4 tanks, only 3 are operational."* soma-internal **T-EL** closed. ⭐ **The answer independently corroborates this repo's own Session-11 floor model** — 4 machines, 3 functional, written in April from a different conversation. Two sources arrived at separately agreeing on both numbers. `Area 2 = vat_a2` follows by elimination on a closed set of two VAT areas.
-
-🔴 **But it surfaces soma-internal T-EN, which reaches into this repo.** `vat_a1`'s capacity reference — 3,116 NOS/day, from the W24 per-area mean — **was measured with one of four tanks down.** It is a three-tank number being read as the line's ceiling, so the A1 capacity index measures against a degraded baseline. Noted inline in `DEF_FLOOR_AREAS`. **Do not scale it by 4/3** — a four-tank number has to be measured, since jigs, crew and rectifier capacity are all in the loop. And `vat_a1`'s `caps` ladder is likewise a three-tank ladder: whether a fourth tank needs a fifth hand is unknown, and it is the same question that produced the `r:5` defect fixed in this PR.
-
-Intermediate `caps` rungs (33/66, 25/50/75) have **no register counterpart** and remain unverified. Only the top rung is confirmed.
+- **"Independent corroboration" of the Area 1 = `vat_a1` mapping.** BM confirmed it (*"A1 is the room with 4 tanks, only 3 are operational"*), and it is consistent with the Session-11 floor model — **but that model is also BM-sourced**, recorded in April from a Cowork Q&A where BM supplied the layouts. One source at two dates, not two sources. Worse, the identification was circular: converting *"A1 is the 4-tank room"* into *"Area 1 = A1"* needs the premise *"Area 1 is the 4-tank room"*, which exists only in that table — an **input** to the conclusion. The mapping stands; the strength claim does not. (Vulcanus BLOCKER-2.)
+- **"`vat_a1`'s capacity reference was measured with one tank down."** A 30 May BM-corrected plan records **all four running**, nine days before the W24 measurement window, and no repair or failure event is logged anywhere between April and August. **The tank state during W24 is UNKNOWN.** (Vulcanus BLOCKER-1.)
+- **"3,116 is the line's ceiling."** It is a **6-day mean the line beat on 3 of those 6 days**, peak 3,600 (115.5%). (Vulcanus HIGH-1.)
+- **"A fourth A1 tank does not compete for A2's jigs."** All 8 A1 hands also work A2 — on three June days the register lists the identical names under both — and A1 ran **zero crew on two of six days in W26** while three working tanks stood idle. Crew is the binding constraint. Vulcanus's alternative number: A1 runs at **61.7% of its own demonstrated three-tank peak**, so the unrealised headroom (1,100–1,378 NOS/day) exceeds a fourth tank's naive value (1,039/day), at zero capex. (Vulcanus HIGH-2 / DEFENDABLE-2.)
+- **"Area 3's 8 barrels / 4 functional is latent capacity."** Four dead barrels are being **sold, not repaired** (BM, 20 May) to free floor space for a new VAT line. Noted inline.
 
 ### Tests / Versions
 
-Unit **279 → 293** · e2e **41** (all green once the browser resolves) · build clean. `BUILD 4→5`, `APP_VERSION 2.1.0-alpha.8`, both SW caches bumped (a config change feeds both bundles).
+Unit **279 → 300** · e2e **41** · build clean. `BUILD 4→5`, `APP_VERSION 2.1.0-alpha.8`, both SW caches bumped, `K.prodAreas` → v2.
+
+New coupling cases pin what would have caught this session's own regressions: **no hand credited to two stations in one period** · **no station assigned above establishment** · **widening a roster cannot reduce the booked deficit** · **the roster-order tie-break** · **block hours additive to the payout's clock spans** · **`DEF_FLOOR_AREAS` machine counts tethered to `work-areas.md`** (Janus: the one table that was pure restatement with no coupling). The `recalcExtra` arithmetic test was renamed — it hand-feeds assignments and would have stayed green through the whole roster regression, which the old name concealed.
 
 ### Still Open (unchanged queue)
 
 CF cross-doc validation (deploy-gated) · Session-17 fast-follows (audit-noise filter, `functions lint` gap) · shared `firestore-store` extraction · prod stand-up · rules-CI prod-deps trim · submit-path IDB serialization · stale PRs #13/#14 rebase-or-close.
+**New**: the ₹41.25-vs-₹47.50 EXTRA rate divergence (soma-internal T-CJ) · `DEF_FLOOR_AREAS` / `FLOOR_ESTABLISHMENT` have no production consumer yet (forward-looking, for the floor view) · role labels in `DEF_PERM` are stale against the rosters beside them.
 
-*Session 20 documented 11 August 2026 by Aurelius (Claude Code).*
+*Session 20 documented 11 August 2026 by Aurelius (Claude Code); QA chain folded same day.*

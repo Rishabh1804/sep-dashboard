@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-5F6QM6QI.js";
+} from "./chunks/chunk-C7BKPTGD.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-TVM4GJAG.js";
+} from "./chunks/chunk-TBLPQXV7.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-ZFCVXKCG.js";
+} from "./chunks/chunk-WQLP4QOJ.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -80,7 +80,13 @@ var K = {
   stockLog: "sep_stock_log_v1",
   // Production
   prodLog: "sep_prod_log_v1",
-  prodAreas: "sep_prod_areas_v1",
+  // v2 (11 Aug 2026): forces a one-shot re-seed of the area registry so
+  // installed dashboards pick up the ratified establishment, the vat_a1
+  // caps fix (r:5 -> 4) and the corrected rosters. getAreas() returns the
+  // saved array WHOLESALE with no merge, so a key bump is the only way the
+  // fix reaches an install short of Reset All Data — which destroys payroll
+  // history. The v1 value is left in place, unread, as a rollback.
+  prodAreas: "sep_prod_areas_v2",
   prodCfg: "sep_prod_cfg_v1",
   permSnack: "sep_perm_snack_log_v1",
   // System
@@ -345,12 +351,17 @@ function formatCurrency(n) {
 }
 
 // src/shared/utils/calc-prod.js
+var BLOCK_HOURS = { morningOT: 3, standard: 8, eveningOT: 7 };
 function initProdDay() {
   return {
     periods: {
-      morningOT: { active: false, hours: 3, areas: {}, workers: [] },
-      standard: { active: true, hours: 8, areas: {}, workers: null },
-      eveningOT: { active: false, hours: 3, areas: {}, workers: [] }
+      morningOT: { active: false, hours: BLOCK_HOURS.morningOT, areas: {}, workers: [] },
+      standard: { active: true, hours: BLOCK_HOURS.standard, areas: {}, workers: null },
+      // 11 Aug 2026: was 3. The evening block runs 5 PM -> 12 AM = 7 hours.
+      // At 3 the dashboard understated Thu 6 Aug's evening EXTRA by 20 h
+      // (15 booked against the register's 35). Stored production days keep
+      // whatever `hours` they were saved with — this changes the default only.
+      eveningOT: { active: false, hours: BLOCK_HOURS.eveningOT, areas: {}, workers: [] }
     },
     totals: { pieces: 0, weight: 0, extraHours: 0, extraCost: 0, snackCost: 0 },
     confirmed: false,
@@ -388,7 +399,7 @@ function recalcExtra(prod, areas, cfg) {
   ["morningOT", "standard", "eveningOT"].forEach((pk) => {
     const period = prod.periods[pk];
     if (!period || pk !== "standard" && !period.active) return;
-    const hours = period.hours || (pk === "standard" ? 8 : 3);
+    const hours = period.hours || BLOCK_HOURS[pk] || 0;
     let shortfall = 0;
     areas.forEach((area) => {
       const pa = period.areas?.[area.id];
@@ -1641,6 +1652,7 @@ function autoAssignRosters(prod, periodKey, present) {
   const areas = getAreas();
   const period = prod.periods[periodKey];
   if (!period.areas) period.areas = {};
+  const claimed = /* @__PURE__ */ new Set();
   areas.forEach((area) => {
     if (!period.areas[area.id]) {
       period.areas[area.id] = {
@@ -1650,10 +1662,15 @@ function autoAssignRosters(prod, periodKey, present) {
     }
     const pa = period.areas[area.id];
     if (pa.cap === 0 && !area.dep) return;
-    const rosterPresent = area.roster.filter((id) => present.includes(id));
-    pa.assigned = rosterPresent;
+    pa.assigned = selectAssigned(area, periodKey, prod, areas, present, claimed);
+    pa.assigned.forEach((id) => claimed.add(id));
   });
   autoPickling(prod, periodKey);
+}
+function selectAssigned(area, periodKey, prod, areas, present, claimed) {
+  const eligible = area.roster.filter((id) => present.includes(id) && !claimed.has(id));
+  const req = getReq(area.id, periodKey, prod, areas);
+  return req > 0 ? eligible.slice(0, req) : eligible;
 }
 function autoPickling(prod, periodKey) {
   const areas = getAreas();
@@ -1667,7 +1684,10 @@ function autoPickling(prod, periodKey) {
     } else {
       const present = prod.present || [];
       period.areas[pa.id].cap = 1;
-      period.areas[pa.id].assigned = pa.roster.filter((id) => present.includes(id));
+      const claimed = new Set(
+        areas.filter((a) => !a.dep).flatMap((a) => period.areas[a.id]?.assigned || [])
+      );
+      period.areas[pa.id].assigned = selectAssigned(pa, periodKey, prod, areas, present, claimed);
     }
   });
 }

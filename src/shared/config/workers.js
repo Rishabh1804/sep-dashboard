@@ -25,7 +25,7 @@ export const DEF_CW = [
   { id: 'sripati',   name: 'Sripati',   inactive: false },
   { id: 'naren',     name: 'Naren',     inactive: false },
   { id: 'champai',   name: 'Champai',   inactive: false },
-  { id: 'budheswar', name: 'Budheswer', inactive: false },
+  { id: 'budheswar', name: 'Buddheswar', inactive: false },
   { id: 'sai',       name: 'Sai',       inactive: false },
   { id: 'shambhu',   name: 'Sambhu',    inactive: false },
   { id: 'mantu',     name: 'Montu',     inactive: false },

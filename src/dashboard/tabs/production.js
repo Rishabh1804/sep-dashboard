@@ -160,6 +160,9 @@ function autoAssignRosters(prod, periodKey, present) {
   const period = prod.periods[periodKey];
   if (!period.areas) period.areas = {};
 
+  // One hand fills one station per period — see selectAssigned below.
+  const claimed = new Set();
+
   areas.forEach((area) => {
     if (!period.areas[area.id]) {
       period.areas[area.id] = {
@@ -170,11 +173,34 @@ function autoAssignRosters(prod, periodKey, present) {
     const pa = period.areas[area.id];
     if (pa.cap === 0 && !area.dep) return;
 
-    const rosterPresent = area.roster.filter((id) => present.includes(id));
-    pa.assigned = rosterPresent;
+    pa.assigned = selectAssigned(area, periodKey, prod, areas, present, claimed);
+    pa.assigned.forEach((id) => claimed.add(id));
   });
 
   autoPickling(prod, periodKey);
+}
+
+// `roster` means ELIGIBLE HERE, not assigned here — the registry lists everyone
+// the W32 register has ever placed at a station, so the VAT rosters run 9 names
+// against an establishment of 4. Filtering `present` against that directly
+// (which is what this did before 11 Aug 2026) lets one hand satisfy three
+// stations at once and monotonically SUPPRESSES the EXTRA deficit: simulated
+// against the register, Mon 3 Aug booked 16 h where the register wrote 56.
+//
+// So eligibility is filtered, then capped at the station's requirement, and a
+// hand already claimed by an earlier station is not counted twice.
+//
+// Tie-break is ROSTER ORDER (BM, 11 Aug 2026) — when more eligible hands are
+// present than the station needs, the first `req` names in the roster array are
+// credited. That allocation is real money under the 11-Jun ruling (the deficit
+// is absorbed pro-rata by the station's present crew), so the order is a
+// deliberate default and NOT a fact about who actually stood where. The
+// operator overrides it per period on the production tab; an operator-set
+// assignment is never re-derived.
+function selectAssigned(area, periodKey, prod, areas, present, claimed) {
+  const eligible = area.roster.filter((id) => present.includes(id) && !claimed.has(id));
+  const req = getReq(area.id, periodKey, prod, areas);
+  return req > 0 ? eligible.slice(0, req) : eligible;
 }
 
 function autoPickling(prod, periodKey) {
@@ -190,7 +216,14 @@ function autoPickling(prod, periodKey) {
     } else {
       const present = prod.present || [];
       period.areas[pa.id].cap = 1;
-      period.areas[pa.id].assigned = pa.roster.filter((id) => present.includes(id));
+      // Same eligibility-vs-assignment rule as the independent areas: cap at
+      // the derived requirement, and never double-count a hand already
+      // credited to a VAT/barrel station in this period.
+      const claimed = new Set(
+        areas.filter((a) => !a.dep)
+          .flatMap((a) => period.areas[a.id]?.assigned || []),
+      );
+      period.areas[pa.id].assigned = selectAssigned(pa, periodKey, prod, areas, present, claimed);
     }
   });
 }

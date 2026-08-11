@@ -1,6 +1,13 @@
-// Production-domain storage. Defaults from config/areas + config/wage
-// are merged on top of saved data so new shift-config fields appear
-// without a migration.
+// Production-domain storage.
+//
+// NOTE (11 Aug 2026) — the two accessors below behave DIFFERENTLY and the old
+// header comment claimed otherwise, which is how a config fix silently failed
+// to reach installed dashboards:
+//   getCfg()   MERGES DEF_CFG under saved data, so new shift-config fields
+//              appear without a migration.
+//   getAreas() returns the saved array WHOLESALE. No merge. A change to
+//              DEF_AREAS reaches an existing install only via a key bump
+//              (see K.prodAreas, bumped to v2 for exactly this reason).
 
 import { loadJSON, saveJSON } from './storage.js';
 import { K } from './keys.js';

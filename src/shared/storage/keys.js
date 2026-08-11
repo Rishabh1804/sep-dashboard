@@ -18,7 +18,13 @@ export const K = {
   stockLog: 'sep_stock_log_v1',
   // Production
   prodLog:   'sep_prod_log_v1',
-  prodAreas: 'sep_prod_areas_v1',
+  // v2 (11 Aug 2026): forces a one-shot re-seed of the area registry so
+  // installed dashboards pick up the ratified establishment, the vat_a1
+  // caps fix (r:5 -> 4) and the corrected rosters. getAreas() returns the
+  // saved array WHOLESALE with no merge, so a key bump is the only way the
+  // fix reaches an install short of Reset All Data — which destroys payroll
+  // history. The v1 value is left in place, unread, as a rollback.
+  prodAreas: 'sep_prod_areas_v2',
   prodCfg:   'sep_prod_cfg_v1',
   permSnack: 'sep_perm_snack_log_v1',
   // System
