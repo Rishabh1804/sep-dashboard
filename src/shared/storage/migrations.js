@@ -29,6 +29,7 @@
 import { loadJSON, saveJSON } from './storage.js';
 import { K } from './keys.js';
 import { getAreas, getCfg, getProdLogs } from './production.js';
+import { DEF_CFG } from '../config/wage.js';
 import { recalcExtra } from '../utils/calc-prod.js';
 
 export const MIGRATION_ID = '2026-08-11-extra-rate';
@@ -36,6 +37,31 @@ export const MIGRATION_ID = '2026-08-11-extra-rate';
 // The configuration these records were written under.
 const OLD_HOUR_RATE = 41.25;
 const OLD_VAT_A1_TOP_REQ = 5;
+
+
+// THE SAME TRAP AS getAreas(), ONE FILE OVER — and worth spelling out, because
+// fixing the first instance did not stop me walking into the second.
+//
+// initData() seeds `K.prodCfg` with the WHOLE DEF_CFG object when the key is
+// absent. On any install created before today that seed froze `hourRate: 41.25`
+// into storage back in May — and getCfg() spreads SAVED OVER DEFAULTS, so the
+// corrected 47.50 in wage.js is shadowed and never reaches the app.
+//
+// Left unhandled this would be worse than a no-op: the recompute below would
+// read 41.25 as the "new" rate, find nothing changed, mark itself applied and
+// permanently record that there was nothing to correct.
+//
+// Safe to overwrite because `hourRate` is NOT operator-editable — the settings
+// panel renders it read-only, so a stored value can only be the seed. Only the
+// exact ruled-against 41.25 is touched; any other value is left alone and
+// reported, since that would mean something set it deliberately.
+export function planCfgRateFix(savedCfg) {
+  if (!savedCfg || savedCfg.hourRate === undefined) return { cfg: savedCfg, changed: false };
+  if (savedCfg.hourRate === OLD_HOUR_RATE) {
+    return { cfg: { ...savedCfg, hourRate: DEF_CFG.hourRate }, changed: true };
+  }
+  return { cfg: savedCfg, changed: false, unexpected: savedCfg.hourRate !== DEF_CFG.hourRate };
+}
 
 function oldConfigFrom(areas, cfg) {
   return {
@@ -180,10 +206,19 @@ export function hasRun(id) { return Boolean(getMigrationRecords()[id]); }
  */
 export function runPendingMigrations({ at } = {}) {
   if (hasRun(MIGRATION_ID)) return null;
+  const stamp = at || new Date().toISOString();
 
+  // STEP 1 — un-shadow the rate. Must run BEFORE the recompute, or getCfg()
+  // hands the recompute the very value it exists to correct.
+  const rateFix = planCfgRateFix(loadJSON(K.prodCfg, {}));
+  if (rateFix.changed) saveJSON(K.prodCfg, rateFix.cfg);
+
+  // STEP 2 — recompute the derived totals against the now-correct config.
   const { logs, report } = planExtraRateRecompute(
-    getProdLogs(), getAreas(), getCfg(), { at: at || new Date().toISOString() },
+    getProdLogs(), getAreas(), getCfg(), { at: stamp },
   );
+  report.storedRateUnshadowed = rateFix.changed;
+  report.unexpectedStoredRate = rateFix.unexpected ? loadJSON(K.prodCfg, {}).hourRate : null;
 
   if (report.corrected > 0) saveJSON(K.prodLog, logs);
   saveJSON(K.migrations, { ...getMigrationRecords(), [MIGRATION_ID]: report });

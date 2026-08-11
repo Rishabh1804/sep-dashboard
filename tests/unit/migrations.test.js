@@ -3,7 +3,7 @@
 // These exercise the pure planner against synthetic production days built from
 // the real DEF_AREAS, so the establishment and the ladder are the ratified ones.
 
-import { planExtraRateRecompute, MIGRATION_ID } from '../../src/shared/storage/migrations.js';
+import { planExtraRateRecompute, planCfgRateFix, MIGRATION_ID } from '../../src/shared/storage/migrations.js';
 import { DEF_AREAS } from '../../src/shared/config/areas.js';
 import { DEF_CFG } from '../../src/shared/config/wage.js';
 import { initProdDay, recalcExtra } from '../../src/shared/utils/calc-prod.js';
@@ -155,5 +155,39 @@ describe('extraCost recompute', () => {
     expect(report.corrected).toBe(2);
     expect(report.unchanged).toBe(1);
     expect(report.corrected + report.unchanged).toBe(3);
+  });
+});
+
+describe('the stored-config shadow — the same trap as getAreas(), one file over', () => {
+  // initData() seeded K.prodCfg with the WHOLE DEF_CFG in May, freezing
+  // hourRate 41.25 into storage; getCfg() spreads saved OVER defaults, so the
+  // corrected 47.50 never reaches an existing install. Unhandled, the recompute
+  // would read 41.25 as the "new" rate, find nothing changed, and mark itself
+  // applied — permanently recording that there was nothing to correct.
+  it('replaces a stored 41.25 with the ruled rate', () => {
+    const { cfg, changed } = planCfgRateFix({ hourRate: 41.25, snackRate: 20 });
+    expect(changed).toBe(true);
+    expect(cfg.hourRate).toBe(47.5);
+    expect(cfg.snackRate).toBe(20);          // nothing else touched
+  });
+
+  it('leaves an already-correct stored rate alone', () => {
+    const { changed, unexpected } = planCfgRateFix({ hourRate: 47.5 });
+    expect(changed).toBe(false);
+    expect(unexpected).toBe(false);
+  });
+
+  it('refuses to touch a rate nobody ruled on, and flags it', () => {
+    // Only the exact ruled-against value is corrected. Anything else means
+    // something set it deliberately, so it is reported rather than overwritten.
+    const { cfg, changed, unexpected } = planCfgRateFix({ hourRate: 52 });
+    expect(changed).toBe(false);
+    expect(unexpected).toBe(true);
+    expect(cfg.hourRate).toBe(52);
+  });
+
+  it('is a no-op on a config that carries no rate at all', () => {
+    expect(planCfgRateFix({}).changed).toBe(false);
+    expect(planCfgRateFix(null).changed).toBe(false);
   });
 });

@@ -242,6 +242,13 @@ function recalcExtra(prod, areas, cfg) {
 var MIGRATION_ID = "2026-08-11-extra-rate";
 var OLD_HOUR_RATE = 41.25;
 var OLD_VAT_A1_TOP_REQ = 5;
+function planCfgRateFix(savedCfg) {
+  if (!savedCfg || savedCfg.hourRate === void 0) return { cfg: savedCfg, changed: false };
+  if (savedCfg.hourRate === OLD_HOUR_RATE) {
+    return { cfg: { ...savedCfg, hourRate: DEF_CFG.hourRate }, changed: true };
+  }
+  return { cfg: savedCfg, changed: false, unexpected: savedCfg.hourRate !== DEF_CFG.hourRate };
+}
 function oldConfigFrom(areas, cfg) {
   return {
     areas: areas.map((a) => a.id !== "vat_a1" ? a : {
@@ -346,12 +353,17 @@ function hasRun(id) {
 }
 function runPendingMigrations({ at } = {}) {
   if (hasRun(MIGRATION_ID)) return null;
+  const stamp = at || (/* @__PURE__ */ new Date()).toISOString();
+  const rateFix = planCfgRateFix(loadJSON(K.prodCfg, {}));
+  if (rateFix.changed) saveJSON(K.prodCfg, rateFix.cfg);
   const { logs, report } = planExtraRateRecompute(
     getProdLogs(),
     getAreas(),
     getCfg(),
-    { at: at || (/* @__PURE__ */ new Date()).toISOString() }
+    { at: stamp }
   );
+  report.storedRateUnshadowed = rateFix.changed;
+  report.unexpectedStoredRate = rateFix.unexpected ? loadJSON(K.prodCfg, {}).hourRate : null;
   if (report.corrected > 0) saveJSON(K.prodLog, logs);
   saveJSON(K.migrations, { ...getMigrationRecords(), [MIGRATION_ID]: report });
   return report;

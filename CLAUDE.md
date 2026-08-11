@@ -1248,7 +1248,7 @@ Two axes, because pickling is **one physical area** (Area 4, six tanks) and **tw
 
 Fixed by separating the axes: **`roster` means ELIGIBLE HERE** (wide, register-derived) and a new `selectAssigned` caps the assignment at the station's requirement and refuses to credit one hand at two stations in a period. **Tie-break is roster order (BM, 11 Aug), operator-overridable** — that allocation is real money under the June ruling's pro-rata split, so the default is deliberate and is not a claim about who actually stood where.
 
-**3. `vat_a1`'s top capacity rung was 5 against an establishment of 4.** `recalcExtra` has implemented the deficit formula since Stage A, keyed on `caps[].r`; the top rung must equal the establishment. Four of five stations already agreed. A1 credited one phantom body-block on every full-capacity A1 day **staffed below five** — which, on the W32 register, is all six days. Worth 8 h = **₹330** at this app's configured ₹41.25/hr. Fixed to 4, giving A1 the same top-rung plateau `vat_a2` and `barrel` already have. The 66 rung stays meaningful: `getReq('pickle_vat')` returns 3 only when both VAT caps are 100.
+**3. `vat_a1`'s top capacity rung was 5 against an establishment of 4.** `recalcExtra` has implemented the deficit formula since Stage A, keyed on `caps[].r`; the top rung must equal the establishment. Four of five stations already agreed. A1 credited one phantom body-block on every full-capacity A1 day **staffed below five** — which, on the W32 register, is all six days. Worth 8 h = **₹380** at the ruled ₹47.50/hr — ₹330 under the 41.25 this app carried until today. Fixed to 4, giving A1 the same top-rung plateau `vat_a2` and `barrel` already have. The 66 rung stays meaningful: `getReq('pickle_vat')` returns 3 only when both VAT caps are 100.
 
 🔧 **The ₹380/₹330 confusion, resolved in the right direction.** The first cut quoted ₹380 = 8 × ₹47.50, the register's contract rate, while `wage.js` ran **₹41.25/hr** — so the block really was ₹330, and the fold said the 13% gap was *"already tracked for Champai under T-CJ."*
 
@@ -1314,6 +1314,6 @@ New coupling cases pin what would have caught this session's own regressions: **
 ### Still Open (unchanged queue)
 
 CF cross-doc validation (deploy-gated) · Session-17 fast-follows (audit-noise filter, `functions lint` gap) · shared `firestore-store` extraction · prod stand-up · rules-CI prod-deps trim · submit-path IDB serialization · stale PRs #13/#14 rebase-or-close.
-**New**: the ₹41.25-vs-₹47.50 EXTRA rate divergence (soma-internal T-CJ) · `DEF_FLOOR_AREAS` / `FLOOR_ESTABLISHMENT` have no production consumer yet (forward-looking, for the floor view) · role labels in `DEF_PERM` are stale against the rosters beside them.
+**New**: the stored-`extraCost` reconciliation under soma-internal **T-EP** — the rate itself is fixed and the historical recompute has shipped; what remains is the `eveningOT.hours = 3` days the migration reports but will not touch, and whether any already-paid slip needs restating · `DEF_FLOOR_AREAS` / `FLOOR_ESTABLISHMENT` have no production consumer yet (forward-looking, for the floor view) · role labels in `DEF_PERM` are stale against the rosters beside them.
 
 *Session 20 documented 11 August 2026 by Aurelius (Claude Code); QA chain folded same day.*

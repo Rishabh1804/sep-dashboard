@@ -79,8 +79,6 @@ describe('EXTRA = (establishment - present) x block hours', () => {
     // The Mon 3 Aug SHAPE, hand-fed. This pins recalcExtra's arithmetic only —
     // it does NOT exercise the assignment path, which is where the 11 Aug
     // roster regression lived. See the autoAssignRosters test below for that.
-    // NOTE the rate here is the register's 47.50; the app is configured at
-    // 41.25 (wage.js) — a 13% divergence tracked under soma-internal T-CJ.
     // A1 3 of 4 -> 1 · A2 4 of 4 -> 0 · barrel+barrel-pickling 2 of 5 -> 3 ·
     // VAT pickling 0 of 3 -> 3.  Total deficit 7 bodies.
     const t = standardDay({
