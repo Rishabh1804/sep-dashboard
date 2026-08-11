@@ -12,7 +12,7 @@
 //   + unit-keyed sigma baselines + edit gate -> both bundles shift.
 // alpha.5: Edit tab added + shared firebase-session.js memoised → dashboard.js
 // + shared chunk hashes changed again.
-const CACHE_NAME = 'sep-v2.1.0-alpha.7';
+const CACHE_NAME = 'sep-v2.1.0-alpha.8';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

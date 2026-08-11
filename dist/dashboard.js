@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-IIQMR7WS.js";
+} from "./chunks/chunk-5F6QM6QI.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-R4IRYVMN.js";
+} from "./chunks/chunk-DSGA5OL5.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,8 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-274TEG2F.js";
-import "./chunks/chunk-IFG75HHC.js";
+} from "./chunks/chunk-FSG5DMXY.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -2916,7 +2915,7 @@ function renderLive() {
 }
 async function boot() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-XN3KAJKZ.js");
     session = await bootFirebaseSession();
     if (!session) {
       bootState = "no-config";
@@ -3282,7 +3281,7 @@ function renderEdit() {
 }
 async function boot2() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-XN3KAJKZ.js");
     session2 = await bootFirebaseSession();
     if (!session2) {
       bootState2 = "no-config";

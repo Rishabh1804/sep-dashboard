@@ -1,6 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 
+# Reconcile the browser build if the sandbox ships a different one.
+# Some environments pre-install Chromium at a build number this Playwright
+# version does not expect, and disable downloading the matching one. Rather than
+# fight that, point the config at the browser that IS present.
+# playwright.config.ts reads PW_CHROMIUM_PATH and ignores it when unset, so this
+# is a no-op wherever Playwright's own resolution already works.
+# Ported from sep-invoicing 11 Aug 2026 — without it the 41-case e2e suite is
+# simply unrunnable in a web session, which is how it was found.
+if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -d node_modules ]; then
+  expected=$(node -e "try{console.log(require('@playwright/test').chromium.executablePath())}catch(e){}" 2>/dev/null || true)
+  fallback="${PLAYWRIGHT_BROWSERS_PATH:-}/chromium"
+  if [ -n "$expected" ] && [ ! -x "$expected" ] && [ -x "$fallback" ]; then
+    echo "export PW_CHROMIUM_PATH=$fallback" >> "$CLAUDE_ENV_FILE"
+    echo "Playwright: expected browser missing, using $fallback" >&2
+  fi
+fi
+
 # PDF tooling for Claude Code on the web.
 # Only needed in the remote (web) container; no-op on local machines.
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then

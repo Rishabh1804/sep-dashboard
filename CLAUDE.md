@@ -1214,3 +1214,81 @@ padded picker-id trim-vs-drop nuance.
 
 *Session 19 documented 20 July 2026 by Aurelius (Claude Code); review pass
 folded same day.*
+
+---
+
+## Session 20: Work Areas + EXTRA — the Establishment Contract (11 August 2026)
+
+### What Shipped
+
+Not a feature — a **definition**, and the config corrections it exposed. soma-internal ratified a canonical area / station / establishment model on 11 Aug (`operations/work-areas.md`) and this repo was one of **seven** live area vocabularies that disagreed. `DEF_AREAS` is now the code-side carrier of that contract, and three real defects fell out of aligning to it.
+
+### The ruling being carried
+
+Two axes, because pickling is **one physical area** (Area 4, six tanks) and **two staffing slots** (split by whether it feeds VAT or barrel):
+
+- **`area`** = physical place → new `DEF_FLOOR_AREAS` (Area 1–4, machine counts, station lists)
+- **`station`** = crew-assignment slot → the existing `DEF_AREAS` ids, now carrying `area` + `establishment`
+
+**Establishment**: `vat_a1` 4 · `vat_a2` 4 · `barrel` 3 · `pickle_barrel` 2 · `pickle_vat` 3 = **16 floor hands**. Confirmed against the soma-internal register, not asserted — Fri 7 / Sat 8 Aug are the only two days of W32 carrying zero EXTRA and they are exactly the two days every station sits at these numbers.
+
+**And BM ruled what EXTRA is**, after eleven weeks open as *"27.4% of the payout with no payee"*:
+
+> `EXTRA hours = (establishment − present) × block hours`, when the station ran at 100%.
+
+### ⭐ The finding: this repo already computed EXTRA correctly, with one wrong number
+
+`recalcExtra` has implemented `shortfall × hours × hourRate` since Stage A — the ruling's exact shape, arrived at independently. It keys on `caps[].r`, the per-capacity-level headcount ladder, whose **top rung must equal the establishment**. Four of five stations already agreed. `vat_a1` did not:
+
+| Station | `caps[100].r` | Establishment | |
+|---|---:|---:|---|
+| `vat_a1` | **5** | **4** | ✗ **+1 phantom body-block on every full-capacity A1 day** — 8 hr / ₹380 of EXTRA credited for a hand the floor does not staff |
+| `vat_a2` | 4 | 4 | ✓ |
+| `barrel` | 3 | 3 | ✓ |
+| `pickle_vat` (via `getReq`) | 3 | 3 | ✓ |
+| `pickle_barrel` (via `getReq`) | 2 | 2 | ✓ |
+
+Fixed to 4, which also gives A1 the **same top-rung plateau its two siblings already have** (`vat_a2` 75→4/100→4, `barrel` 75→3/100→3) — the minimal change, not a re-invented ladder. Two `calc-prod` tests encoded the old 5 and were updated with the reason recorded inline.
+
+### The roster was wrong in four places — twenty on the floor, twenty-one in config, the wrong twenty-one
+
+`area.roster` drives worker-to-area assignment in `tabs/production.js`, so these were live:
+
+- **Tuklu** — AWOL confirmed 18 May 2026 — was rostered on `barrel` and offered for assignment
+- **Kusu** — off the active pool after 5+ consecutive absences — was offered
+- **Rakesh** — joined W22, on every weekly payout since W29 — **absent from the config entirely**
+- **Vijay** — joined 14 Jul 2026, the roster 19→20 event — **absent from the config entirely**
+
+Kusu and Tuklu are retained as ids (historical attendance still resolves) and flagged `inactive`. Rakesh and Vijay added. **Rosters rebuilt from the W32 register** — the primary production source since the 8-Aug ruling — not from the 8-May roster file, which soma-internal marks stale under T-CJ.
+
+Display names moved to the codex canonical spelling per HR-4: **Lucky → Lakhi** (not an alias anyone uses; `staff-aliases.md` has Laxmi Kant Das as Lakhi / Laxmi / LK), Shambhu → Sambhu, Mantu → Montu, Budheswar → Budheswer, Sharat → Sarat. Ids frozen — stored attendance and σ-baseline keys reference them.
+
+### Also: the e2e suite was unrunnable in a web session
+
+The sandbox ships Chromium 1194; this Playwright expects a 1217 headless shell and cannot download it. **All 41 e2e tests failed to launch a browser** — which is how it was found. sep-invoicing has solved this since 30 Jul; the pattern is now ported: `playwright.config.ts` reads `PW_CHROMIUM_PATH` (ignored when unset, so local resolution is untouched) and the SessionStart hook sets it when the expected binary is missing and `$PLAYWRIGHT_BROWSERS_PATH/chromium` is present.
+
+### Deliverables
+
+| Area | Detail |
+|---|---|
+| `src/shared/config/areas.js` | `area` + `establishment` per station · `vat_a1` top rung 5→4 · `DEF_FLOOR_AREAS` (physical axis) · `FLOOR_ESTABLISHMENT` derived, not restated · rosters rebuilt from the register · canonical-source header |
+| `src/shared/config/workers.js` | Rakesh + Vijay added · Kusu + Tuklu inactive · canonical display names |
+| `tests/unit/work-areas.test.js` | 14 coupling cases — establishment values · sum = 16 · **top rung == establishment for every independent area** · dependent pickling reaches establishment at full upstream · the EXTRA formula on the two register days (fully-manned → 0; the Mon 3 Aug shape → 56 hr) · no negative EXTRA on an over-filled station · bidirectional area↔station mapping · every rostered id active · every station manned to establishment |
+| `tests/unit/calc-prod.test.js` | Two stale `r:5` expectations updated |
+| `playwright.config.ts` · `.claude/hooks/session-start.sh` | `PW_CHROMIUM_PATH` fallback ported from sep-invoicing |
+
+### ⚠ Carried, not resolved
+
+**`Area 1 = vat_a1` and `Area 2 = vat_a2` is PROPOSED, not confirmed** — soma-internal **T-EL**. No document asserts it; it rests on both being VAT lines in the same order and on Area 2's *"one tank, two lines"* fitting `vat_a2`'s lower capacity reference. `DEF_FLOOR_AREAS` carries the warning inline. **Until it closes, nothing may join a tank-level fact to a station-level fact** — a wrong mapping would attribute one line's output to the other line's tanks, and both readings are plausible, so the error would be invisible.
+
+Intermediate `caps` rungs (33/66, 25/50/75) have **no register counterpart** and remain unverified. Only the top rung is confirmed.
+
+### Tests / Versions
+
+Unit **279 → 293** · e2e **41** (all green once the browser resolves) · build clean. `BUILD 4→5`, `APP_VERSION 2.1.0-alpha.8`, both SW caches bumped (a config change feeds both bundles).
+
+### Still Open (unchanged queue)
+
+CF cross-doc validation (deploy-gated) · Session-17 fast-follows (audit-noise filter, `functions lint` gap) · shared `firestore-store` extraction · prod stand-up · rules-CI prod-deps trim · submit-path IDB serialization · stale PRs #13/#14 rebase-or-close.
+
+*Session 20 documented 11 August 2026 by Aurelius (Claude Code).*

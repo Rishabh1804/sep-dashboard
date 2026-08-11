@@ -23,7 +23,10 @@ describe('getReq', () => {
   test('returns rated headcount for VAT A1 at 100%', () => {
     const prod = initProdDay();
     prod.periods.standard.areas = { vat_a1: { cap: 100, assigned: [] } };
-    expect(getReq('vat_a1', 'standard', prod, DEF_AREAS)).toBe(5);
+    // 4, not 5, since 11 Aug 2026: the top rung must equal the ratified
+    // establishment (soma-internal operations/work-areas.md), or every
+    // full-capacity A1 day credits a phantom body-block of EXTRA.
+    expect(getReq('vat_a1', 'standard', prod, DEF_AREAS)).toBe(4);
   });
 
   test('pickle_vat needs 3 when both VATs at 100%', () => {
@@ -52,7 +55,7 @@ describe('recalcExtra', () => {
   test('extraCost = 0 when assigned meets requirement', () => {
     const prod = initProdDay();
     prod.periods.standard.areas = {
-      vat_a1: { cap: 100, assigned: ['a', 'b', 'c', 'd', 'e'] },
+      vat_a1: { cap: 100, assigned: ['a', 'b', 'c', 'd'] },  // establishment 4
     };
     recalcExtra(prod, DEF_AREAS, DEF_CFG);
     expect(prod.totals.extraHours).toBe(0);
@@ -62,10 +65,10 @@ describe('recalcExtra', () => {
   test('shortfall produces extraCost = floor(shortfall * hours * hourRate)', () => {
     const prod = initProdDay();
     prod.periods.standard.areas = {
-      vat_a1: { cap: 100, assigned: ['a', 'b'] },  // 2 of 5 required
+      vat_a1: { cap: 100, assigned: ['a', 'b'] },  // 2 of the establishment of 4
     };
     recalcExtra(prod, DEF_AREAS, DEF_CFG);
-    expect(prod.totals.extraHours).toBe(3 * 8); // 3 short × 8 hours
-    expect(prod.totals.extraCost).toBe(Math.floor(3 * 8 * DEF_CFG.hourRate));
+    expect(prod.totals.extraHours).toBe(2 * 8); // 2 short × 8 hours
+    expect(prod.totals.extraCost).toBe(Math.floor(2 * 8 * DEF_CFG.hourRate));
   });
 });
