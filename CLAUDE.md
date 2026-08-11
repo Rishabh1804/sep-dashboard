@@ -1254,7 +1254,28 @@ Fixed by separating the axes: **`roster` means ELIGIBLE HERE** (wide, register-d
 
 🔴 **Cipher Edict V found that claim false in both directions.** soma-internal `tasks.md:27`: *"**T-CJ (Champai rate)** — **₹380/day** confirmed (= ₹47.50/hr; **NOT ₹41.25**) … **T-CJ resolved.**"* T-CJ is **closed**, and it closed **against** 41.25. So this was not an open divergence awaiting reconciliation — it was **a constant the codex had already ruled wrong**, and the fix had been deferred onto a task that could not receive it.
 
-✅ **Corrected here rather than re-deferred**: `hourRate: 47.50`, pinned by a test asserting `47.50 × 8 = 380` — one body-block is one contract day-rate, which makes the ruling self-checking. ⚠ **Stored production days keep whatever `extraCost` they were saved with, and any day confirmed under 41.25 is 13% low.** Not retroactively recomputed — that touches booked payroll. → soma-internal **T-EP**.
+✅ **Corrected here rather than re-deferred**: `hourRate: 47.50`, pinned by a test asserting `47.50 × 8 = 380` — one body-block is one contract day-rate, which makes the ruling self-checking.
+
+### The historical recompute (BM-authorised, 11 Aug)
+
+Stored `extraCost` lives in `localStorage` on the devices, not in the repo, so correcting it is a **migration** — `src/shared/storage/migrations.js`, the first in this codebase, run once from `initData()` and recorded under `K.migrations`.
+
+**It is not a flat 15.15% uplift, because two config values were wrong, not one:**
+
+| | |
+|---|---|
+| `hourRate` 41.25 → 47.50 | **raises** every non-zero `extraCost` |
+| `vat_a1` `caps[100].r` 5 → 4 | **lowers** the deficit on full-capacity A1 days — the phantom body-block |
+
+A day carrying both moves in both directions, so the report decomposes `raisedByRate` and `loweredByEstablishment` separately rather than quoting a net.
+
+**The safety property.** Before replacing a stored figure the migration **recomputes it under the OLD config and requires the result to match what is stored.** A day that does not reproduce was hand-edited, or written under a configuration this migration does not model — it is **flagged and skipped, never overwritten**. That is the difference between a migration and a bulk overwrite, and it is unit-tested against a day with a typed-over total.
+
+**What it deliberately does not touch.** `assigned`, `cap`, `present` and `period.hours` are operator-entered and stay exactly as saved. In particular **`eveningOT.hours` is NOT corrected 3 → 7** even though the block runs seven hours — a stored 3 may be an operator recording a genuinely short evening, and overwriting it would be inventing data. Days carrying it are **counted and reported** so the call stays with BM.
+
+**The month lock is bypassed, deliberately and on the record.** The lock guards operator edits against a finalised month; this corrects a figure the codex had already ruled wrong, and nearly every affected day sits inside a locked month — a migration that respected the lock would correct nothing. Each corrected day carries an append-only `corrections[]` entry (before / after / reason), same pattern as the dashboard's `revisions[]`, which is what makes the bypass auditable rather than silent.
+
+→ soma-internal **T-EP**.
 
 ### The deployment gap — the fix does not reach an installed dashboard
 

@@ -88,6 +88,9 @@ var K = {
   // history. The v1 value is left in place, unread, as a rollback.
   prodAreas: "sep_prod_areas_v2",
   prodCfg: "sep_prod_cfg_v1",
+  // Applied data migrations, keyed by id -> report. Makes runPendingMigrations
+  // idempotent and keeps the before/after record queryable after the fact.
+  migrations: "sep_migrations_v1",
   permSnack: "sep_perm_snack_log_v1",
   // System
   settings: "sep_settings_v1",
@@ -100,69 +103,6 @@ var K = {
   invoices: "sep_inv_v1",
   invCfg: "sep_inv_cfg_v1"
 };
-
-// src/shared/utils/date.js
-function localDateStr(d) {
-  const dt = d ? new Date(d) : /* @__PURE__ */ new Date();
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-}
-function formatDate(dateStr) {
-  return (/* @__PURE__ */ new Date(dateStr + "T00:00:00")).toLocaleDateString("en-IN", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  });
-}
-function formatDateShort(dateStr) {
-  return (/* @__PURE__ */ new Date(dateStr + "T00:00:00")).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short"
-  });
-}
-function tnow() {
-  return (/* @__PURE__ */ new Date()).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  });
-}
-function isSunday(dateStr) {
-  return (/* @__PURE__ */ new Date(dateStr + "T00:00:00")).getDay() === 0;
-}
-function getWeekEnd(dateStr) {
-  const d = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
-  const day = d.getDay();
-  const diff = day === 0 ? 6 : 6 - day;
-  d.setDate(d.getDate() + diff);
-  return localDateStr(d);
-}
-
-// src/shared/storage/state.js
-var _state = {
-  currentTab: "home",
-  today: localDateStr(),
-  histDate: localDateStr(),
-  attFilter: "all",
-  // all | perm | cw
-  darkMode: false,
-  settingsOpen: false,
-  invTab: "list",
-  // list | clients | gst
-  invMonth: (() => {
-    const d = /* @__PURE__ */ new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  })(),
-  pickerPeriod: null,
-  pickerArea: null
-};
-function getState() {
-  return _state;
-}
-function setState(patch) {
-  Object.assign(_state, patch);
-  return _state;
-}
 
 // src/shared/config/wage.js
 var DEF_CFG = {
@@ -182,79 +122,6 @@ var DEF_CFG = {
   morningOT: { start: "06:00", end: "08:30", hours: 3 },
   eveningOT: { start: "17:00", end: "20:00", hours: 3 }
 };
-
-// src/shared/config/invoice.js
-var DEF_INV_CFG = {
-  companyName: "Soma Electro Products",
-  gstin: "",
-  stateCode: "20",
-  // Jharkhand
-  sac: "998871",
-  // Job work — electroplating
-  gstRate: 18,
-  // 18% total (9+9 CGST+SGST or 18 IGST)
-  seriesPrefix: "SEP",
-  nextNumber: 1,
-  bankName: "",
-  bankAccount: "",
-  bankIFSC: ""
-};
-
-// src/components/save-dot.js
-var saveDotTimer = null;
-function initSaveDot() {
-  on("data:saved", () => {
-    const dot = document.getElementById("saveDot");
-    if (!dot) return;
-    dot.classList.add("show");
-    dot.classList.remove("unsaved");
-    clearTimeout(saveDotTimer);
-    saveDotTimer = setTimeout(() => dot.classList.remove("show"), 2e3);
-  });
-}
-
-// src/shared/storage/settings.js
-function getSettings() {
-  return loadJSON(K.settings, { darkMode: false, swipeTabs: true });
-}
-
-// src/components/dark-mode.js
-function toggleDarkMode() {
-  const next = !getState().darkMode;
-  setState({ darkMode: next });
-  document.documentElement.classList.toggle("dark", next);
-  const s = getSettings();
-  s.darkMode = next;
-  saveJSON(K.settings, s);
-}
-function initDarkMode() {
-  const dark = getSettings().darkMode || false;
-  setState({ darkMode: dark });
-  document.documentElement.classList.toggle("dark", dark);
-}
-
-// src/components/fab.js
-var fabOpen = false;
-function toggleFab() {
-  fabOpen = !fabOpen;
-  document.getElementById("fabBtn")?.classList.toggle("open", fabOpen);
-  document.getElementById("fabMenu")?.classList.toggle("open", fabOpen);
-}
-function closeFab() {
-  fabOpen = false;
-  document.getElementById("fabBtn")?.classList.remove("open");
-  document.getElementById("fabMenu")?.classList.remove("open");
-}
-function initFab(actions) {
-  document.addEventListener("click", (e) => {
-    if (fabOpen && !e.target.closest(".fab-container")) closeFab();
-  });
-  return function fabAction(action) {
-    closeFab();
-    const fn = actions[action];
-    if (typeof fn === "function") fn();
-  };
-}
 
 // src/shared/storage/production.js
 function getAreas() {
@@ -282,69 +149,6 @@ function saveProdDay(date, dayData) {
   const logs = getProdLogs();
   logs[date] = dayData;
   saveJSON(K.prodLog, logs);
-}
-
-// src/shared/storage/workers.js
-function getPermWorkers() {
-  return loadJSON(K.peEmp, DEF_PERM);
-}
-function getCWWorkers() {
-  return loadJSON(K.cwEmp, DEF_CW);
-}
-function getActivePermProd() {
-  return getPermWorkers().filter(
-    (w) => !w.inactive && !DEF_CFG.guardIds.includes(w.id) && !DEF_CFG.excludedIds.includes(w.id)
-  );
-}
-function getActiveCW() {
-  return getCWWorkers().filter((w) => !w.inactive);
-}
-function getGuards() {
-  return getPermWorkers().filter(
-    (w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive
-  );
-}
-function getAllProdWorkers() {
-  const perm = getActivePermProd().map((w) => ({ ...w, type: "perm" }));
-  const cw = getActiveCW().map((w) => ({ ...w, type: "cw" }));
-  return [...perm, ...cw];
-}
-function findWorker(id) {
-  const all = [
-    ...getPermWorkers().map((w) => ({ ...w, type: "perm" })),
-    ...getCWWorkers().map((w) => ({ ...w, type: "cw" }))
-  ];
-  return all.find((w) => w.id === id) || { id, name: id, type: "cw" };
-}
-
-// src/shared/storage/lock.js
-function getMonthLocks() {
-  return loadJSON(K.monthLock, {});
-}
-function isMonthLocked(month) {
-  const locks = getMonthLocks();
-  return locks[month]?.locked === true;
-}
-function requireUnlocked(month, label) {
-  if (isMonthLocked(month)) {
-    alert(`\u{1F512} ${month} is locked \u2014 ${label || "this change"} is blocked. Unlock the month from the Finance tab to edit.`);
-    return true;
-  }
-  return false;
-}
-
-// src/shared/utils/month.js
-function monthOf(dateStr) {
-  return dateStr.slice(0, 7);
-}
-function monthDates(monthStr) {
-  const [y, m] = monthStr.split("-").map(Number);
-  const days = new Date(y, m, 0).getDate();
-  const out = [];
-  for (let d = 1; d <= days; d++) {
-    out.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
-  }
-  return out;
 }
 
 // src/shared/utils/currency.js
@@ -432,6 +236,324 @@ function recalcExtra(prod, areas, cfg) {
   prod.totals.extraHours = totalExtraH;
   prod.totals.extraCost = totalExtraCost;
   prod.totals.snackCost = snackCost;
+}
+
+// src/shared/storage/migrations.js
+var MIGRATION_ID = "2026-08-11-extra-rate";
+var OLD_HOUR_RATE = 41.25;
+var OLD_VAT_A1_TOP_REQ = 5;
+function oldConfigFrom(areas, cfg) {
+  return {
+    areas: areas.map((a) => a.id !== "vat_a1" ? a : {
+      ...a,
+      caps: a.caps.map((c) => c.l === 100 ? { ...c, r: OLD_VAT_A1_TOP_REQ } : c)
+    }),
+    cfg: { ...cfg, hourRate: OLD_HOUR_RATE }
+  };
+}
+var cloneDay = (day) => JSON.parse(JSON.stringify(day));
+function totalsUnder(day, areas, cfg) {
+  const copy = cloneDay(day);
+  recalcExtra(copy, areas, cfg);
+  return {
+    extraHours: copy.totals.extraHours,
+    extraCost: copy.totals.extraCost
+  };
+}
+var money = (n) => Math.round(n * 100) / 100;
+function planExtraRateRecompute(logs, areas, cfg, { at } = {}) {
+  const old = oldConfigFrom(areas, cfg);
+  const out = {};
+  const report = {
+    migration: MIGRATION_ID,
+    at: at || null,
+    scanned: 0,
+    corrected: 0,
+    unchanged: 0,
+    skippedUnreproducible: 0,
+    skippedNoTotals: 0,
+    deltaCost: 0,
+    deltaHours: 0,
+    raisedByRate: 0,
+    loweredByEstablishment: 0,
+    eveningHours3Days: 0,
+    flagged: [],
+    changes: []
+  };
+  Object.keys(logs).sort().forEach((date) => {
+    const day = logs[date];
+    out[date] = day;
+    report.scanned += 1;
+    if (!day || !day.totals || !day.periods) {
+      report.skippedNoTotals += 1;
+      return;
+    }
+    if (day.periods.eveningOT?.active && day.periods.eveningOT.hours === 3) {
+      report.eveningHours3Days += 1;
+    }
+    const stored = {
+      extraHours: day.totals.extraHours || 0,
+      extraCost: day.totals.extraCost || 0
+    };
+    const underOld = totalsUnder(day, old.areas, old.cfg);
+    const reproduces = underOld.extraHours === stored.extraHours && Math.abs(underOld.extraCost - stored.extraCost) < 0.01;
+    if (!reproduces) {
+      report.skippedUnreproducible += 1;
+      report.flagged.push({
+        date,
+        stored,
+        expectedUnderOldConfig: underOld,
+        why: "does not reproduce under the old config \u2014 hand-edited, or written under a configuration this migration does not model. Left untouched."
+      });
+      return;
+    }
+    const next = totalsUnder(day, areas, cfg);
+    if (next.extraHours === stored.extraHours && Math.abs(next.extraCost - stored.extraCost) < 0.01) {
+      report.unchanged += 1;
+      return;
+    }
+    const rateOnly = totalsUnder(day, old.areas, cfg);
+    const estOnly = totalsUnder(day, areas, old.cfg);
+    report.raisedByRate += money(rateOnly.extraCost - stored.extraCost);
+    report.loweredByEstablishment += money(estOnly.extraCost - stored.extraCost);
+    const corrected = cloneDay(day);
+    corrected.totals.extraHours = next.extraHours;
+    corrected.totals.extraCost = next.extraCost;
+    corrected.corrections = [...day.corrections || [], {
+      migration: MIGRATION_ID,
+      at: at || null,
+      field: "totals.extraHours + totals.extraCost",
+      before: stored,
+      after: next,
+      reason: "hourRate 41.25 -> 47.50 (T-CJ ruled 47.50 and closed; 41.25 was superseded 4 May 2026) and vat_a1 top-rung requirement 5 -> 4 (exceeded the ratified establishment). Authorised by BM 11 Aug 2026."
+    }];
+    out[date] = corrected;
+    report.corrected += 1;
+    report.deltaHours += next.extraHours - stored.extraHours;
+    report.deltaCost += next.extraCost - stored.extraCost;
+    report.changes.push({ date, before: stored, after: next });
+  });
+  report.deltaCost = money(report.deltaCost);
+  report.raisedByRate = money(report.raisedByRate);
+  report.loweredByEstablishment = money(report.loweredByEstablishment);
+  return { logs: out, report };
+}
+function getMigrationRecords() {
+  return loadJSON(K.migrations, {});
+}
+function hasRun(id) {
+  return Boolean(getMigrationRecords()[id]);
+}
+function runPendingMigrations({ at } = {}) {
+  if (hasRun(MIGRATION_ID)) return null;
+  const { logs, report } = planExtraRateRecompute(
+    getProdLogs(),
+    getAreas(),
+    getCfg(),
+    { at: at || (/* @__PURE__ */ new Date()).toISOString() }
+  );
+  if (report.corrected > 0) saveJSON(K.prodLog, logs);
+  saveJSON(K.migrations, { ...getMigrationRecords(), [MIGRATION_ID]: report });
+  return report;
+}
+
+// src/shared/utils/date.js
+function localDateStr(d) {
+  const dt = d ? new Date(d) : /* @__PURE__ */ new Date();
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+function formatDate(dateStr) {
+  return (/* @__PURE__ */ new Date(dateStr + "T00:00:00")).toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+}
+function formatDateShort(dateStr) {
+  return (/* @__PURE__ */ new Date(dateStr + "T00:00:00")).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short"
+  });
+}
+function tnow() {
+  return (/* @__PURE__ */ new Date()).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+}
+function isSunday(dateStr) {
+  return (/* @__PURE__ */ new Date(dateStr + "T00:00:00")).getDay() === 0;
+}
+function getWeekEnd(dateStr) {
+  const d = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const diff = day === 0 ? 6 : 6 - day;
+  d.setDate(d.getDate() + diff);
+  return localDateStr(d);
+}
+
+// src/shared/storage/state.js
+var _state = {
+  currentTab: "home",
+  today: localDateStr(),
+  histDate: localDateStr(),
+  attFilter: "all",
+  // all | perm | cw
+  darkMode: false,
+  settingsOpen: false,
+  invTab: "list",
+  // list | clients | gst
+  invMonth: (() => {
+    const d = /* @__PURE__ */ new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  })(),
+  pickerPeriod: null,
+  pickerArea: null
+};
+function getState() {
+  return _state;
+}
+function setState(patch) {
+  Object.assign(_state, patch);
+  return _state;
+}
+
+// src/shared/config/invoice.js
+var DEF_INV_CFG = {
+  companyName: "Soma Electro Products",
+  gstin: "",
+  stateCode: "20",
+  // Jharkhand
+  sac: "998871",
+  // Job work — electroplating
+  gstRate: 18,
+  // 18% total (9+9 CGST+SGST or 18 IGST)
+  seriesPrefix: "SEP",
+  nextNumber: 1,
+  bankName: "",
+  bankAccount: "",
+  bankIFSC: ""
+};
+
+// src/components/save-dot.js
+var saveDotTimer = null;
+function initSaveDot() {
+  on("data:saved", () => {
+    const dot = document.getElementById("saveDot");
+    if (!dot) return;
+    dot.classList.add("show");
+    dot.classList.remove("unsaved");
+    clearTimeout(saveDotTimer);
+    saveDotTimer = setTimeout(() => dot.classList.remove("show"), 2e3);
+  });
+}
+
+// src/shared/storage/settings.js
+function getSettings() {
+  return loadJSON(K.settings, { darkMode: false, swipeTabs: true });
+}
+
+// src/components/dark-mode.js
+function toggleDarkMode() {
+  const next = !getState().darkMode;
+  setState({ darkMode: next });
+  document.documentElement.classList.toggle("dark", next);
+  const s = getSettings();
+  s.darkMode = next;
+  saveJSON(K.settings, s);
+}
+function initDarkMode() {
+  const dark = getSettings().darkMode || false;
+  setState({ darkMode: dark });
+  document.documentElement.classList.toggle("dark", dark);
+}
+
+// src/components/fab.js
+var fabOpen = false;
+function toggleFab() {
+  fabOpen = !fabOpen;
+  document.getElementById("fabBtn")?.classList.toggle("open", fabOpen);
+  document.getElementById("fabMenu")?.classList.toggle("open", fabOpen);
+}
+function closeFab() {
+  fabOpen = false;
+  document.getElementById("fabBtn")?.classList.remove("open");
+  document.getElementById("fabMenu")?.classList.remove("open");
+}
+function initFab(actions) {
+  document.addEventListener("click", (e) => {
+    if (fabOpen && !e.target.closest(".fab-container")) closeFab();
+  });
+  return function fabAction(action) {
+    closeFab();
+    const fn = actions[action];
+    if (typeof fn === "function") fn();
+  };
+}
+
+// src/shared/storage/workers.js
+function getPermWorkers() {
+  return loadJSON(K.peEmp, DEF_PERM);
+}
+function getCWWorkers() {
+  return loadJSON(K.cwEmp, DEF_CW);
+}
+function getActivePermProd() {
+  return getPermWorkers().filter(
+    (w) => !w.inactive && !DEF_CFG.guardIds.includes(w.id) && !DEF_CFG.excludedIds.includes(w.id)
+  );
+}
+function getActiveCW() {
+  return getCWWorkers().filter((w) => !w.inactive);
+}
+function getGuards() {
+  return getPermWorkers().filter(
+    (w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive
+  );
+}
+function getAllProdWorkers() {
+  const perm = getActivePermProd().map((w) => ({ ...w, type: "perm" }));
+  const cw = getActiveCW().map((w) => ({ ...w, type: "cw" }));
+  return [...perm, ...cw];
+}
+function findWorker(id) {
+  const all = [
+    ...getPermWorkers().map((w) => ({ ...w, type: "perm" })),
+    ...getCWWorkers().map((w) => ({ ...w, type: "cw" }))
+  ];
+  return all.find((w) => w.id === id) || { id, name: id, type: "cw" };
+}
+
+// src/shared/storage/lock.js
+function getMonthLocks() {
+  return loadJSON(K.monthLock, {});
+}
+function isMonthLocked(month) {
+  const locks = getMonthLocks();
+  return locks[month]?.locked === true;
+}
+function requireUnlocked(month, label) {
+  if (isMonthLocked(month)) {
+    alert(`\u{1F512} ${month} is locked \u2014 ${label || "this change"} is blocked. Unlock the month from the Finance tab to edit.`);
+    return true;
+  }
+  return false;
+}
+
+// src/shared/utils/month.js
+function monthOf(dateStr) {
+  return dateStr.slice(0, 7);
+}
+function monthDates(monthStr) {
+  const [y, m] = monthStr.split("-").map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const out = [];
+  for (let d = 1; d <= days; d++) {
+    out.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  }
+  return out;
 }
 
 // src/components/worker-picker.js
@@ -3887,6 +4009,10 @@ function initData() {
   if (!localStorage.getItem(K.prodCfg)) saveJSON(K.prodCfg, DEF_CFG);
   if (!localStorage.getItem(K.stock)) saveJSON(K.stock, DEF_STOCK);
   if (!localStorage.getItem(K.invCfg)) saveJSON(K.invCfg, DEF_INV_CFG);
+  const report = runPendingMigrations();
+  if (report && (report.corrected || report.skippedUnreproducible)) {
+    console.info(`[migration ${report.migration}] ${report.corrected} day(s) corrected, Rs ${report.deltaCost.toFixed(2)} net; ${report.skippedUnreproducible} flagged, ${report.unchanged} unchanged.`, report);
+  }
 }
 function initDataActionDelegation() {
   document.addEventListener("click", (e) => {

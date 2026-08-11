@@ -26,6 +26,9 @@ export const K = {
   // history. The v1 value is left in place, unread, as a rollback.
   prodAreas: 'sep_prod_areas_v2',
   prodCfg:   'sep_prod_cfg_v1',
+  // Applied data migrations, keyed by id -> report. Makes runPendingMigrations
+  // idempotent and keeps the before/after record queryable after the fact.
+  migrations: 'sep_migrations_v1',
   permSnack: 'sep_perm_snack_log_v1',
   // System
   settings: 'sep_settings_v1',
