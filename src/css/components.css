@@ -697,3 +697,64 @@
 .ed-rev-time { font-family:var(--ff-mono); font-size:var(--fs-xs); color:var(--text-muted); }
 .ed-rev-body { font-size:var(--fs-sm); }
 .ed-rev-ev { font-size:var(--fs-xs); color:var(--text-muted); }
+
+/* === ADOPTION VIEW (Edit tab, steward-exclusive rollout KPI) === */
+/* Tokens only — dark mode comes free through the .dark token swap. */
+.ad-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:var(--sp-8); flex-wrap:wrap; margin-bottom:var(--sp-12);
+}
+.ad-week { display:flex; align-items:center; gap:var(--sp-6); }
+.ad-week-k { font-family:var(--ff-mono); font-size:var(--fs-md); font-weight:var(--fw-semi); }
+.ad-week-d { font-size:var(--fs-xs); color:var(--text-muted); }
+
+.ad-head {
+  display:flex; align-items:center; gap:var(--sp-12);
+  padding:var(--card-padding-sm); border-radius:var(--r-lg);
+  background:var(--surface-2); border:1px solid var(--border);
+  margin-bottom:var(--sp-12);
+}
+.ad-head-v { font-family:var(--ff-mono); font-size:var(--fs-3xl); font-weight:var(--fw-semi); }
+.ad-head-l { font-size:var(--fs-sm); color:var(--text-secondary); }
+.ad-cov { display:block; font-size:var(--fs-xs); color:var(--text-muted); }
+
+/* Status is never colour-alone: the rate reads as a number first, and the
+   week column carries digital/paper underneath it. Colour is the third cue. */
+.ad-ok    { color:var(--attend-text); }
+.ad-near  { color:var(--warning-text); }
+.ad-below { color:var(--danger-text); }
+.ad-over  { color:var(--neutral-text); }
+.ad-head.ad-ok    { background:var(--attend-bg); }
+.ad-head.ad-near  { background:var(--warning-bg); }
+.ad-head.ad-below { background:var(--danger-bg); }
+.ad-head.ad-over  { background:var(--neutral-bg); }
+
+/* Nine forms × seven days does not fit a 393px phone; scroll the table, never
+   the page (the form column stays pinned so a row is always identifiable). */
+.ad-wrap { overflow-x:auto; margin-bottom:var(--sp-12); }
+.ad-table { border-collapse:collapse; width:100%; min-width:52em; }
+.ad-table th, .ad-table td {
+  border:1px solid var(--border); padding:var(--sp-4) var(--sp-6);
+  text-align:center; vertical-align:top;
+}
+.ad-table thead th {
+  background:var(--surface-2); font-size:var(--fs-xs);
+  text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);
+}
+.ad-table th.ad-f {
+  text-align:left; white-space:nowrap; position:sticky; left:0;
+  background:var(--surface); font-size:var(--fs-sm); font-weight:var(--fw-medium);
+}
+.ad-table thead th.ad-f { background:var(--surface-2); }
+.ad-dig { display:block; font-family:var(--ff-mono); font-size:var(--fs-sm); }
+.ad-dig.ad-zero { color:var(--text-muted); }
+.ad-paper {
+  width:100%; min-width:4em; margin-top:var(--sp-2);
+  font-family:var(--ff-mono); font-size:var(--fs-xs);
+  padding:var(--sp-2) var(--sp-4); border:1px solid var(--border);
+  border-radius:var(--r-sm); background:var(--surface-3); color:var(--text);
+  text-align:center;
+}
+.ad-paper:focus { outline:2px solid var(--accent); outline-offset:-2px; }
+.ad-r { white-space:nowrap; font-family:var(--ff-mono); }
+.ad-r .ad-sub { display:block; font-size:var(--fs-2xs); color:var(--text-muted); }

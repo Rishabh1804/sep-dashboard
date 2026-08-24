@@ -1,0 +1,1231 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<title>SEP Handler — काग़ज़ बैकअप फ़ॉर्म / Paper backup forms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+@page { size: A4 portrait; margin: 9mm 8mm; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', 'Noto Sans', system-ui, sans-serif;
+  color: #000; background: #fff; font-size: 9pt; line-height: 1.25;
+}
+.sheet { page-break-after: always; break-after: page; padding: 0 0 4mm; }
+.sheet:last-child { page-break-after: auto; break-after: auto; }
+.sheet-h { display: flex; justify-content: space-between; align-items: flex-start;
+  border-bottom: 1.2pt solid #000; padding-bottom: 2mm; margin-bottom: 1.5mm; gap: 6mm; }
+.sheet-title { display: flex; align-items: baseline; gap: 3mm; }
+.sheet-icon { font-size: 15pt; }
+.t-hi { font-size: 16pt; font-weight: 700; display: block; }
+.t-en { font-size: 8.5pt; letter-spacing: .04em; text-transform: uppercase; display: block; }
+.sheet-meta { min-width: 62mm; }
+.mrow { display: flex; align-items: flex-end; gap: 2mm; margin-bottom: 1.6mm; }
+.mlbl { font-size: 7.5pt; white-space: nowrap; }
+.mline { flex: 1; border-bottom: .6pt solid #000; height: 4.6mm; }
+.mopts { font-size: 7.5pt; }
+.sheet-id { font-size: 6.5pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 2mm; }
+.req { font-weight: 700; }
+.req.cond { font-weight: 400; }
+
+/* grid layout — one entry per row */
+.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.grid th, .grid td { border: .5pt solid #000; padding: 1mm 1.2mm; vertical-align: top; }
+.grid th { background: #eee; text-align: left; }
+.h-hi { display: block; font-size: 8.5pt; font-weight: 700; }
+.h-en { display: block; font-size: 6.5pt; text-transform: uppercase; letter-spacing: .03em; }
+.h-opts { display: block; font-size: 6.5pt; font-weight: 400; }
+.h-opts-en { display: block; font-size: 5.5pt; }
+.grid td { height: 8mm; }
+.c-tick { width: 9mm; text-align: center; font-size: 11pt; }
+.c-notes { width: 22mm; }
+
+/* block layout — repeated full-label entries */
+.blocks { display: flex; flex-direction: column; gap: 2.5mm; }
+.block { border: .8pt solid #000; padding: 2mm 2.5mm; position: relative; }
+.block-n { position: absolute; top: 0; right: 0; background: #000; color: #fff;
+  font-size: 7pt; padding: .4mm 1.6mm; }
+.f { display: flex; align-items: flex-end; gap: 3mm; margin-bottom: 1.8mm; }
+.f-l { width: 42mm; flex-shrink: 0; }
+.f-hi { display: block; font-size: 9.5pt; font-weight: 600; }
+.f-en { display: block; font-size: 6.8pt; text-transform: uppercase; letter-spacing: .03em; }
+.f-hint { display: block; font-size: 6.2pt; font-style: italic; }
+.write { flex: 1; border-bottom: .6pt solid #000; height: 6mm; }
+.write-tall { height: 9mm; }
+.opts { flex: 1; display: flex; flex-wrap: wrap; gap: 1mm 4mm; padding-bottom: .8mm; }
+.opt { font-size: 8pt; white-space: nowrap; }
+.opt i { font-size: 6.8pt; font-style: normal; }
+.block-tick { border-top: .5pt dashed #000; margin-top: 1.5mm; padding-top: 1.2mm; font-size: 8pt; }
+.block-tick .t-hi, .block-tick .t-en { display: inline; font-size: 8pt; font-weight: 400; text-transform: none; }
+
+.legend { font-size: 7pt; border-top: .5pt solid #000; margin-top: 2mm; padding-top: 1.2mm; }
+
+/* Screen-only cover: printing is the point, so it never reaches paper. */
+.cover { max-width: 170mm; margin: 0 auto; padding: 10mm 0; }
+.cover h1 { font-size: 20pt; margin-bottom: 3mm; }
+.cover p { font-size: 10pt; margin-bottom: 2.5mm; }
+.cover ol { margin: 0 0 3mm 5mm; font-size: 10pt; }
+.cover li { margin-bottom: 1.2mm; }
+@media print { .cover { display: none; } }
+</style>
+</head>
+<body>
+<div class="cover">
+  <h1>SEP Handler — काग़ज़ बैकअप फ़ॉर्म</h1>
+  <p><b>Paper backup forms · 9 sheets, one per handler form.</b>
+     Generated 2026-08-24 from the live form registry (2.1.0-alpha.8 build 5).</p>
+  <ol>
+    <li>Print A4 portrait, 100% scale, single-sided, black &amp; white.</li>
+    <li>Laminate one of each per area — VAT Room 1, VAT Room 2, Barrel Room, Pickling Area 4, Office.</li>
+    <li>Keep a loose (un-laminated) pad of Production and Check-in beside each laminated set; those two fill up.</li>
+    <li>Every row and block carries a <b>☐ In app</b> tick — that tick is what the end-of-shift
+        reconciliation counts against the dashboard's Adoption view.</li>
+    <li>Devanagari renders through Noto Sans Devanagari; offline, the system Hindi font is used instead.
+        Check one sheet before printing the set.</li>
+  </ol>
+  <p>Regenerate after any change to the handler forms: <code>pnpm paper:forms</code>.</p>
+</div>
+
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">🏭</span>
+      <span>
+        <span class="t-hi">प्रोडक्शन</span>
+        <span class="t-en">Production</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">production · 2.1.0-alpha.8 build 5</div>
+    
+  <table class="grid">
+    <thead><tr><th class="">
+        <span class="h-hi">जॉब<span class="req" title="required">*</span></span>
+        <span class="h-en">Job</span>
+        
+      </th><th class="">
+        <span class="h-hi">पार्ट / SKU</span>
+        <span class="h-en">Part / SKU</span>
+        
+      </th><th class="">
+        <span class="h-hi">मशीन<span class="req" title="required">*</span></span>
+        <span class="h-en">Machine</span>
+        
+      </th><th class="">
+        <span class="h-hi">कारीगर<span class="req" title="required">*</span></span>
+        <span class="h-en">Worker</span>
+        
+      </th><th class="">
+        <span class="h-hi">राउंड (वैकल्पिक)</span>
+        <span class="h-en">Rounds (optional)</span>
+        
+      </th><th class="">
+        <span class="h-hi">हर राउंड में कितना</span>
+        <span class="h-en">Per-round count</span>
+        
+      </th><th class="">
+        <span class="h-hi">मात्रा<span class="req cond" title="conditional">†</span></span>
+        <span class="h-en">Quantity</span>
+        
+      </th><th class="">
+        <span class="h-hi">स्टेशन</span>
+        <span class="h-en">Station</span>
+        <span class="h-opts">पिकलिंग / प्लेटिंग / जाँच</span>
+           <span class="h-opts-en">Pickling / Plating / Inspection</span>
+      </th><th class="c-notes">
+        <span class="h-hi">नोट (वैकल्पिक)</span>
+        <span class="h-en">Notes (optional)</span>
+        
+      </th><th class="c-tick"><span class="h-hi">ऐप</span><span class="h-en">In app</span></th></tr></thead>
+    <tbody><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class=""></td><td class="c-notes"></td><td class="c-tick">☐</td></tr></tbody>
+  </table>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">📋</span>
+      <span>
+        <span class="t-hi">माल आया</span>
+        <span class="t-en">Job receipt</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">job_receipt · 2.1.0-alpha.8 build 5</div>
+    <div class="blocks">
+    <section class="block">
+      <div class="block-n">1</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🏢 ग्राहक<span class="req" title="required">*</span></span>
+        <span class="f-en">Customer</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🧾 चालान नंबर</span>
+        <span class="f-en">Challan no.</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ वज़न (किग्रा)<span class="req cond" title="conditional">†</span></span>
+        <span class="f-en">Weight (kg)</span>
+        <span class="f-hint">सिर्फ़ पीस (NOS) का चालान हो तो छोड़ दें · Skip if this is a pieces-only (NOS) challan</span>
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 पीस (NOS)</span>
+        <span class="f-en">Pieces (NOS)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">2</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🏢 ग्राहक<span class="req" title="required">*</span></span>
+        <span class="f-en">Customer</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🧾 चालान नंबर</span>
+        <span class="f-en">Challan no.</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ वज़न (किग्रा)<span class="req cond" title="conditional">†</span></span>
+        <span class="f-en">Weight (kg)</span>
+        <span class="f-hint">सिर्फ़ पीस (NOS) का चालान हो तो छोड़ दें · Skip if this is a pieces-only (NOS) challan</span>
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 पीस (NOS)</span>
+        <span class="f-en">Pieces (NOS)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">3</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🏢 ग्राहक<span class="req" title="required">*</span></span>
+        <span class="f-en">Customer</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🧾 चालान नंबर</span>
+        <span class="f-en">Challan no.</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ वज़न (किग्रा)<span class="req cond" title="conditional">†</span></span>
+        <span class="f-en">Weight (kg)</span>
+        <span class="f-hint">सिर्फ़ पीस (NOS) का चालान हो तो छोड़ दें · Skip if this is a pieces-only (NOS) challan</span>
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 पीस (NOS)</span>
+        <span class="f-en">Pieces (NOS)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section></div>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">🔬</span>
+      <span>
+        <span class="t-hi">डीएफटी माप</span>
+        <span class="t-en">DFT measure</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">dft · 2.1.0-alpha.8 build 5</div>
+    <div class="blocks">
+    <section class="block">
+      <div class="block-n">1</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📋 जॉब<span class="req" title="required">*</span></span>
+        <span class="f-en">Job</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔬 डीएफटी (माइक्रोन)<span class="req" title="required">*</span></span>
+        <span class="f-en">DFT (micron)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ नतीजा<span class="req" title="required">*</span></span>
+        <span class="f-en">Outcome</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>पास</b> <i>Pass</i></span><span class="opt">☐ <b>फेल — दोबारा</b> <i>Fail — rework</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">2</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📋 जॉब<span class="req" title="required">*</span></span>
+        <span class="f-en">Job</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔬 डीएफटी (माइक्रोन)<span class="req" title="required">*</span></span>
+        <span class="f-en">DFT (micron)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ नतीजा<span class="req" title="required">*</span></span>
+        <span class="f-en">Outcome</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>पास</b> <i>Pass</i></span><span class="opt">☐ <b>फेल — दोबारा</b> <i>Fail — rework</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">3</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📋 जॉब<span class="req" title="required">*</span></span>
+        <span class="f-en">Job</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔬 डीएफटी (माइक्रोन)<span class="req" title="required">*</span></span>
+        <span class="f-en">DFT (micron)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ नतीजा<span class="req" title="required">*</span></span>
+        <span class="f-en">Outcome</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>पास</b> <i>Pass</i></span><span class="opt">☐ <b>फेल — दोबारा</b> <i>Fail — rework</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section></div>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">🚚</span>
+      <span>
+        <span class="t-hi">माल भेजा</span>
+        <span class="t-en">Dispatch</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">dispatch · 2.1.0-alpha.8 build 5</div>
+    <div class="blocks">
+    <section class="block">
+      <div class="block-n">1</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📋 जॉब<span class="req" title="required">*</span></span>
+        <span class="f-en">Job</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ वज़न (किग्रा)</span>
+        <span class="f-en">Weight (kg)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">2</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📋 जॉब<span class="req" title="required">*</span></span>
+        <span class="f-en">Job</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ वज़न (किग्रा)</span>
+        <span class="f-en">Weight (kg)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">3</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📋 जॉब<span class="req" title="required">*</span></span>
+        <span class="f-en">Job</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ वज़न (किग्रा)</span>
+        <span class="f-en">Weight (kg)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">4</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📋 जॉब<span class="req" title="required">*</span></span>
+        <span class="f-en">Job</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">⚖️ वज़न (किग्रा)</span>
+        <span class="f-en">Weight (kg)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section></div>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">📦</span>
+      <span>
+        <span class="t-hi">स्टॉक आया</span>
+        <span class="t-en">Stock refill</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">stock_refill · 2.1.0-alpha.8 build 5</div>
+    <div class="blocks">
+    <section class="block">
+      <div class="block-n">1</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📦 सामान<span class="req" title="required">*</span></span>
+        <span class="f-en">Item</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚛 सप्लायर</span>
+        <span class="f-en">Supplier</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 मात्रा<span class="req" title="required">*</span></span>
+        <span class="f-en">Quantity</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">₹ कीमत (₹)</span>
+        <span class="f-en">Cost (₹)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">2</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📦 सामान<span class="req" title="required">*</span></span>
+        <span class="f-en">Item</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚛 सप्लायर</span>
+        <span class="f-en">Supplier</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 मात्रा<span class="req" title="required">*</span></span>
+        <span class="f-en">Quantity</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">₹ कीमत (₹)</span>
+        <span class="f-en">Cost (₹)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">3</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📦 सामान<span class="req" title="required">*</span></span>
+        <span class="f-en">Item</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚛 सप्लायर</span>
+        <span class="f-en">Supplier</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 मात्रा<span class="req" title="required">*</span></span>
+        <span class="f-en">Quantity</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">₹ कीमत (₹)</span>
+        <span class="f-en">Cost (₹)</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section></div>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">📤</span>
+      <span>
+        <span class="t-hi">स्टॉक खर्च</span>
+        <span class="t-en">Stock used</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">stock_deplete · 2.1.0-alpha.8 build 5</div>
+    <div class="blocks">
+    <section class="block">
+      <div class="block-n">1</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📦 सामान<span class="req" title="required">*</span></span>
+        <span class="f-en">Item</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 मात्रा<span class="req" title="required">*</span></span>
+        <span class="f-en">Quantity</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">❓ कारण<span class="req" title="required">*</span></span>
+        <span class="f-en">Reason</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>काम में लगा</b> <i>Production use</i></span><span class="opt">☐ <b>बर्बाद</b> <i>Waste</i></span><span class="opt">☐ <b>गिर गया</b> <i>Spillage</i></span><span class="opt">☐ <b>चोरी</b> <i>Theft</i></span><span class="opt">☐ <b>और कुछ</b> <i>Other</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📏 अब कितना बचा</span>
+        <span class="f-en">Level left after</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">2</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📦 सामान<span class="req" title="required">*</span></span>
+        <span class="f-en">Item</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 मात्रा<span class="req" title="required">*</span></span>
+        <span class="f-en">Quantity</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">❓ कारण<span class="req" title="required">*</span></span>
+        <span class="f-en">Reason</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>काम में लगा</b> <i>Production use</i></span><span class="opt">☐ <b>बर्बाद</b> <i>Waste</i></span><span class="opt">☐ <b>गिर गया</b> <i>Spillage</i></span><span class="opt">☐ <b>चोरी</b> <i>Theft</i></span><span class="opt">☐ <b>और कुछ</b> <i>Other</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📏 अब कितना बचा</span>
+        <span class="f-en">Level left after</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">3</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📦 सामान<span class="req" title="required">*</span></span>
+        <span class="f-en">Item</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔢 मात्रा<span class="req" title="required">*</span></span>
+        <span class="f-en">Quantity</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">❓ कारण<span class="req" title="required">*</span></span>
+        <span class="f-en">Reason</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>काम में लगा</b> <i>Production use</i></span><span class="opt">☐ <b>बर्बाद</b> <i>Waste</i></span><span class="opt">☐ <b>गिर गया</b> <i>Spillage</i></span><span class="opt">☐ <b>चोरी</b> <i>Theft</i></span><span class="opt">☐ <b>और कुछ</b> <i>Other</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📏 अब कितना बचा</span>
+        <span class="f-en">Level left after</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section></div>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">🔧</span>
+      <span>
+        <span class="t-hi">मशीन स्थिति</span>
+        <span class="t-en">Machine state</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">machine_state · 2.1.0-alpha.8 build 5</div>
+    <div class="blocks">
+    <section class="block">
+      <div class="block-n">1</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔧 मशीन<span class="req" title="required">*</span></span>
+        <span class="f-en">Machine</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚦 स्थिति<span class="req" title="required">*</span></span>
+        <span class="f-en">State</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>चालू</b> <i>Running</i></span><span class="opt">☐ <b>खाली</b> <i>Idle</i></span><span class="opt">☐ <b>खराब</b> <i>Down</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">2</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔧 मशीन<span class="req" title="required">*</span></span>
+        <span class="f-en">Machine</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚦 स्थिति<span class="req" title="required">*</span></span>
+        <span class="f-en">State</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>चालू</b> <i>Running</i></span><span class="opt">☐ <b>खाली</b> <i>Idle</i></span><span class="opt">☐ <b>खराब</b> <i>Down</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">3</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔧 मशीन<span class="req" title="required">*</span></span>
+        <span class="f-en">Machine</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚦 स्थिति<span class="req" title="required">*</span></span>
+        <span class="f-en">State</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>चालू</b> <i>Running</i></span><span class="opt">☐ <b>खाली</b> <i>Idle</i></span><span class="opt">☐ <b>खराब</b> <i>Down</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">4</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🔧 मशीन<span class="req" title="required">*</span></span>
+        <span class="f-en">Machine</span>
+        
+      </div>
+      <div class="write "></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚦 स्थिति<span class="req" title="required">*</span></span>
+        <span class="f-en">State</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>चालू</b> <i>Running</i></span><span class="opt">☐ <b>खाली</b> <i>Idle</i></span><span class="opt">☐ <b>खराब</b> <i>Down</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi"> नोट (वैकल्पिक)</span>
+        <span class="f-en">Notes (optional)</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section></div>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">⏱</span>
+      <span>
+        <span class="t-hi">हाज़िरी</span>
+        <span class="t-en">Check in/out</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">check_in · 2.1.0-alpha.8 build 5</div>
+    
+  <table class="grid">
+    <thead><tr><th class="">
+        <span class="h-hi">कारीगर<span class="req" title="required">*</span></span>
+        <span class="h-en">Worker</span>
+        
+      </th><th class="">
+        <span class="h-hi">आना/जाना<span class="req" title="required">*</span></span>
+        <span class="h-en">In / Out</span>
+        <span class="h-opts">आना / जाना</span>
+           <span class="h-opts-en">In / Out</span>
+      </th><th class="">
+        <span class="h-hi">कौन सी पारी<span class="req" title="required">*</span></span>
+        <span class="h-en">Slot</span>
+        <span class="h-opts">सुबह ओटी (6 बजे) / दिन की पारी / शाम ओटी (5 बजे बाद)</span>
+           <span class="h-opts-en">Morning OT (6 AM) / Regular shift / Evening OT (post-5)</span>
+      </th><th class="c-tick"><span class="h-hi">ऐप</span><span class="h-en">In app</span></th></tr></thead>
+    <tbody><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr><tr><td class=""></td><td class=""></td><td class=""></td><td class="c-tick">☐</td></tr></tbody>
+  </table>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+  <div class="sheet">
+    
+  <header class="sheet-h">
+    <div class="sheet-title">
+      <span class="sheet-icon">📝</span>
+      <span>
+        <span class="t-hi">नोट</span>
+        <span class="t-en">Note</span>
+      </span>
+    </div>
+    <div class="sheet-meta">
+      <div class="mrow"><span class="mlbl">दिनांक / Date</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">नाम / Name</span><span class="mline"></span></div>
+      <div class="mrow"><span class="mlbl">पारी / Shift</span>
+        <span class="mopts">☐ सुबह Mor &nbsp; ☐ दिन Std &nbsp; ☐ शाम Eve</span></div>
+    </div>
+  </header>
+  <div class="sheet-id">note · 2.1.0-alpha.8 build 5</div>
+    <div class="blocks">
+    <section class="block">
+      <div class="block-n">1</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🏷️ किस बारे में</span>
+        <span class="f-en">About</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>मशीन</b> <i>Machine</i></span><span class="opt">☐ <b>जॉब</b> <i>Job</i></span><span class="opt">☐ <b>कारीगर</b> <i>Worker</i></span><span class="opt">☐ <b>सामान</b> <i>Item</i></span><span class="opt">☐ <b>बिजली कटी</b> <i>Power cut</i></span><span class="opt">☐ <b>घटना</b> <i>Incident</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📝 क्या लिखना है<span class="req" title="required">*</span></span>
+        <span class="f-en">What to note</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚨 कितना ज़रूरी</span>
+        <span class="f-en">Priority</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>सामान्य</b> <i>Normal</i></span><span class="opt">☐ <b>ज़रूरी</b> <i>Urgent</i></span></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">2</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🏷️ किस बारे में</span>
+        <span class="f-en">About</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>मशीन</b> <i>Machine</i></span><span class="opt">☐ <b>जॉब</b> <i>Job</i></span><span class="opt">☐ <b>कारीगर</b> <i>Worker</i></span><span class="opt">☐ <b>सामान</b> <i>Item</i></span><span class="opt">☐ <b>बिजली कटी</b> <i>Power cut</i></span><span class="opt">☐ <b>घटना</b> <i>Incident</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📝 क्या लिखना है<span class="req" title="required">*</span></span>
+        <span class="f-en">What to note</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚨 कितना ज़रूरी</span>
+        <span class="f-en">Priority</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>सामान्य</b> <i>Normal</i></span><span class="opt">☐ <b>ज़रूरी</b> <i>Urgent</i></span></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">3</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🏷️ किस बारे में</span>
+        <span class="f-en">About</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>मशीन</b> <i>Machine</i></span><span class="opt">☐ <b>जॉब</b> <i>Job</i></span><span class="opt">☐ <b>कारीगर</b> <i>Worker</i></span><span class="opt">☐ <b>सामान</b> <i>Item</i></span><span class="opt">☐ <b>बिजली कटी</b> <i>Power cut</i></span><span class="opt">☐ <b>घटना</b> <i>Incident</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📝 क्या लिखना है<span class="req" title="required">*</span></span>
+        <span class="f-en">What to note</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚨 कितना ज़रूरी</span>
+        <span class="f-en">Priority</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>सामान्य</b> <i>Normal</i></span><span class="opt">☐ <b>ज़रूरी</b> <i>Urgent</i></span></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section>
+    <section class="block">
+      <div class="block-n">4</div>
+      
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🏷️ किस बारे में</span>
+        <span class="f-en">About</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>मशीन</b> <i>Machine</i></span><span class="opt">☐ <b>जॉब</b> <i>Job</i></span><span class="opt">☐ <b>कारीगर</b> <i>Worker</i></span><span class="opt">☐ <b>सामान</b> <i>Item</i></span><span class="opt">☐ <b>बिजली कटी</b> <i>Power cut</i></span><span class="opt">☐ <b>घटना</b> <i>Incident</i></span></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">📝 क्या लिखना है<span class="req" title="required">*</span></span>
+        <span class="f-en">What to note</span>
+        
+      </div>
+      <div class="write write-tall"></div>
+    </div>
+    <div class="f">
+      <div class="f-l">
+        <span class="f-hi">🚨 कितना ज़रूरी</span>
+        <span class="f-en">Priority</span>
+        
+      </div>
+      <div class="opts"><span class="opt">☐ <b>सामान्य</b> <i>Normal</i></span><span class="opt">☐ <b>ज़रूरी</b> <i>Urgent</i></span></div>
+    </div>
+      <div class="block-tick">☐ <span class="t-hi">ऐप में डाल दिया</span> <span class="t-en">Entered in app</span></div>
+    </section></div>
+    <div class="legend">
+      <b>*</b> ज़रूरी / required &nbsp;·&nbsp; <b>†</b> हालत के हिसाब से / conditional
+      &nbsp;·&nbsp; ☐ ऐप में डालने के बाद निशान लगाएँ / tick once entered in SEP Handler
+    </div>
+  </div>
+</body>
+</html>

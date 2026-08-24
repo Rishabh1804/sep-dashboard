@@ -47,8 +47,12 @@
 - **[HANDLER_UI_SHELL.md](HANDLER_UI_SHELL.md)** — Three-layer screen hierarchy; universal form template; offline UX; smart defaults; Devanagari + icons + audio TTS; 64px touch targets; multi-modal submit confirmation
 - **[HANDLER_FORMS.md](HANDLER_FORMS.md)** — Form-by-form spec (field-level) for the 9 alpha forms
 - **[ADOPTION_PLAN.md](ADOPTION_PLAN.md)** — 4-week phased rollout: parallel paper + app, Production Entry first, daily huddles, handler-as-trainer
+- **[WEEK_0_RUNBOOK.md](WEEK_0_RUNBOOK.md)** — *execution* of ADOPTION_PLAN Week 0: printing the generated paper backup forms, provisioning the first handler, the huddle, and the end-of-shift reconciliation ritual the Adoption view measures
 - **[DASHBOARD_VIEWER.md](DASHBOARD_VIEWER.md)** — Minimal data viewer scope: critical operational surfaces brought forward from v2.1
 - **[EXCELLENT_DATA_CAPTURE.md](EXCELLENT_DATA_CAPTURE.md)** — North star + measurable bar (speed, accuracy, completeness, reliability, forensics, recoverability, adoption-friendly)
+
+### Operations (post-lock, execution-time)
+- **[PROD_STANDUP.md](PROD_STANDUP.md)** — standing up `sep-dashboard-prod`: the staging runbook a second time, plus the staging-vs-prod fork that must be settled before Week 1 opens. The GCP first-deploy detail lives in `scripts/deploy-functions.mjs`'s header, not here.
 
 ### Phase 8 — Steward affordances
 - **[STEWARD_AFFORDANCES.md](STEWARD_AFFORDANCES.md)** — Anomaly inbox + edit-with-reason + audit log search + bulk disposition + quick-correct + KPI weekly card + active_token_id rotation

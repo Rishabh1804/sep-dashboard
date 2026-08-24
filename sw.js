@@ -12,7 +12,11 @@
 //   + unit-keyed sigma baselines + edit gate -> both bundles shift.
 // alpha.5: Edit tab added + shared firebase-session.js memoised → dashboard.js
 // + shared chunk hashes changed again.
-const CACHE_NAME = 'sep-v2.1.0-alpha.7';
+// alpha.8: Adoption view (Week-0 rollout KPI) added to the Edit tab →
+//   dashboard.js + components.css changed; app.js (BUILD 5) shifts both
+//   bundles. dist/paper-forms.html is deliberately NOT cached — it is a
+//   print artifact opened once on a desktop, not a PWA asset.
+const CACHE_NAME = 'sep-v2.1.0-alpha.8';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

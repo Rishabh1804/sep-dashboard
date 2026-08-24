@@ -7,7 +7,7 @@
 
 // alpha.5: shared firebase-session.js (memoised) is in the handler's dynamic
 // firebase chunk → its hash changed; bump so installed handlers re-cache.
-const CACHE_NAME = 'sep-handler-2.1.0-alpha.7';
+const CACHE_NAME = 'sep-handler-2.1.0-alpha.8';
 const BASE = '/sep-dashboard/';
 const ASSETS = [
   BASE + 'entry/handler/',

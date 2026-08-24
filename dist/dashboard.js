@@ -10,7 +10,7 @@ import {
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-R4IRYVMN.js";
+} from "./chunks/chunk-EIOYR7I5.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,8 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-274TEG2F.js";
-import "./chunks/chunk-IFG75HHC.js";
+} from "./chunks/chunk-GHPWYLT2.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -654,8 +653,8 @@ function addWorkerPrompt(type) {
   if (!name || !name.trim()) return;
   const id = name.trim().toLowerCase().replace(/[^a-z0-9]/g, "_") + "_" + Date.now().toString(36).slice(-4);
   if (type === "perm") {
-    const rate = prompt("Daily rate (\u20B9):", "496");
-    const dailyRate = parseInt(rate) || 496;
+    const rate2 = prompt("Daily rate (\u20B9):", "496");
+    const dailyRate = parseInt(rate2) || 496;
     const role = prompt("Role:", "Worker");
     const workers = getPermWorkers();
     workers.push({ id, name: name.trim(), role: role || "Worker", dailyRate, inactive: false });
@@ -803,7 +802,7 @@ function calcCWWeeklyPay({
     snackTotal += prod?.totals?.snackCost || 0;
   }
   const weekSnacks = (permSnacks || []).filter((s) => s.week === satDate);
-  const permSnackTotal = weekSnacks.reduce((sum, s) => sum + (s.snack || 0), 0);
+  const permSnackTotal = weekSnacks.reduce((sum2, s) => sum2 + (s.snack || 0), 0);
   const cwWageTotal = workers.reduce((s, w) => s + w.wage, 0);
   const cwAdvTotal = workers.reduce((s, w) => s + w.advance, 0);
   const grandTotal = cwWageTotal - cwAdvTotal + extraTotal + snackTotal + permSnackTotal;
@@ -848,8 +847,8 @@ function calcPermMonthlyPay({
       days++;
       basePay += w.dailyRate;
       if (rec.otHours && rec.otHours > 0 && !guardIds.includes(w.id)) {
-        const rate = sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier);
-        otPay += sepRound(rec.otHours * rate);
+        const rate2 = sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier);
+        otPay += sepRound(rec.otHours * rate2);
         otH += rec.otHours;
       }
     }
@@ -1076,8 +1075,8 @@ function recalcInvPreview() {
   let taxable = 0;
   document.querySelectorAll(".inv-line-item").forEach((line) => {
     const qty = parseFloat(line.querySelector(".inv-qty").value) || 0;
-    const rate = parseFloat(line.querySelector(".inv-rate").value) || 0;
-    taxable += sepRound(qty * rate);
+    const rate2 = parseFloat(line.querySelector(".inv-rate").value) || 0;
+    taxable += sepRound(qty * rate2);
   });
   let cgst = 0;
   let sgst = 0;
@@ -1115,10 +1114,10 @@ function submitInvoiceForm() {
   document.querySelectorAll(".inv-line-item").forEach((line) => {
     const desc = line.querySelector(".inv-desc").value.trim();
     const qty = parseFloat(line.querySelector(".inv-qty").value) || 0;
-    const rate = parseFloat(line.querySelector(".inv-rate").value) || 0;
+    const rate2 = parseFloat(line.querySelector(".inv-rate").value) || 0;
     const unit = line.querySelector(".inv-unit").value;
-    if (desc && qty > 0 && rate > 0) {
-      lineItems.push({ desc, unit, rate, qty, amount: sepRound(qty * rate) });
+    if (desc && qty > 0 && rate2 > 0) {
+      lineItems.push({ desc, unit, rate: rate2, qty, amount: sepRound(qty * rate2) });
     }
   });
   if (lineItems.length === 0) {
@@ -1314,7 +1313,7 @@ function getAttendancePatternAlerts() {
   const permIds = new Set(getPermWorkers().map((p) => p.id));
   allWorkers.forEach((w) => {
     const isPerm = permIds.has(w.id);
-    const store = isPerm ? peAtt : cwAtt;
+    const store2 = isPerm ? peAtt : cwAtt;
     const type = isPerm ? "perm" : "cw";
     let absentLast7 = 0;
     let consecutiveAbsent = 0;
@@ -1324,7 +1323,7 @@ function getAttendancePatternAlerts() {
       d.setDate(d.getDate() - i);
       const ds = localDateStr(d);
       const k = getAttKey(type, w.id, ds);
-      const rec = store[k];
+      const rec = store2[k];
       const isAbsent = !rec || rec.status === "A";
       if (isAbsent) {
         absentLast7++;
@@ -2323,9 +2322,9 @@ function lockMonth(month) {
     const ds = `${y}-${String(m).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
     allProd.forEach((w) => {
       const type = getPermWorkers().find((p) => p.id === w.id) ? "perm" : "cw";
-      const store = type === "perm" ? peAtt : cwAtt;
+      const store2 = type === "perm" ? peAtt : cwAtt;
       const k = getAttKey(type, w.id, ds);
-      if (store[k] && (store[k].status === "P" || store[k].status === "OT")) presentDays++;
+      if (store2[k] && (store2[k].status === "P" || store2[k].status === "OT")) presentDays++;
       else absentDays++;
     });
   }
@@ -2599,13 +2598,13 @@ Type:
       return;
     }
     const unit = prompt("Unit (kg or pc):", "kg") || "kg";
-    const rate = parseFloat(prompt("Rate per " + unit + " (\u20B9):", "10"));
-    if (isNaN(rate) || rate <= 0) {
+    const rate2 = parseFloat(prompt("Rate per " + unit + " (\u20B9):", "10"));
+    if (isNaN(rate2) || rate2 <= 0) {
       alert("Invalid rate.");
       return;
     }
     const rateId = `${clientId}_${Date.now().toString(36).slice(-4)}`;
-    rates.push({ id: rateId, clientId, material: material.trim(), unit, rate, effectiveFrom: getState().today });
+    rates.push({ id: rateId, clientId, material: material.trim(), unit, rate: rate2, effectiveFrom: getState().today });
     saveJSON(K.rates, rates);
   } else if (action.trim().toLowerCase().startsWith("del")) {
     const idx = parseInt(action.trim().slice(3)) - 1;
@@ -2703,9 +2702,9 @@ function renderStock() {
     detailEl.textContent = `${stock.length} items tracked`;
   }
   listEl.innerHTML = stock.map((item) => {
-    const pct = item.threshold > 0 ? item.qty / item.threshold : 1;
+    const pct2 = item.threshold > 0 ? item.qty / item.threshold : 1;
     const isOverLimit = item.maxQty && item.qty > item.maxQty;
-    const color = isOverLimit ? "text-danger" : item.qty <= 0 ? "text-danger" : pct <= 1 ? "text-warn" : "text-attend";
+    const color = isOverLimit ? "text-danger" : item.qty <= 0 ? "text-danger" : pct2 <= 1 ? "text-warn" : "text-attend";
     const limitInfo = item.maxQty ? ` | Max: ${item.maxQty} ${item.unit}` : "";
     return `<div class="card-base">
       <div class="flex-between">
@@ -2916,7 +2915,7 @@ function renderLive() {
 }
 async function boot() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-XN3KAJKZ.js");
     session = await bootFirebaseSession();
     if (!session) {
       bootState = "no-config";
@@ -3244,6 +3243,344 @@ function fmtVal(v) {
   return String(v);
 }
 
+// src/dashboard/adoption-model.js
+var ADOPTION_FORMS = [
+  { id: "production", label: "Production", coll: "production_entries" },
+  { id: "job_receipt", label: "Job receipt", coll: "jobs" },
+  { id: "dft", label: "DFT", coll: "dft_measurements" },
+  { id: "dispatch", label: "Dispatch", coll: "dispatch_events" },
+  { id: "stock_refill", label: "Stock refill", coll: "receipts", group: true },
+  { id: "stock_deplete", label: "Stock used", coll: "depletions", group: true },
+  { id: "machine_state", label: "Machine state", coll: "state_transitions", group: true },
+  { id: "check_in", label: "Check in/out", coll: "shifts", group: true },
+  { id: "note", label: "Note", coll: "notes" }
+];
+var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+var STEADY_TARGET = 0.95;
+function isoWeekStart(d = /* @__PURE__ */ new Date()) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const shift = (x.getDay() + 6) % 7;
+  x.setDate(x.getDate() - shift);
+  return x;
+}
+function addWeeks(weekStart2, n) {
+  const x = new Date(weekStart2);
+  x.setDate(x.getDate() + n * 7);
+  return x;
+}
+function weekEnd(weekStart2) {
+  return addWeeks(weekStart2, 1);
+}
+function isoWeekKey(weekStart2) {
+  const thu = new Date(weekStart2);
+  thu.setDate(thu.getDate() + 3);
+  const jan1 = new Date(thu.getFullYear(), 0, 1);
+  const week = Math.floor((thu - jan1) / 864e5 / 7) + 1;
+  return `${thu.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+function dayIndex(ms, weekStart2) {
+  const start = weekStart2.getTime();
+  if (!(ms >= start)) return -1;
+  const end = weekEnd(weekStart2).getTime();
+  if (ms >= end) return -1;
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((d - weekStart2) / 864e5);
+}
+function isPersonAuthored(doc) {
+  const a = doc?.author_user_id;
+  return typeof a === "string" && a.length > 0 && !a.startsWith("system");
+}
+function countByFormDay(docsByForm2, weekStart2, tsOf) {
+  const out = {};
+  for (const f of ADOPTION_FORMS) {
+    const days = [0, 0, 0, 0, 0, 0, 0];
+    for (const doc of docsByForm2[f.id] || []) {
+      if (!isPersonAuthored(doc)) continue;
+      const i = dayIndex(tsOf(doc), weekStart2);
+      if (i >= 0) days[i] += 1;
+    }
+    out[f.id] = days;
+  }
+  return out;
+}
+var sum = (arr) => (arr || []).reduce((a, b) => a + (Number(b) || 0), 0);
+function rate(digital, expected) {
+  const e = Number(expected);
+  if (!Number.isFinite(e) || e <= 0) return null;
+  return digital / e;
+}
+function statusFor(r, target = STEADY_TARGET) {
+  if (r === null) return "unmeasured";
+  if (r > 1.02) return "over";
+  if (r >= target) return "ok";
+  if (r >= target - 0.15) return "near";
+  return "below";
+}
+function summarizeWeek(counts, paper, target = STEADY_TARGET) {
+  const rows = ADOPTION_FORMS.map((f) => {
+    const digital = counts[f.id] || [0, 0, 0, 0, 0, 0, 0];
+    const expected = paper[f.id] || [];
+    const dTotal = sum(digital);
+    const eTotal = sum(expected);
+    const r = rate(dTotal, eTotal);
+    return {
+      id: f.id,
+      label: f.label,
+      digital,
+      expected,
+      digitalTotal: dTotal,
+      expectedTotal: eTotal,
+      rate: r,
+      status: statusFor(r, target)
+    };
+  });
+  const dAll = rows.reduce((s, r) => s + r.digitalTotal, 0);
+  const eAll = rows.reduce((s, r) => s + r.expectedTotal, 0);
+  const overall = rate(dAll, eAll);
+  return {
+    rows,
+    digitalTotal: dAll,
+    expectedTotal: eAll,
+    rate: overall,
+    status: statusFor(overall, target),
+    // How much of the picture is actually measured. A 98% rate drawn from one
+    // form out of nine is not the same number as one drawn from all nine, and
+    // the view says so rather than letting it pass as complete.
+    formsMeasured: rows.filter((r) => r.expectedTotal > 0).length,
+    formsTotal: rows.length
+  };
+}
+var PAPER_STORE_KEY = "sep_adoption_paper";
+function readPaperStore(raw) {
+  let parsed;
+  try {
+    parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    return {};
+  }
+  if (!parsed || typeof parsed !== "object") return {};
+  const out = {};
+  for (const [wk, forms] of Object.entries(parsed)) {
+    if (!forms || typeof forms !== "object") continue;
+    const clean = {};
+    for (const f of ADOPTION_FORMS) {
+      const arr = forms[f.id];
+      if (!Array.isArray(arr)) continue;
+      clean[f.id] = Array.from({ length: 7 }, (_, i) => {
+        const n = Number(arr[i]);
+        return Number.isFinite(n) && n >= 0 ? n : "";
+      });
+    }
+    out[wk] = clean;
+  }
+  return out;
+}
+function setPaperCount(store2, weekKey, formId, dayIdx, value) {
+  if (!ADOPTION_FORMS.some((f) => f.id === formId)) return store2;
+  if (!(dayIdx >= 0 && dayIdx < 7)) return store2;
+  const trimmed = String(value ?? "").trim();
+  const n = trimmed === "" ? "" : Number(trimmed);
+  if (n !== "" && (!Number.isFinite(n) || n < 0)) return store2;
+  const week = { ...store2[weekKey] || {} };
+  const row = Array.isArray(week[formId]) ? [...week[formId]] : ["", "", "", "", "", "", ""];
+  row[dayIdx] = n;
+  week[formId] = row;
+  return { ...store2, [weekKey]: week };
+}
+function paperForWeek(store2, weekKey) {
+  return store2[weekKey] || {};
+}
+
+// src/dashboard/adoption-view.js
+var RANGE_LIMIT = 2e3;
+var GROUP_LIMIT = 3e3;
+var weekStart = isoWeekStart();
+var docsByForm = {};
+var loadState = "idle";
+var loadErr = "";
+var capped = [];
+var denied = [];
+var store = {};
+var repaint = () => {
+};
+var getSession = () => null;
+function initAdoption(paintFn, sessionGetter) {
+  repaint = paintFn;
+  getSession = sessionGetter;
+  store = loadStore();
+  docsByForm = {};
+  loadState = "idle";
+  capped = [];
+  denied = [];
+  loadErr = "";
+}
+function loadStore() {
+  try {
+    return readPaperStore(globalThis.localStorage?.getItem(PAPER_STORE_KEY));
+  } catch {
+    return {};
+  }
+}
+function saveStore() {
+  try {
+    globalThis.localStorage?.setItem(PAPER_STORE_KEY, JSON.stringify(store));
+  } catch {
+  }
+}
+async function loadAdoption() {
+  const session3 = getSession();
+  if (!session3) {
+    docsByForm = {};
+    loadState = "idle";
+    repaint();
+    return;
+  }
+  loadState = "loading";
+  loadErr = "";
+  capped = [];
+  denied = [];
+  repaint();
+  const { db, fs } = session3;
+  const start = fs.Timestamp.fromMillis(weekStart.getTime());
+  const end = fs.Timestamp.fromMillis(weekEnd(weekStart).getTime());
+  const next = {};
+  await Promise.all(ADOPTION_FORMS.map(async (f) => {
+    try {
+      const q = f.group ? fs.query(fs.collectionGroup(db, f.coll), fs.limit(GROUP_LIMIT)) : fs.query(
+        fs.collection(db, f.coll),
+        fs.where("created_at", ">=", start),
+        fs.where("created_at", "<", end),
+        fs.limit(RANGE_LIMIT)
+      );
+      const snap = await fs.getDocs(q);
+      next[f.id] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      if (snap.docs.length >= (f.group ? GROUP_LIMIT : RANGE_LIMIT)) capped.push(f.id);
+    } catch (e) {
+      next[f.id] = [];
+      if (e?.code === "permission-denied") denied.push(f.id);
+      else loadErr = e?.code || e?.message || "read failed";
+    }
+  }));
+  docsByForm = next;
+  loadState = "ready";
+  repaint();
+}
+function adShiftWeek(n) {
+  weekStart = addWeeks(weekStart, n);
+  loadAdoption();
+}
+function adThisWeek() {
+  weekStart = isoWeekStart();
+  loadAdoption();
+}
+function adRefresh() {
+  loadAdoption();
+}
+function adSetPaper(el) {
+  const formId = el?.dataset?.form;
+  const day = Number(el?.dataset?.day);
+  store = setPaperCount(store, isoWeekKey(weekStart), formId, day, el?.value);
+  saveStore();
+  repaint();
+}
+function adoptionNeedsLoad() {
+  return loadState === "idle";
+}
+function renderAdoption(claims2) {
+  if (!(claims2?.is_admin || claims2?.is_steward)) {
+    return `<div class="lv-state"><b>Steward-exclusive.</b>
+      <p>The adoption KPI is the handler-steward's surface (ADOPTION_PLAN Week 0).
+      This session has neither <code>is_steward</code> nor <code>is_admin</code>.</p></div>`;
+  }
+  const wk = isoWeekKey(weekStart);
+  const paper = paperForWeek(store, wk);
+  const counted = loadState === "ready";
+  const counts = countByFormDay(docsByForm, weekStart, eventMillis);
+  const s = summarizeWeek(counts, paper, STEADY_TARGET);
+  const isThisWeek = weekStart.getTime() === isoWeekStart().getTime();
+  return `
+    <div class="ad-bar">
+      <div class="ad-week">
+        <button class="ed-act" onclick="adShiftWeek(-1)" title="Previous week">\u25C0</button>
+        <span class="ad-week-k">${esc(wk)}</span>
+        <button class="ed-act" onclick="adShiftWeek(1)" ${isThisWeek ? "disabled" : ""} title="Next week">\u25B6</button>
+        <span class="ad-week-d">${esc(fmtRange(weekStart))}</span>
+      </div>
+      <div>
+        ${isThisWeek ? "" : `<button class="ed-act" onclick="adThisWeek()">This week</button>`}
+        <button class="ed-act" onclick="adRefresh()">${loadState === "loading" ? "Loading\u2026" : "Refresh"}</button>
+      </div>
+    </div>
+
+    ${headline(s, counted)}
+    ${table(s, counted)}
+    ${notices(s, counted)}`;
+}
+function fmtRange(ws) {
+  const end = new Date(weekEnd(ws).getTime() - 1);
+  const f = (d) => d.toLocaleDateString(void 0, { day: "numeric", month: "short" });
+  return `${f(ws)} \u2013 ${f(end)}`;
+}
+var pct = (r) => r === null ? "\u2014" : `${Math.round(r * 100)}%`;
+function headline(s, counted) {
+  const cls = counted ? { ok: "ad-ok", near: "ad-near", below: "ad-below", over: "ad-over", unmeasured: "" }[s.status] : "";
+  return `
+    <div class="ad-head ${cls}">
+      <div class="ad-head-v">${counted ? pct(s.rate) : "\u2014"}</div>
+      <div class="ad-head-l">
+        <b>Adoption rate</b> \xB7 ${counted ? `${s.digitalTotal} digital` : "not counted yet"} / ${s.expectedTotal || "\u2014"} on paper
+        <span class="ad-cov">${counted ? `measured on ${s.formsMeasured} of ${s.formsTotal} forms \xB7 target ${Math.round(STEADY_TARGET * 100)}%` : "press Refresh to count this week from Firestore"}</span>
+      </div>
+    </div>`;
+}
+function table(s, counted) {
+  const head = `<tr><th class="ad-f">Form</th><th class="ad-r">Week</th>${DAY_LABELS.map((d) => `<th>${d}</th>`).join("")}</tr>`;
+  const rows = s.rows.map((r) => {
+    const cells = DAY_LABELS.map((_, i) => {
+      const d = r.digital[i] || 0;
+      const p = r.expected[i];
+      return `<td>
+        <span class="ad-dig ${counted && d ? "" : "ad-zero"}">${counted ? d : "\u2014"}</span>
+        <input class="ad-paper" type="number" min="0" inputmode="numeric"
+               data-form="${escAttr(r.id)}" data-day="${i}"
+               value="${p === "" || p == null ? "" : escAttr(String(p))}"
+               placeholder="paper" onchange="adSetPaper(this)">
+      </td>`;
+    }).join("");
+    const cls = counted ? { ok: "ad-ok", near: "ad-near", below: "ad-below", over: "ad-over", unmeasured: "" }[r.status] : "";
+    const flag = denied.includes(r.id) ? ' <span class="ed-tag">denied</span>' : capped.includes(r.id) ? ' <span class="ed-tag">capped</span>' : "";
+    return `<tr>
+      <th class="ad-f">${esc(r.label)}${flag}</th>
+      <td class="ad-r ${cls}"><b>${counted ? pct(r.rate) : "\u2014"}</b><span class="ad-sub">${counted ? r.digitalTotal : "\u2014"}/${r.expectedTotal || "\u2014"}</span></td>
+      ${cells}
+    </tr>`;
+  }).join("");
+  return `<div class="ad-wrap"><table class="ad-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+}
+function notices(s, counted) {
+  const out = [];
+  if (!counted) {
+    out.push(["", loadState === "loading" ? "Counting this week from Firestore\u2026" : "Not counted yet. Press Refresh \u2014 the digital column is UNKNOWN until then, which is why it reads \u2014 and not 0."]);
+  }
+  if (loadErr) out.push(["lv-warn-red", `Firestore read failed: ${loadErr}`]);
+  if (denied.length) {
+    out.push(["", `Rules refused ${denied.length} collection${denied.length > 1 ? "s" : ""} (${denied.join(", ")}) \u2014 the 12 Jun collection-group read rules are still IAM-gated. Those rows read 0 digital, which is a MISSING measurement, not a zero.`]);
+  }
+  if (capped.length) {
+    out.push(["lv-warn-amber", `Capped at ${GROUP_LIMIT} docs: ${capped.join(", ")}. Collection-group reads cannot be week-filtered server-side without a CG index, so these counts may be under-reported. Add the index before the corpus outgrows the cap.`]);
+  }
+  if (counted && s.expectedTotal === 0) {
+    out.push(["", "No paper counts entered yet. Count the \u2713 In app ticks on each paper sheet at end of shift and type them into the day columns \u2014 the rate is blank until then, deliberately: a denominator of zero is not 100%."]);
+  }
+  if (counted && s.status === "over") {
+    out.push(["lv-warn-amber", "More digital entries than paper. Either a paper sheet went uncounted or an entry was submitted twice \u2014 reconcile before recording the week."]);
+  }
+  out.push(["", "Paper counts are stored on THIS device only (localStorage). Enter them on the machine the steward reconciles from."]);
+  return `<div class="lv-warnings">${out.map(([c, t]) => `<div class="lv-warn ${c}">${esc(t)}</div>`).join("")}</div>`;
+}
+
 // src/dashboard/tabs/edit.js
 var STREAM_LIMIT2 = 50;
 var tsMs2 = eventMillis;
@@ -3272,8 +3609,13 @@ var modal = null;
 var formErr = "";
 var $root2 = () => document.getElementById("editRoot");
 var custName2 = (id) => customerNames2[id] || id || "?";
+var adoptionReady = false;
 function renderEdit() {
   if (!$root2()) return;
+  if (!adoptionReady) {
+    adoptionReady = true;
+    initAdoption(paint2, () => session2);
+  }
   if (bootState2 === "idle" || bootState2 === "error") {
     bootState2 = "booting";
     boot2();
@@ -3282,7 +3624,7 @@ function renderEdit() {
 }
 async function boot2() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-XN3KAJKZ.js");
     session2 = await bootFirebaseSession();
     if (!session2) {
       bootState2 = "no-config";
@@ -3447,6 +3789,7 @@ async function saveEdit() {
 }
 function edSetView(v) {
   view = v;
+  if (v === "adoption" && adoptionNeedsLoad()) loadAdoption();
   paint2();
 }
 function edSelectCat(id) {
@@ -3514,8 +3857,9 @@ function paint2() {
       <button class="ed-viewbtn ${view === "inboxes" ? "active" : ""}" onclick="edSetView('inboxes')">
         Inboxes${conflictCount ? ` <span class="ed-badge">${conflictCount}</span>` : ""}
       </button>
+      <button class="ed-viewbtn ${view === "adoption" ? "active" : ""}" onclick="edSetView('adoption')">Adoption</button>
     </div>
-    ${view === "records" ? renderRecords() : renderInboxes()}
+    ${view === "records" ? renderRecords() : view === "adoption" ? renderAdoption(claims) : renderInboxes()}
     ${modal ? renderModal() : ""}`;
 }
 function renderRecords() {
@@ -3675,10 +4019,10 @@ function exportAttendanceCSV() {
   const rows = [["Worker ID", "Worker Name", "Type", "Date", "Status", "OT Hours"]];
   let dataRowCount = 0;
   for (const w of all) {
-    const store = w.type === "perm" ? peAtt : cwAtt;
+    const store2 = w.type === "perm" ? peAtt : cwAtt;
     for (const ds of dates) {
       const k = getAttKey(w.type, w.id, ds);
-      const rec = store[k];
+      const rec = store2[k];
       if (!rec) continue;
       rows.push([w.id, w.name, w.type === "perm" ? "Perm" : "CW", ds, rec.status || "", rec.otHours || 0]);
       dataRowCount++;
@@ -3967,7 +4311,12 @@ function exposeWindowSurface() {
     edOpenHistory,
     edCloseModal,
     edReasonChange,
-    edSaveEdit
+    edSaveEdit,
+    // Adoption view (rollout KPI, steward-exclusive)
+    adShiftWeek,
+    adThisWeek,
+    adRefresh,
+    adSetPaper
   });
 }
 function boot3() {
