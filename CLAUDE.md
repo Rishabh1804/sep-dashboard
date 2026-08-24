@@ -1214,3 +1214,119 @@ padded picker-id trim-vs-drop nuance.
 
 *Session 19 documented 20 July 2026 by Aurelius (Claude Code); review pass
 folded same day.*
+
+---
+
+## Session 20: Week-0 Rollout Pack — Paper Forms, Adoption KPI, Prod Plumbing (24 August 2026)
+
+### What Shipped
+
+The **Week-0 rollout pack** — execution of `ADOPTION_PLAN.md`'s Week 0, which
+has been the un-started precondition for Week 1 since Phase 7 locked it in May.
+Three deliverables plus the prod-project plumbing:
+
+1. **Paper backup forms, generated from the live registry.** Escape hatch #1
+   in the adoption plan and the denominator source for the whole parallel-paper
+   run. `src/handler/paper-forms.js` derives a printable A4 spec from `FORMS`
+   + `DICT`; `pnpm paper:forms` writes `dist/paper-forms.html` (9 sheets,
+   committed so it prints from the repo without Node). **Derived, not drawn** —
+   a paper form that drifts from the app is worse than none, because every
+   reconciliation after that measures the drift instead of the adoption.
+2. **Adoption view** — a third view on the Edit tab (steward-exclusive, per the
+   plan's own wording). `adoption-model.js` (pure) + `adoption-view.js` (render
+   + one-shot Firestore counts). Rows = the 9 forms, columns = Week rate then
+   Mon–Sun, each day carrying the digital count over a paper-count input.
+3. **`WEEK_0_RUNBOOK.md`** — the executable checklist: print/laminate/distribute,
+   provision by QR, the huddle, the end-of-shift reconciliation ritual, and
+   Week-0 acceptance.
+4. **Prod plumbing + `PROD_STANDUP.md`** — the admin plane is now env-switched
+   (`--env staging|prod` → `FIREBASE_SERVICE_ACCOUNT_<ENV>` + project id), and
+   the stand-up runbook states the fork that has to be settled *before* Week 1.
+
+### The load-bearing design decision
+
+**The numerator is measured; the denominator is typed.** Digital entries come
+from Firestore; expected entries come from counting the `☐ In app` ticks on
+paper. The view must never blur which is which, so:
+
+- **An un-run week renders `—`, never `0%`.** Before a fetch, digital is
+  *unknown*, not zero — and `rate(0, 206)` is a legitimate 0 that would paint a
+  red 0% against a week nobody counted. Caught in the first visual pass; the
+  regression test was verified to fail with the fix reverted.
+- **A missing paper count renders `—`, never `100%`.** A denominator of zero is
+  not success.
+- **Rates above 100% are surfaced, not clamped** — more digital than paper means
+  an uncounted sheet or a double entry. Clamping would hide the finding.
+- **`denied` on a row is a missing measurement, not a zero** (the CG-read rules
+  are still IAM-gated), and the card states how many of the 9 forms are actually
+  measured. Same discipline as the Stats coverage banner in sep-invoicing.
+- **Paper counts live in this device's localStorage** — there is no Firestore
+  write rule for an adoption count and inventing one needs the IAM-gated deploy.
+  Stated on the card rather than hidden.
+
+### Coupling tests (what stops the pack rotting)
+
+- Paper sheets vs registry: field **order** matches the PWA's, every label
+  resolves in **both** languages, every function-`required` field has a human
+  sentence for paper (and no stale ones), every select carries its tick options.
+  Adding a field to the app without a paper equivalent fails CI.
+- `ADOPTION_FORMS` vs `transport.js`: every form has a row; every subcollection
+  write is marked as a collection-group read.
+- Admin env: staging and prod can never resolve to the same credential var or
+  project id. A prod run holding only the staging secret **fails the credential
+  check** — verified; it does not fall back.
+
+### Self-review findings folded
+
+- **`esc()` inside quoted attributes** → `escAttr()`. Values were constants and
+  validated numbers, so no live hole — but this is the exact sink class the
+  12-Jun picker review and the 13-Jun edit-modal review each caught, and the
+  convention is `escAttr` in attributes.
+- **Week rate column was scrolling off-screen.** Nine forms × seven days cannot
+  fit a phone, so the table scrolls — and what scrolled away was the number the
+  view exists to show. Week now sits immediately after Form.
+- **Stale-week trap**: with the session gone, a week change left the previous
+  week's docs behind a `ready` flag to be re-bucketed as a measurement.
+  `loadAdoption` and `initAdoption` now reset the measurement state.
+- **Print layout measured, not guessed**: grid rows were sized against the
+  printable A4 height in a real browser (production 15→24 rows, check-in
+  20→24); the e2e asserts every sheet fits one page in width *and* height, so a
+  future field addition cannot silently spill a form onto a second sheet.
+
+### Test Results
+
+- **Unit (Jest):** 279 → **341** (paper-forms 13 · adoption-model 26 ·
+  adoption-view 18 · admin-env 5)
+- **E2E (Playwright):** 41 → **43** (paper-forms render + one-page fit)
+- **Build:** clean · `BUILD 4→5`, `APP_VERSION 2.1.0-alpha.8`, both SW caches
+  bumped (`dist/paper-forms.html` deliberately NOT cached — a print artifact,
+  not a PWA asset)
+- `playwright.config.ts` gained the `PW_CHROMIUM_PATH` escape hatch
+  sep-invoicing already carries, for sandboxes whose Chromium build the pinned
+  Playwright does not expect. Unset in CI.
+
+### Known limits (stated, not hidden)
+
+- **Collection-group counts are capped** at 3,000 docs and filtered
+  client-side: a range filter on a collection *group* needs an explicit CG
+  index, which needs the IAM-gated deploy. Flagged inline as `capped` when hit.
+  Add the index before the corpus outgrows the cap.
+- **The prod path is unexercised** — backward-compatible by construction
+  (staging is the default and byte-identical), but there is no prod project to
+  run it against. Expect the first prod run to surface something.
+- **No replay/rebuild CLI exists**, despite the adoption plan listing it as an
+  escape hatch. The aggregators are idempotent; recovery today is a corrected
+  redeploy plus manual edits. Stated in the runbook.
+- Week-1 targets (60/80/95) live in `WEEK1_TARGETS` but the view measures
+  against the 95% steady-state bar; reading the ramp is still by eye.
+
+### Next
+
+Settle the staging-vs-prod fork (`PROD_STANDUP.md` §1) · grant the two IAM
+roles so `deploy-rules` goes green and the CG-read rows stop reading `denied` ·
+provision the first handler and dry-run the reconciliation ritual once before
+Week 1 · then the standing queue: CF cross-doc validation, the Session-17
+audit-noise + `functions lint` fast-follows, shared `firestore-store`
+extraction.
+
+*Session 20 documented 24 August 2026 by Aurelius (Claude Code).*

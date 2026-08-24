@@ -57,6 +57,7 @@ import {
   renderEdit, edSetView, edSelectCat, edOpenEdit, edOpenHistory,
   edCloseModal, edReasonChange, edSaveEdit,
 } from './tabs/edit.js';
+import { adShiftWeek, adThisWeek, adRefresh, adSetPaper } from './adoption-view.js';
 import { exportAttendanceCSV, exportPayrollCSV, exportCostsCSV } from './tabs/finance-export.js';
 
 // Storage hooks invoked from finance.js record-advance flow (avoids cycle).
@@ -193,6 +194,8 @@ function exposeWindowSurface() {
     // Edit tab (records + edit-with-reason + inboxes)
     edSetView, edSelectCat, edOpenEdit, edOpenHistory,
     edCloseModal, edReasonChange, edSaveEdit,
+    // Adoption view (rollout KPI, steward-exclusive)
+    adShiftWeek, adThisWeek, adRefresh, adSetPaper,
   });
 }
 
