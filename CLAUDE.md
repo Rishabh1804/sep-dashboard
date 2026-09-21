@@ -1330,3 +1330,79 @@ audit-noise + `functions lint` fast-follows, shared `firestore-store`
 extraction.
 
 *Session 20 documented 24 August 2026 by Aurelius (Claude Code).*
+
+---
+
+## Session 21: Worker / Area / Wage Config Reconciled Against the Codex (21 September 2026)
+
+### What Changed
+
+`src/shared/config/{workers,areas,wage}.js` had drifted from the soma-internal
+codex, which owns the roster and the rate card. This session brings them into
+line and adds a coupling test so they cannot silently drift again.
+
+**The drift, and why each item mattered:**
+
+| Was | Now | Why |
+|---|---|---|
+| `hourRate: 41.25` for all contract hands | **`47.50`** | ₹47.50 (= ₹380/day ÷ 8 at 1.0×) is the ratified contract rate and has been since **4 May 2026** (`tasks.md` T-F; `roles-responsibilities-v1.1.md` §"Four workers"). **₹41.25 was never the floor rate — it is Champai's office-only rate**, a separate framework line for a "special status — not factory worker for license purposes". Seeding it globally applied one man's rate to eleven hands, so **every contract wage this app computed ran ~13% under the card.** |
+| Perm `dailyRate` flat 496 × 6 | Per-worker: Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Lal 360 · Uday 300 · Shyam 576 | The ratified 1 Apr 2026 card (`decisions/2026-06-10.md` §1). 496 was a placeholder. It remains correct as `permOtBaseRate` — that is a standing convention, not a rate. |
+| "Lucky" · "Shambhu" · "Mantu" | **Lakhi · Sambhu · Montu** | Codex canon. "Lucky" was a mis-transliteration of Laxmi/Lakhi (= `lk_das`); the other two are Shyam's relay spellings. |
+| No Rakesh, no Vijay | Both added | Rakesh joined W22, Vijay 14 Jul 2026 (roster 19→20). Both evidenced contract-daily by presence on the weekly cash payout, which is itself the contract-tier instrument. **The handler PWA's check-in picker could not see either man.** |
+| Kusu, Tuklu active | `inactive: true` | Off active pool (Tuklu AWOL-confirmed 18 May). Marked, **never deleted** — deleting orphans their historical attendance. |
+| `lk_das` + `lal` on `pickle_vat`, `bp_sharma` on `pickle_barrel` | removed | The permanent contract tier is *"Job Work only, can flex VAT/Barrel areas, **NOT Pickling**"*. All three were seeded onto pickling rosters their tier is defined to exclude. |
+| `tuklu` on `barrel` | removed | Off pool. |
+
+### Two things held deliberately
+
+- **IDs are untouched.** A worker id is a Firestore doc path segment
+  (`workers/{id}/shifts/…`) and the prefix of every localStorage attendance key.
+  Renaming one orphans the staging subcollection *and* every device's history.
+  So where canon differs from an id, the **display name** moved and the id
+  stayed. A pinned id-set test makes an attempted rename fail CI loudly, because
+  that is a migration, not a config edit.
+- **Champai is held at ₹41.25 via a new `hourRateOverrides`.** Raising the global
+  must not resolve an open comp question as a side effect: T-CJ is live, and
+  `staff-aliases.md` still carries the F-1 divergence. The payout evidence
+  favours ₹47.50 (W33 slip line 9 foots 16 hr at 47.50 = ₹760; W24 did the same),
+  **so this override is a placeholder for a BM ruling, not a finding.**
+
+### Coupling test
+
+`tests/unit/roster-codex.test.js` (17 cases) pins the config to the codex:
+20 active · the rate card per worker · canonical names · the exact id set · no
+496 left on an individual rate · `hourRate × 8 = 380` · the job-work tier absent
+from every pickling roster · every area roster id known and active · no area left
+uncrewable (`production.js` assigns every *present* roster member, so an empty
+roster means that area can never be crewed) · inactive men filtered out of the 20.
+
+Figures are restated with citations rather than imported — soma-internal is
+private and may not be checked out beside this repo — so the test's job is to
+fail when someone edits the config without going back to the source.
+
+### Correction to Session 11
+
+Session 11's domain model records the workforce as *"12 part-time contractors
+(11 floor + 1 notebook handler) + 7 full-time + 1 guard"*. That totals 20 by
+coincidence: it counted Kusu/Tuklu/Ramo as active and pre-dated both Rakesh's
+roster row and Vijay. The codex decomposition is **9 monthly-tier (6 permanent +
+3 permanent-contract) + 11 contract daily-hands = 20**, verified against
+`attendance/2026-W33.md` day 1, whose own arithmetic is 15 on site + 5
+weekly-absent. *(Raised as L-4 by Castor at the 21 Sep audit.)*
+
+### Also settled
+
+**"Budheswer" is the floor spelling and the alias file is the one that is wrong.**
+A census across soma-internal `attendance/` returns **Budheswer 131 ·
+Buddheswar 0 · Budheshwar 2**, and `attendance-register-data.json` keys
+`Budheswer`; `staff-aliases.md` lists "Buddheswar" in its *Floor / attendance
+name* column. Castor is taking the alias-file drift at next touch.
+
+### Test Results
+
+- **Unit:** 341 → **358** (roster-codex 17; payroll fixture re-based on the
+  ratified rate, +1 override case)
+- **E2E:** 43 · **Build:** clean · `BUILD 5→6`, `APP_VERSION 2.1.0-alpha.9`,
+  both SW caches bumped
+
+*Session 21 documented 21 September 2026 by Aurelius (Claude Code).*

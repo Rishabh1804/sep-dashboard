@@ -1,9 +1,13 @@
 import {
-  calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay, getAttKey,
+  calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay, getAttKey, cwHourRate,
 } from '../../src/shared/utils/payroll.js';
 
+// Fixture, not the shipped config — but it now carries the RATIFIED contract
+// rate (47.50 = 380/day / 8, effective 4 May 2026) so the numbers in these
+// assertions are recognisable as real pay. 41.25 was Champai's office-only
+// rate; see config/wage.js.
 const cfg = {
-  hourRate: 41.25,
+  hourRate: 47.5,
   snackRate: 20,
   permOtMultiplier: 1.1,
   permOtBaseRate: 496,
@@ -28,14 +32,27 @@ describe('calcDayWages', () => {
     expect(total).toBe(0);
   });
 
-  test('CW present with 8h standard pays floor(8 * 41.25) = 330', () => {
+  test('CW present with 8h standard pays 8 * 47.50 = 380 (the day rate)', () => {
     const cwAtt = { kusu_2026_04_28: { status: 'P', otHours: 0 } };
     const total = calcDayWages({
       date: '2026-04-28', cfg, cwAtt, peAtt: {},
       activeCW: [{ id: 'kusu', name: 'Kusu' }],
       activePermProd: [], guards: [],
     });
-    expect(total).toBe(330);
+    expect(total).toBe(380);
+  });
+
+  test('an overridden worker is paid his own rate, not the global', () => {
+    const cwAtt = { champai_2026_04_28: { status: 'P', otHours: 0 } };
+    const total = calcDayWages({
+      date: '2026-04-28',
+      cfg: { ...cfg, hourRateOverrides: { champai: 41.25 } },
+      cwAtt, peAtt: {},
+      activeCW: [{ id: 'champai', name: 'Champai' }],
+      activePermProd: [], guards: [],
+    });
+    expect(total).toBe(330);          // 8 * 41.25, the office rate
+    expect(cwHourRate(cfg, 'champai')).toBe(47.5);   // absent an override
   });
 
   test('Perm worker contributes their dailyRate', () => {
@@ -88,9 +105,9 @@ describe('calcCWWeeklyPay', () => {
     });
     const w = result.workers[0];
     expect(w.days).toBe(5);
-    expect(w.wage).toBe(5 * 330); // 5 days × floor(8*41.25)
+    expect(w.wage).toBe(5 * 380); // 5 days × 8h × Rs 47.50 = 5 × Rs 380/day
     expect(w.advance).toBe(100);
-    expect(w.net).toBe(5 * 330 - 100);
+    expect(w.net).toBe(5 * 380 - 100);
   });
 });
 

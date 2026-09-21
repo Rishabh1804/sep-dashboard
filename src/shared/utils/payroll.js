@@ -6,6 +6,18 @@
 import { sepRound } from './currency.js';
 import { localDateStr, getWeekEnd } from './date.js';
 
+// Hourly rate for one contract hand. Flat `cfg.hourRate` for everyone except
+// the ids in `cfg.hourRateOverrides` — today just Champai, whose office rate
+// is a separate framework line and whose true rate is an open question with BM
+// (see config/wage.js). Tolerates a cfg with no overrides key so an older
+// persisted settings blob keeps working.
+export function cwHourRate(cfg, workerId) {
+  const o = cfg.hourRateOverrides;
+  const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
+  return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
+}
+
+
 // Build the storage-key suffix used by attendance subtables.
 export function getAttKey(type, id, date) {
   return `${id}_${date.replace(/-/g, '_')}`;
@@ -26,7 +38,7 @@ export function calcDayWages({
     if (!rec || rec.status === 'A') continue;
     let hours = cfg.standardShift.hours;
     if (rec.otHours) hours += rec.otHours;
-    total += sepRound(hours * cfg.hourRate);
+    total += sepRound(hours * cwHourRate(cfg, w.id));
   }
 
   for (const w of activePermProd) {
@@ -84,7 +96,7 @@ export function calcCWWeeklyPay({
       const dayH = cfg.standardShift.hours + (rec.otHours || 0);
       hours += dayH;
       otH += rec.otHours || 0;
-      wage += sepRound(dayH * cfg.hourRate);
+      wage += sepRound(dayH * cwHourRate(cfg, w.id));
     }
     const advKey = `${w.id}_${satDate}`;
     const advance = cwAdv[advKey] || 0;

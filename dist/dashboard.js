@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-IIQMR7WS.js";
+} from "./chunks/chunk-D3234MZW.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-EIOYR7I5.js";
+} from "./chunks/chunk-O6Y7SUWQ.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-GHPWYLT2.js";
+} from "./chunks/chunk-EXK47AZP.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -160,7 +160,10 @@ function setState(patch) {
 
 // src/shared/config/wage.js
 var DEF_CFG = {
-  hourRate: 41.25,
+  hourRate: 47.5,
+  // worker id → hourly rate that is NOT the contract-hand rate. Keep this
+  // empty of anything the codex has actually settled.
+  hourRateOverrides: { champai: 41.25 },
   snackRate: 20,
   permOtMultiplier: 1.1,
   permOtBaseRate: 496,
@@ -694,6 +697,11 @@ function initSettingsBackHandler() {
 }
 
 // src/shared/utils/payroll.js
+function cwHourRate(cfg, workerId) {
+  const o = cfg.hourRateOverrides;
+  const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
+  return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
+}
 function getAttKey(type, id, date) {
   return `${id}_${date.replace(/-/g, "_")}`;
 }
@@ -713,7 +721,7 @@ function calcDayWages({
     if (!rec || rec.status === "A") continue;
     let hours = cfg.standardShift.hours;
     if (rec.otHours) hours += rec.otHours;
-    total += sepRound(hours * cfg.hourRate);
+    total += sepRound(hours * cwHourRate(cfg, w.id));
   }
   for (const w of activePermProd) {
     const k = getAttKey("perm", w.id, date);
@@ -787,7 +795,7 @@ function calcCWWeeklyPay({
       const dayH = cfg.standardShift.hours + (rec.otHours || 0);
       hours += dayH;
       otH += rec.otHours || 0;
-      wage += sepRound(dayH * cfg.hourRate);
+      wage += sepRound(dayH * cwHourRate(cfg, w.id));
     }
     const advKey = `${w.id}_${satDate}`;
     const advance = cwAdv[advKey] || 0;
