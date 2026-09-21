@@ -1406,3 +1406,48 @@ name* column. Castor is taking the alias-file drift at next touch.
   both SW caches bumped
 
 *Session 21 documented 21 September 2026 by Aurelius (Claude Code).*
+
+### Amendment — same day, two BM rulings (21 September 2026)
+
+Both of Session 21's open comp items were ruled within the session, so the
+entry above is superseded on two points.
+
+**1. Champai is on ₹47.50, like everyone else.** The `hourRateOverrides` entry
+holding him at ₹41.25 is **deleted, not updated** — he is simply on the contract
+rate. This closes the F-1 divergence open since 13 June. The framework line
+(*"Office (Champai) | Weekly hourly ₹41.25/hr"*) was the stale artifact; the W24
+and W33 payouts, which both footed him at ₹47.50, were right.
+
+> The lesson is one this codex already has a name for: **the instrument that
+> moves money beats the document that describes it** — the same reasoning as
+> *price off the invoice line, not the items master*. A framework page and a
+> payout slip disagreed for three months, and the slip was correct both times.
+
+The override *mechanism* stays (empty), because the alternative — a second flat
+global — is precisely what produced the 41.25 bug.
+
+**2. Sambhu moves to the permanent tier, effective September 2026**, at
+**₹380/day** — his existing contract day rate, exactly `hourRate × 8`. So the
+**tier changed and the pay did not**: what he gains is the monthly treatment —
+rest credit, Sundays paid as additional days, OT ×1.1. He is the plant's
+heaviest-worked hand (80-hour weeks; the T-DV fatigue anchor), so the move also
+puts his hours on an instrument the weekly cash payout does not govern — which
+is the exact gap Castor's C-1 keeps raising.
+
+The roster stays **20**; the split becomes **10 monthly-tier + 10 daily hands**
+(was 9 + 11), and the coupling test pins the new split.
+
+> ⚠ **Recomputing a pre-September week for Sambhu will read zero.** His
+> historical attendance is keyed `shambhu_YYYY_MM_DD` under the CW map
+> (`cwAtt`); the permanent path uses the same key string under `peAtt`. Since he
+> is no longer in `activeCW`, a re-run of an August weekly payout totals him at
+> nothing. August and earlier come from the codex's own payout files, not from
+> recomputing here. Flagged in `workers.js` at his row.
+
+Unlike the job-work trio, a permanent **monthly** man may work pickling —
+Suklal is Pickling Lead and permanent — so his area rosters are unaffected.
+
+**Tests:** 358 → **360** · `BUILD 6→7`, `APP_VERSION 2.1.0-alpha.10`, both SW
+caches bumped.
+
+*Amendment documented 21 September 2026 by Aurelius (Claude Code).*

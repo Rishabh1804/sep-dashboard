@@ -15,6 +15,10 @@ import { cwHourRate } from '../../src/shared/utils/payroll.js';
 const CODEX_RATE_CARD = {
   shyam_bera: 576, sharat_mahato: 500, rupa_bera: 500, sunil_mahato: 470,
   suklal: 440, uday: 300, lk_das: 420, bp_sharma: 410, lal: 360, rounak: 0,
+  // Moved to permanent effective September 2026 (BM, 21 Sep) at his existing
+  // contract day rate — Rs 380 = Rs 47.50 x 8, so the tier changed and the
+  // rate did not.
+  shambhu: 380,
 };
 // Canonical floor/attendance spellings. "Lucky", "Shambhu" and "Mantu" are the
 // variants this config used to carry; the codex canon is Lakhi / Sambhu / Montu.
@@ -39,6 +43,19 @@ const byId = Object.fromEntries(ALL.map((w) => [w.id, w]));
 describe('roster matches the codex', () => {
   test('twenty active workers — the /20 denominator every file since W29 uses', () => {
     expect(active).toHaveLength(20);
+  });
+
+  test('the split is 10 monthly + 10 daily after Sambhu\'s September move', () => {
+    expect(DEF_PERM.filter((w) => !w.inactive)).toHaveLength(10);
+    expect(DEF_CW.filter((w) => !w.inactive)).toHaveLength(10);
+  });
+
+  test('Sambhu is on the monthly tier at his existing day rate', () => {
+    expect(DEF_PERM.some((w) => w.id === 'shambhu')).toBe(true);
+    expect(DEF_CW.some((w) => w.id === 'shambhu')).toBe(false);
+    // Rs 380/day is exactly the contract day rate, so the move is a change of
+    // instrument (rest credit, Sundays, OT x1.1), not of pay.
+    expect(byId.shambhu.dailyRate).toBe(DEF_CFG.hourRate * DEF_CFG.standardShift.hours);
   });
 
   test('Rakesh and Vijay are present — both joined after the original seed', () => {
@@ -104,17 +121,20 @@ describe('rate card — ratified 1 Apr 2026', () => {
   });
 });
 
-describe('Champai override — an open question, held open', () => {
-  test('only Champai is overridden', () => {
-    expect(Object.keys(DEF_CFG.hourRateOverrides)).toEqual(['champai']);
+describe('per-worker rate overrides', () => {
+  test('none today — Champai was ruled onto the contract rate on 21 Sep', () => {
+    expect(DEF_CFG.hourRateOverrides).toEqual({});
+    expect(cwHourRate(DEF_CFG, 'champai')).toBe(47.5);
   });
 
-  test('he stays on the framework office rate, not swept to the new global', () => {
-    expect(cwHourRate(DEF_CFG, 'champai')).toBe(41.25);
-    expect(cwHourRate(DEF_CFG, 'shambhu')).toBe(47.5);
+  test('every daily hand resolves to the one contract rate', () => {
+    for (const w of DEF_CW.filter((x) => !x.inactive)) {
+      expect(`${w.id}=${cwHourRate(DEF_CFG, w.id)}`).toBe(`${w.id}=47.5`);
+    }
   });
 
-  test('a cfg with no overrides key still resolves (older persisted settings)', () => {
+  test('the mechanism still works, and tolerates a junk or missing map', () => {
+    expect(cwHourRate({ hourRate: 47.5, hourRateOverrides: { champai: 41.25 } }, 'champai')).toBe(41.25);
     expect(cwHourRate({ hourRate: 47.5 }, 'champai')).toBe(47.5);
     expect(cwHourRate({ hourRate: 47.5, hourRateOverrides: { champai: 'oops' } }, 'champai')).toBe(47.5);
   });

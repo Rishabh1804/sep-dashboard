@@ -15,17 +15,21 @@
 // the global `hourRate` applied one man's special rate to all eleven hands, so
 // every contract wage this app computed ran ~13% under the ratified card.
 //
-// ⚠ CHAMPAI'S OWN RATE IS AN OPEN QUESTION, NOT A SETTLED 41.25. The W24
-// weekly tally actually paid him at ₹47.50 — a ₹300/wk gap flagged as a
-// DIVERGENCE (staff-aliases.md, Castor F-1, 13 Jun) and still open under
-// T-CJ. The override below therefore holds him at the FRAMEWORK rate rather
-// than sweeping him to 47.50: raising the global must not resolve an open
-// comp question as a side effect. Delete the override once BM rules.
+// ✅ CHAMPAI IS ON ₹47.50 TOO — ruled by BM, 21 Sep 2026. This closes the F-1
+// divergence that had been open since 13 Jun (`staff-aliases.md`: the framework
+// said ₹41.25, the W24 and W33 payouts both actually paid ₹47.50). The payout
+// was right and the framework line was stale, which is the same lesson as
+// "price off the invoice line, not the master": the instrument that moves money
+// beats the document that describes it. His override is therefore DELETED
+// rather than updated — he is simply on the contract rate.
 export const DEF_CFG = {
   hourRate: 47.50,
-  // worker id → hourly rate that is NOT the contract-hand rate. Keep this
-  // empty of anything the codex has actually settled.
-  hourRateOverrides: { champai: 41.25 },
+  // worker id → an hourly rate that is NOT the contract-hand rate.
+  // EMPTY TODAY. Kept because the codex has a history of per-worker rate
+  // exceptions (Champai's own, ruled out on 21 Sep, was the last one) and
+  // because the alternative — a second flat global — is what produced the
+  // 41.25 bug in the first place.
+  hourRateOverrides: {},
   snackRate: 20,
   permOtMultiplier: 1.1,
   permOtBaseRate: 496,

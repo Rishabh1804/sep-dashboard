@@ -42,7 +42,7 @@ describe('calcDayWages', () => {
     expect(total).toBe(380);
   });
 
-  test('an overridden worker is paid his own rate, not the global', () => {
+  test('a rate override, if one is configured, beats the global', () => {
     const cwAtt = { champai_2026_04_28: { status: 'P', otHours: 0 } };
     const total = calcDayWages({
       date: '2026-04-28',
@@ -51,8 +51,10 @@ describe('calcDayWages', () => {
       activeCW: [{ id: 'champai', name: 'Champai' }],
       activePermProd: [], guards: [],
     });
-    expect(total).toBe(330);          // 8 * 41.25, the office rate
-    expect(cwHourRate(cfg, 'champai')).toBe(47.5);   // absent an override
+    expect(total).toBe(330);          // 8 * 41.25
+    // No override ships today — Champai was ruled onto the contract rate on
+    // 21 Sep 2026; this exercises the mechanism, not his rate.
+    expect(cwHourRate(cfg, 'champai')).toBe(47.5);
   });
 
   test('Perm worker contributes their dailyRate', () => {

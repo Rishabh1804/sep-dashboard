@@ -49,17 +49,32 @@ export const DEF_PERM = [
   { id: 'bp_sharma',     name: 'Bhanu',  role: 'Job Work — flex VAT / Barrel', dailyRate: 410, inactive: false },
   { id: 'lal',           name: 'Lal',    role: 'Job Work — flex VAT / Barrel', dailyRate: 360, inactive: false },
 
+  // ⭐ MOVED TO PERMANENT, EFFECTIVE SEPTEMBER 2026 (BM, 21 Sep). Rs 380/day is
+  // his EXISTING contract day rate (= Rs 47.50 x 8), so this is not a raise: he
+  // gains the monthly tier's treatment — rest credit, Sundays paid, OT x1.1 —
+  // rather than a higher rate. He is the plant's heaviest-worked hand (80-hour
+  // weeks, the T-DV fatigue anchor), so the tier move is also what finally puts
+  // his hours on an instrument the weekly cash payout does not govern.
+  //
+  // ⚠ RECOMPUTING A PRE-SEPTEMBER WEEK. His historical attendance is keyed
+  // `shambhu_YYYY_MM_DD` under the CW map (`cwAtt`); the perm path uses the
+  // same key string under `peAtt`. Since he is no longer in activeCW, a
+  // re-run of an August weekly payout would total him at zero. Read August and
+  // earlier from the codex's own payout files, not by recomputing here.
+  //
+  // Unlike the job-work trio, a permanent MONTHLY man may work pickling —
+  // Suklal is Pickling Lead and permanent — so his area rosters are unaffected.
+  { id: 'shambhu',       name: 'Sambhu', role: 'Pickling anchor — flexes',      dailyRate: 380, inactive: false },
+
   // Off-roll. Kept for historical attendance; excluded via DEF_CFG.excludedIds.
   { id: 'rounak',        name: 'Rounak', role: 'Data Admin',     dailyRate: 0,   inactive: true },
 ];
 
-// Contract daily-hands — ₹380/day × days attended, ₹47.50/hr (DEF_CFG.hourRate).
-// Champai is the one exception and his rate is DISPUTED — see wage.js. The
-// payout evidence favours ₹47.50 (W33 slip line 9 foots 16 hr at 47.50 = ₹760,
-// and W24 did the same), but T-CJ is formally open, so the app keeps computing
-// him at the framework's ₹41.25 rather than resolving it by side effect.
+// Contract daily-hands — ₹380/day × days attended, ₹47.50/hr (DEF_CFG.hourRate),
+// with no per-worker exceptions: Champai's ₹41.25 office line was ruled out by
+// BM on 21 Sep in favour of the contract rate his payouts were already using.
 export const DEF_CW = [
-  { id: 'shambhu',   name: 'Sambhu',    inactive: false },
+  // Sambhu moved to DEF_PERM in September 2026 — see his row there.
   { id: 'sripati',   name: 'Sripati',   inactive: false },
   // 'Budheswer' is the floor spelling and the join key: a census across
   // soma-internal `attendance/` returns Budheswer 131 · Buddheswar 0 ·

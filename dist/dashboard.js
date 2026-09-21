@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-D3234MZW.js";
+} from "./chunks/chunk-UGLDB35L.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-O6Y7SUWQ.js";
+} from "./chunks/chunk-GVY6HQ26.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-EXK47AZP.js";
+} from "./chunks/chunk-ENAYTB3R.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -161,9 +161,12 @@ function setState(patch) {
 // src/shared/config/wage.js
 var DEF_CFG = {
   hourRate: 47.5,
-  // worker id → hourly rate that is NOT the contract-hand rate. Keep this
-  // empty of anything the codex has actually settled.
-  hourRateOverrides: { champai: 41.25 },
+  // worker id → an hourly rate that is NOT the contract-hand rate.
+  // EMPTY TODAY. Kept because the codex has a history of per-worker rate
+  // exceptions (Champai's own, ruled out on 21 Sep, was the last one) and
+  // because the alternative — a second flat global — is what produced the
+  // 41.25 bug in the first place.
+  hourRateOverrides: {},
   snackRate: 20,
   permOtMultiplier: 1.1,
   permOtBaseRate: 496,
