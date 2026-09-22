@@ -1345,7 +1345,7 @@ line and adds a coupling test so they cannot silently drift again.
 
 | Was | Now | Why |
 |---|---|---|
-| `hourRate: 41.25` for all contract hands | **`47.50`** | ₹47.50 (= ₹380/day ÷ 8 at 1.0×) is the ratified contract rate and has been since **4 May 2026** (`tasks.md` T-F; `roles-responsibilities-v1.1.md` §"Four workers"). **₹41.25 was never the floor rate — it is Champai's office-only rate**, a separate framework line for a "special status — not factory worker for license purposes". Seeding it globally applied one man's rate to eleven hands, so **every contract wage this app computed ran ~13% under the card.** |
+| `hourRate: 41.25` for all contract hands | **`47.50`** | ₹47.50 (= ₹380/day ÷ 8 at 1.0×) is the ratified contract rate and has been since **4 May 2026** (`tasks.md` T-F; `roles-responsibilities-v1.1.md` §"Four workers" — ⚠ **that heading now reads "THREE workers"**, amended 22 Sep when Sambhu left the daily tier; the rate it authorises is unchanged). **₹41.25 was the floor rate only THROUGH W19** — `attendance/2026-W19.md` records it applied flat to nine workers and `decisions/2026-05-16.md` ratified it as the base rate — **and it moved to ₹47.50 FROM W20**, surviving thereafter only on Champai's office line for a "special status — not factory worker for license purposes". 🔧 *An earlier version of this row said "never the floor rate", which is false pre-W20 (Iuno, cross-jurisdiction, 22 Sep). The conclusion is unchanged: a global ₹41.25 is wrong for every post-W20 week.* Seeding it globally applied one man's rate to eleven hands, so **every contract wage this app computed ran ~13% under the card.** |
 | Perm `dailyRate` flat 496 × 6 | Per-worker: Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Lal 360 · Uday 300 · Shyam 576 | The ratified 1 Apr 2026 card (`decisions/2026-06-10.md` §1). 496 was a placeholder. It remains correct as `permOtBaseRate` — that is a standing convention, not a rate. |
 | "Lucky" · "Shambhu" · "Mantu" | **Lakhi · Sambhu · Montu** | Codex canon. "Lucky" was a mis-transliteration of Laxmi/Lakhi (= `lk_das`); the other two are Shyam's relay spellings. |
 | No Rakesh, no Vijay | Both added | Rakesh joined W22, Vijay 14 Jul 2026 (roster 19→20). Both evidenced contract-daily by presence on the weekly cash payout, which is itself the contract-tier instrument. **The handler PWA's check-in picker could not see either man.** |
@@ -1364,7 +1364,9 @@ line and adds a coupling test so they cannot silently drift again.
 - **Champai is held at ₹41.25 via a new `hourRateOverrides`.** Raising the global
   must not resolve an open comp question as a side effect: T-CJ is live, and
   `staff-aliases.md` still carries the F-1 divergence. The payout evidence
-  favours ₹47.50 (W33 slip line 9 foots 16 hr at 47.50 = ₹760; W24 did the same),
+  favours ₹47.50 (W33 slip line 9 foots 16 hr at 47.50 = ₹760; the **W25** slip
+  did the same at 40 hr = ₹1,900 — ⚠ an earlier version of this line cited a
+  "W24" payout, which does not exist; Iuno H-2),
   **so this override is a placeholder for a BM ruling, not a finding.**
 
 ### Coupling test
@@ -1415,13 +1417,26 @@ entry above is superseded on two points.
 **1. Champai is on ₹47.50, like everyone else.** The `hourRateOverrides` entry
 holding him at ₹41.25 is **deleted, not updated** — he is simply on the contract
 rate. This closes the F-1 divergence open since 13 June. The framework line
-(*"Office (Champai) | Weekly hourly ₹41.25/hr"*) was the stale artifact; the W24
-and W33 payouts, which both footed him at ₹47.50, were right.
+(*"Office (Champai) | Weekly hourly ₹41.25/hr"*) was the stale artifact; the
+**W25** payout (40 hr = ₹1,900 = ₹380×5) and **W33** (16 hr = ₹760.00) were
+right. 🔧 **There is no W24 weekly payout** — an earlier version of this entry
+cited one twice (Iuno H-2, 22 Sep).
 
-> The lesson is one this codex already has a name for: **the instrument that
-> moves money beats the document that describes it** — the same reasoning as
-> *price off the invoice line, not the items master*. A framework page and a
-> payout slip disagreed for three months, and the slip was correct both times.
+> 🔴 **RETRACTED (Cipher B-1, 22 Sep).** An earlier version of this entry drew
+> the lesson **"the instrument that moves money beats the document that
+> describes it"**. That principle is real and it is **not this case's**.
+>
+> This was a **regression, not a fresh ruling**: T-CJ's Champai row was closed
+> on **22 June 2026** on the W25 payout instrument (`tasks.md`,
+> `decisions/2026-06-22.md`) and simply never folded into
+> `operations/staff-aliases.md`, so it sat live on that one stale surface for
+> three months and was re-discovered there. What disagreed was not a framework
+> page against a payout slip — it was **two mandatory-read files that had the
+> answer, against one that did not.**
+>
+> ⭐ **So the lesson is the FOLD RULE**: name every surface that carries a claim
+> before amending any one of them, and state the count. Same shape as this
+> codex's own `R.K Enterprises` case.
 
 The override *mechanism* stays (empty), because the alternative — a second flat
 global — is precisely what produced the 41.25 bug.

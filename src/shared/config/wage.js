@@ -35,11 +35,15 @@
 // (`tasks.md`, `decisions/2026-06-22.md`) and simply never folded into
 // `staff-aliases.md`. And there is NO W24 weekly payout — the checkable
 // instruments are W25 (40 hr = ₹1,900 = ₹380×5) and W33 (16 hr = ₹760.00).
-// The payout
-// was right and the framework line was stale, which is the same lesson as
-// "price off the invoice line, not the master": the instrument that moves money
-// beats the document that describes it. His override is therefore DELETED
-// rather than updated — he is simply on the contract rate.
+// 🔴 RETRACTED (Cipher B-1, 22 Sep): an earlier version of this comment drew
+// the lesson "the instrument that moves money beats the document that describes
+// it". That principle is real and it is NOT this case's. What disagreed was not
+// a framework page against a payout slip — it was `tasks.md` and
+// `decisions/2026-06-22.md`, which both closed this on 22 June, against
+// `staff-aliases.md`, which was never folded. The lesson is the FOLD RULE: name
+// every surface that carries a claim before amending any one of them.
+// His override is DELETED rather than updated — he is simply on the contract
+// rate.
 export const DEF_CFG = {
   hourRate: 47.50,
   // worker id → an hourly rate that is NOT the contract-hand rate.
