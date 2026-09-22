@@ -1443,8 +1443,16 @@ global — is precisely what produced the 41.25 bug.
 
 **2. Sambhu moves to the permanent tier, effective September 2026**, at
 **₹380/day** — his existing contract day rate, exactly `hourRate × 8`. So the
-**tier changed and the pay did not**: what he gains is the monthly treatment —
-rest credit, Sundays paid as additional days, OT ×1.1. He is the plant's
+~~**tier changed and the pay did not**~~ — **his ₹380/day is unchanged, but the
+PAY CHANGED by ≈₹2,300–2,500/month** *(Castor C-H1, 22 Sep: the original sentence
+was false as written — true of the ₹/day, and it then listed three ways the pay
+moves)*: rest credit ≈4.33 Sundays × ₹380 ≈ **+₹1,645/mo**, gate-dependent
+(`S × g`, g = 100/50/0% at the ≥90 / 80–90 / <80% attendance gate — so in a bad
+month it can fall BELOW the daily tier) · OT premium ₹4.75/hr on ~152 OT hr/mo
+≈ **+₹720/mo** · a worked Sunday as an uncapped extra day at ₹380. **His OT rate
+is ₹52.25/hr** (= ₹380 ÷ 8 × 1.1) — every other monthly man's rate is carried
+explicitly in the codex and his was not, and he is the highest-OT hand on the
+floor. He is the plant's
 heaviest-worked hand (80-hour weeks; the T-DV fatigue anchor), so the move also
 puts his hours on an instrument the weekly cash payout does not govern — which
 is the exact gap Castor's C-1 keeps raising.
