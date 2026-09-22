@@ -24,8 +24,10 @@
 //
 // ── ROSTER IS 20 ────────────────────────────────────────────────────────────
 // 19 → 20 on 14 Jul 2026 when Vijay joined; every attendance file from
-// 2026-W29 forward uses /20. Here that is 9 active perm/perm-contract rows
-// plus 11 active daily hands. Verified against `attendance/2026-W33.md` day 1,
+// 2026-W29 forward uses /20. Here that is 10 active perm/perm-contract rows
+// plus 10 active daily hands — Sambhu moved to the monthly tier effective
+// September 2026 (BM, 21 Sep), taking the split from 9 + 11 to 10 + 10.
+// Verified against `attendance/2026-W33.md` day 1,
 // whose own arithmetic is 15 on site + 5 weekly-absent = 20.
 //
 // Workers off the active pool are marked `inactive`, never deleted: the codex

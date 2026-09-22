@@ -1,5 +1,27 @@
 # SEP Dashboard — Project Reference
 
+> # 🔴 SUPERSEDED — Phase 1 (v2.1) reference only
+>
+> **This file describes the v2.1 single-file build and its payroll model as they
+> stood in April 2026. Several figures in it are no longer correct and it must
+> not be used to compute a wage.** The live model is
+> `src/shared/config/{workers,wage,areas}.js`, pinned by
+> `tests/unit/roster-codex.test.js` and reconciled against the soma-internal
+> codex on 21 September 2026.
+>
+> What is stale here, specifically *(Janus J-1, 22 Sep 2026)*:
+>
+> | This file says | Live value |
+> |---|---|
+> | CW rate **₹41.25/hr** (and three wage formulas built on it) | **₹47.50/hr** — ₹380/day ÷ 8 at 1.0×, ratified 4 May 2026 and in force from W20. ₹41.25 was the floor rate only **through W19** |
+> | `sep_cw_cfg_v2 → {hourRate: 41.25}` | `{hourRate: 47.50}` |
+> | Contract workers **(11)**: Kusu, Sripati, Naren, Champai, Budheswar, Sai, Shambhu, Mantu, Rocky, Birsa, Tuklu | **10 active**: Sripati, Budheswer, Birsa, Rocky, Champai, Sai, Naren, **Montu**, **Rakesh**, **Vijay**. Kusu and Tuklu are off-pool; **Sambhu** moved to the monthly tier in September 2026; *Shambhu*/*Mantu* were mis-transliterations |
+> | — | Roster is **20**: 10 monthly-tier + 10 daily hands |
+>
+> Everything architectural below (the localStorage key inventory, the tab
+> structure, the function census) remains an accurate record of v2.1 and is why
+> this file is kept rather than deleted.
+
 **Current Build:** v2.1 (4,531 lines, 130 functions)
 **Created:** 28 March – 2 April 2026 across 7 sessions
 **Owner:** Rishabh Jain, Business Manager, Soma Electro Products

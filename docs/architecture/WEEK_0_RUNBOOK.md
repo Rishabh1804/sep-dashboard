@@ -7,6 +7,23 @@
 `ADOPTION_PLAN.md` locks *what* Week 0 must produce and *why*. This is the
 executable version: what to do, in what order, and how to tell it worked.
 
+> ## 🔴 There is a SECOND paper attendance sheet. Do not count it for adoption.
+>
+> soma-internal generates its own printable attendance sheet
+> (`scripts/build-attendance-sheet.py` → `reports/attendance-sheet.html`). It is
+> a different instrument for a different job — reconstructing the day from
+> Shyam's WhatsApp relay, with area codes, clock spans and derived hours — and
+> **it carries no `☐ In app` tick, so it cannot feed this reconciliation.**
+>
+> **The hazard is the denominator, and it is exactly 2×.** This runbook's
+> check-in denominator counts **events**: 20 workers × in + out = **40/day**. A
+> soma-internal sheet day is **20 rows**, one per man. A steward holding the
+> wrong sheet reports check-in adoption at **double the real rate** — which is
+> the failure `ADOPTION_PLAN.md`'s risk table calls *Reconciliation divergence*.
+>
+> **For Week 0 and the parallel-paper run, the only sheet that counts is
+> `dist/paper-forms.html`.** *(Janus J-4, 22 Sep 2026.)*
+
 > **The one thing to keep in view.** The KPI is **adoption rate**, not entries
 > per day. A handler who records 300 entries out of an expected 700 is failing
 > the rollout while looking productive. The whole apparatus below exists to make

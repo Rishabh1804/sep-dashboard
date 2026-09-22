@@ -13,9 +13,15 @@
 //     ⚠ The replacements are the ONE judgement call in this file. `roster`
 //     is functional (production.js auto-assigns every PRESENT member), so
 //     emptying the pickling areas would stop them ever being crewed. They are
-//     refilled from the four men `staff-aliases.md` labels "Daily anchor
-//     (Pickling primary)" — Sambhu, Sripati, Budheswer, Birsa, which is also
+//     refilled from the four men `staff-aliases.md` labelled "Daily anchor
+//     (Pickling primary)" — Sambhu, Sripati, Budheswer, Birsa, which was also
 //     exactly the framework's "Four workers — primarily Pickling" — split
+//     🔧 That rationale is now partly stale (Janus J-8, 22 Sep): Sambhu moved
+//     to the monthly tier in September 2026, so the group is THREE daily
+//     anchors, and the framework paragraph has been amended to match. His
+//     PLACEMENT is unaffected and stands — a permanent monthly man may work
+//     pickling; Suklal is Pickling Lead and permanent — but the reason given
+//     above is no longer the reason. Still the one judgement call here.
 //     VAT-side / barrel-side as `attendance/2026-W33.md` shows them working,
 //     and Suklal held as Pickling Lead. Sizes are unchanged (3 and 2).
 //     Confirm the split with Vulcanus/BM; the REMOVALS need no confirmation.
