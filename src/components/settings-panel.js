@@ -82,7 +82,7 @@ export function openSettings() {
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">₹${cfg.hourRate}/hr</span></div>
             <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">₹${cfg.snackRate}/day</span></div>
             <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, ₹${cfg.permOtBaseRate}) ÷ 8 × ${cfg.permOtMultiplier} · cap ₹${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
-            <div class="settings-row"><span class="card-label">Guard beyond 12 h</span><span class="card-meta">(monthly ÷ days in month) ÷ 12 · no multiplier</span></div>
+            <div class="settings-row"><span class="card-label">Guard beyond 12 h</span><span class="card-meta">(monthly ÷ days in month) ÷ 12 · no multiplier · ÷ 12 is the app's reading; the ruling does not state the divisor</span></div>
           </div>
         </div>
 

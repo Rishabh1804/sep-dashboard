@@ -142,6 +142,11 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
       localStorage.setItem('sep_cw_att_v2', JSON.stringify({
         [`cw_gamma_${todayKeyDate}`]: { status: 'P', time: '09:00:00', otHours: 2 },
       }));
+      // The guard, 2 hr beyond his 12-hour shift: priced at his plain hourly
+      // rate, ₹9,000 ÷ days in the month ÷ 12, no 1.1× (BM, 23 Sep; Janus M-2).
+      localStorage.setItem('sep_pe_att_v1', JSON.stringify({
+        [`uday_${todayKeyDate}`]: { status: 'P', time: '07:00:00', otHours: 2 },
+      }));
       // Seed prod day with extra + snack costs so the costs CSV captures them.
       localStorage.setItem('sep_prod_log_v1', JSON.stringify({
         [today]: {
@@ -167,8 +172,14 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
     expect(parseInt(todayRow![1])).toBeGreaterThan(0); // day wages > 0
     expect(todayRow![2]).toBe('200');
     expect(todayRow![3]).toBe('100');
-    // 2 OT hr at the contract rate: a breakdown of Day Wages, not an addend.
-    expect(parseInt(todayRow![4])).toBeGreaterThan(0);
+    // OT column = the contract hand's 2 hr at ₹47.50 + the guard's 2 hr at his
+    // plain hourly rate (no 1.1×), each floored per day. A breakdown of Day
+    // Wages, not an addend. Reverting either OT loop to permOtRate zeroes the
+    // guard's share and fails this.
+    const [y, m] = today.split('-').map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    const guardOt = Math.floor(2 * (9000 / dim / 12));
+    expect(parseInt(todayRow![4])).toBe(95 + guardOt);
     // total = wages (which already include OT) + extra + snack — OT counted ONCE
     // (Janus H-2, 23 Sep: the old Total added the OT column on top again).
     const total = parseInt(todayRow![5]);

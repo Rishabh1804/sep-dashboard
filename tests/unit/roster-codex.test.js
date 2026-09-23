@@ -260,7 +260,9 @@ describe('the guard: month-set day rate, plain hourly rate beyond 12 h (ruled 14
 
   test('no multiplier: his OT rate is exactly his hourly rate, never the permanent 1.1× rule', () => {
     expect(monthlyOtRate(DEF_CFG, uday, sep)).toBe(guardHourRate(uday, sep));
-    expect(monthlyOtRate(DEF_CFG, uday, sep)).not.toBeCloseTo(permOtRate(DEF_CFG, uday), 2);
+    // permOtRate refuses a guard outright (Janus M-1), so no caller can bring
+    // the 1.1× back by reaching for it.
+    expect(permOtRate(DEF_CFG, uday)).toBe(0);
     expect(monthlyOtRate(DEF_CFG, uday, sep)).not.toBeCloseTo(41.25, 2);
   });
 

@@ -38,11 +38,15 @@ export function cwHourRate(cfg, workerId) {
 // cost estimates, not pay.
 //
 // Guards are NOT priced by this rule — see guardDayRate / guardHourRate below.
-// Callers that price the whole monthly tier go through monthlyOtRate.
+// A guard id returns 0 here, so a caller that reaches for permOtRate on a guard
+// shows a visible zero rather than silently restoring the 1.1× the BM ruled out
+// (Janus M-1, 23 Sep). Callers that price the whole monthly tier go through
+// monthlyOtRate.
 //
 // A missing or non-numeric dailyRate, cap or multiplier yields 0 — a visible
 // zero on the slip, not NaN pay or a silently capped payment.
 export function permOtRate(cfg, worker) {
+  if (isGuard(cfg, worker)) return 0;
   const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
   const cap = Number(cfg.permOtBaseRate);
   const mult = Number(cfg.permOtMultiplier);
@@ -221,7 +225,9 @@ export function calcPermMonthlyPay({
   const workers = all.map((w) => {
     // Day pay and OT are accumulated UNROUNDED and floored once for the month
     // (BM, 23 Sep). A guard's day and hour rates follow the month's length.
-    const guard = guardSet.has(w.id);
+    // One definition of a guard: in the guards list passed in, or in
+    // cfg.guardIds (Janus L-3).
+    const guard = guardSet.has(w.id) || isGuard(cfg, w);
     let days = 0; let otH = 0; let baseExact = 0; let otExact = 0;
     for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
       const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;

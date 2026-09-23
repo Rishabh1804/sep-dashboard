@@ -627,7 +627,7 @@ function openSettings() {
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">\u20B9${cfg.hourRate}/hr</span></div>
             <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">\u20B9${cfg.snackRate}/day</span></div>
             <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, \u20B9${cfg.permOtBaseRate}) \xF7 8 \xD7 ${cfg.permOtMultiplier} \xB7 cap \u20B9${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
-            <div class="settings-row"><span class="card-label">Guard beyond 12 h</span><span class="card-meta">(monthly \xF7 days in month) \xF7 12 \xB7 no multiplier</span></div>
+            <div class="settings-row"><span class="card-label">Guard beyond 12 h</span><span class="card-meta">(monthly \xF7 days in month) \xF7 12 \xB7 no multiplier \xB7 \xF7 12 is the app's reading; the ruling does not state the divisor</span></div>
           </div>
         </div>
 
@@ -747,6 +747,7 @@ function cwHourRate(cfg, workerId) {
   return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
 }
 function permOtRate(cfg, worker) {
+  if (isGuard(cfg, worker)) return 0;
   const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
   const cap = Number(cfg.permOtBaseRate);
   const mult = Number(cfg.permOtMultiplier);
@@ -915,7 +916,7 @@ function calcPermMonthlyPay({
   const all = [...activePermProd, ...guards];
   const guardSet = new Set(guards.map((g) => g.id));
   const workers = all.map((w) => {
-    const guard = guardSet.has(w.id);
+    const guard = guardSet.has(w.id) || isGuard(cfg, w);
     let days = 0;
     let otH = 0;
     let baseExact = 0;

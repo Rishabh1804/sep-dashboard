@@ -1346,7 +1346,7 @@ line and adds a coupling test so they cannot silently drift again.
 | Was | Now | Why |
 |---|---|---|
 | `hourRate: 41.25` for all contract hands | **`47.50`** | ₹47.50 (= ₹380/day ÷ 8 at 1.0×) is the ratified contract rate and has been since **4 May 2026** (`tasks.md` T-F; `roles-responsibilities-v1.1.md` §"Four workers" — ⚠ **that heading now reads "THREE workers"**, amended 22 Sep when Sambhu left the daily tier; the rate it authorises is unchanged). **₹41.25 was the floor rate only THROUGH W19** — `attendance/2026-W19.md` records it applied flat to nine workers and `decisions/2026-05-16.md` ratified it as the base rate — **and it moved to ₹47.50 FROM W20**, surviving thereafter only on Champai's office line for a "special status — not factory worker for license purposes". 🔧 *An earlier version of this row said "never the floor rate", which is false pre-W20 (Iuno, cross-jurisdiction, 22 Sep). The conclusion is unchanged: a global ₹41.25 is wrong for every post-W20 week.* Seeding it globally applied one man's rate to eleven hands, so **every contract wage this app computed ran ~13% under the card.** |
-| Perm `dailyRate` flat 496 × 6 | Per-worker: Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Lal 360 · Uday 300 · Shyam 576 | The ratified 1 Apr 2026 card (`decisions/2026-06-10.md` §1). 496 was a placeholder. It remains correct as `permOtBaseRate` — 🔧 *since the 23 Sep ruling it is the OT **cap** (`min(daily, 496) ÷ 8 × 1.1`), not a flat rate and not "a standing convention".* |
+| Perm `dailyRate` flat 496 × 6 | Per-worker: Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Lal 360 · Uday 300 *(₹9,000/mo ÷ days in the month since alpha.14)* · Shyam 576 | The ratified 1 Apr 2026 card (`decisions/2026-06-10.md` §1). 496 was a placeholder. It remains correct as `permOtBaseRate` — 🔧 *since the 23 Sep ruling it is the OT **cap** (`min(daily, 496) ÷ 8 × 1.1`), not a flat rate and not "a standing convention".* |
 | "Lucky" · "Shambhu" · "Mantu" | **Lakhi · Sambhu · Montu** | Codex canon. "Lucky" was a mis-transliteration of Laxmi/Lakhi (= `lk_das`); the other two are Shyam's relay spellings. |
 | No Rakesh, no Vijay | Both added | Rakesh joined W22, Vijay 14 Jul 2026 (roster 19→20). Both evidenced contract-daily by presence on the weekly cash payout, which is itself the contract-tier instrument. **The handler PWA's check-in picker could not see either man.** |
 | Kusu, Tuklu active | `inactive: true` | Off active pool (Tuklu AWOL-confirmed 18 May). Marked, **never deleted** — deleting orphans their historical attendance. |
@@ -1650,11 +1650,25 @@ month, because they are cost estimates.
 
 **Routing:** `monthlyOtRate(cfg, worker, date)` sends a guard to
 `guardHourRate` and everyone else to `permOtRate`. The Finance tab and the Costs
-CSV both use it. `permOtRate` is now documented as never applying to a guard.
-Settings shows Uday as ₹9,000/mo and states the guard rule. A worker with no
-`monthlyWage` falls back to `dailyRate`, so an operator-added guard still gets
-priced. `seed-sync` propagates the two new fields to existing devices, because
+CSV both use it. `permOtRate` returns 0 for a guard, so a caller that reaches
+for it cannot bring back the 1.1× (Janus M-1). Settings shows Uday as ₹9,000/mo
+and states the guard rule, with the ÷ 12 marked as the app's reading. A guard
+added to `guardIds` without `monthlyWage` falls back to `dailyRate`. Settings
+cannot add a guard; `guardIds` is shipped config (Janus L-2). `seed-sync` propagates the two new fields to existing devices, because
 the shipped entry replaces a known id's saved one.
+
+⚠ **No screen records a guard's extra hours** (Janus M-3). `otHours` is written
+only for the production roster (`production.js`), and guards are not on it; the
+attendance and mark-all paths write `otHours: 0`. So the rates above price
+imported or hand-entered data correctly, but the ruling's hours cannot be
+captured here. His extra hours are paid off the codex slip until a capture path
+exists.
+
+⚠ **Two figures for one guard, and no effective dating** (Janus L-4). The daily
+cost views floor his day at ₹290 in a 31-day month; the pay card floors the month
+once (₹290.32 × days), so the two can differ by up to about ₹10. And a recompute
+of a past month applies today's rules: June's history would read a 12-hour day
+and reprice the W24 ₹82.50, which soma-internal says not to back-apply.
 
 **Tests:** unit 410 → **414**. The guard blocks were rewritten:
 - September and October rates, and February at 28 days.
@@ -1663,7 +1677,10 @@ the shipped entry replaces a known id's saved one.
 - A 10-day October month with 3 extra hours a day, paying ₹725.
 - `daysInMonthOf` including a leap year, and the fallbacks.
 
-E2E **43**. `BUILD 10 → 11`, `APP_VERSION 2.1.0-alpha.14`, both SW caches
+E2E **43**; the Costs CSV test now seeds 2 hours beyond the guard's shift and
+pins the OT column exactly, and fails if either Finance OT loop reverts to
+`permOtRate` (verified by reverting one: expected 145, received 95; Janus M-2).
+`BUILD 10 → 11`, `APP_VERSION 2.1.0-alpha.14`, both SW caches
 bumped, and `dist/` is one clean build (13 reachable, 0 missing, 0 orphans).
 
 *Amendment documented 23 September 2026 by Aurelius (Claude Code).*
