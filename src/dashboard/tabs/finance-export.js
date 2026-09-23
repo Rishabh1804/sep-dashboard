@@ -102,7 +102,10 @@ export function exportCostsCSV() {
   const month = monthOf(getState().today);
   const dates = monthDates(month);
 
-  const rows = [['Date', 'Day Wages', 'Extra Cost', 'Snack Cost', 'OT Cost', 'Total']];
+  // Day Wages already INCLUDES OT (calcDayWages adds CW and perm OT hours), so
+  // the OT column is a breakdown of it, not an addend — adding it to Total
+  // counted OT twice (Janus H-2, 23 Sep). Matches the on-screen finCost.
+  const rows = [['Date', 'Day Wages (incl. OT)', 'Extra Cost', 'Snack Cost', 'of which OT', 'Total']];
   let nonzeroCount = 0;
   for (const ds of dates) {
     const dayWage = calcDayWages({
@@ -131,7 +134,7 @@ export function exportCostsCSV() {
       const rec = peAtt[k];
       if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
     }
-    const total = dayWage + extra + snack + otCost;
+    const total = dayWage + extra + snack;
     if (total === 0) continue;
     rows.push([ds, dayWage, extra, snack, otCost, total]);
     nonzeroCount++;

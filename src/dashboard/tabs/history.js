@@ -75,7 +75,7 @@ export function renderHistory() {
     <div class="card-title">Attendance</div>
     <div class="mt-8 stat-grid">
       <div class="stat-pill"><span class="stat-pill-value text-attend">${present}</span><span class="stat-pill-label">Present</span></div>
-      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost</span></div>
+      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost (at today's rates)</span></div>
     </div>
   </div>`;
 

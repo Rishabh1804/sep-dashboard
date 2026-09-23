@@ -7,10 +7,10 @@ import { sepRound } from './currency.js';
 import { localDateStr, getWeekEnd } from './date.js';
 
 // Hourly rate for one contract hand. Flat `cfg.hourRate` for everyone except
-// the ids in `cfg.hourRateOverrides` — today just Champai, whose office rate
-// is a separate framework line and whose true rate is an open question with BM
-// (see config/wage.js). Tolerates a cfg with no overrides key so an older
-// persisted settings blob keeps working.
+// the ids in `cfg.hourRateOverrides`. The map is EMPTY since the 21 Sep BM
+// ruling put Champai on the contract rate; the mechanism stays so a future
+// exception never needs a second flat global (see config/wage.js). Tolerates a
+// cfg with no overrides key so an older persisted settings blob keeps working.
 export function cwHourRate(cfg, workerId) {
   const o = cfg.hourRateOverrides;
   const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
@@ -29,13 +29,24 @@ export function cwHourRate(cfg, workerId) {
 // Deliberately NOT rounded. `sepRound` floors to whole RUPEES, and every caller
 // used to floor the RATE: the app paid ₹68/hr against a stated ₹68.20, and the
 // per-worker rule would have paid Sambhu ₹52 against a ruled ₹52.25. Only the
-// paid AMOUNT is floored, at the call site, exactly as before.
+// paid AMOUNT is floored, at the call site — PER DAY, which on these
+// fractional rates under-pays a month by up to ₹1 per man per OT day against
+// the payout files' month-total method. Granularity is an open BM question
+// (soma-internal decisions/2026-09-23.md §5); not changed until ruled.
 //
-// A missing or non-numeric dailyRate yields 0 — a visible zero on the slip, not
-// a silently capped payment.
+// Guards get NO OT (BM, 23 Sep: "Uday gets no OT. 7-7 is his shift."), so a
+// guard id returns 0 here as well as being excluded upstream — the rate
+// function itself must not price a guard's hours if a caller ever routes him in.
+//
+// A missing or non-numeric dailyRate, cap or multiplier yields 0 — a visible
+// zero on the slip, not NaN pay or a silently capped payment.
 export function permOtRate(cfg, worker) {
+  if (worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id)) return 0;
   const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
-  return (Math.min(daily, Number(cfg.permOtBaseRate)) / 8) * Number(cfg.permOtMultiplier);
+  const cap = Number(cfg.permOtBaseRate);
+  const mult = Number(cfg.permOtMultiplier);
+  if (!Number.isFinite(cap) || !Number.isFinite(mult)) return 0;
+  return (Math.min(daily, cap) / 8) * mult;
 }
 
 

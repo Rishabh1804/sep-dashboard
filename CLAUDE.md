@@ -1346,7 +1346,7 @@ line and adds a coupling test so they cannot silently drift again.
 | Was | Now | Why |
 |---|---|---|
 | `hourRate: 41.25` for all contract hands | **`47.50`** | ₹47.50 (= ₹380/day ÷ 8 at 1.0×) is the ratified contract rate and has been since **4 May 2026** (`tasks.md` T-F; `roles-responsibilities-v1.1.md` §"Four workers" — ⚠ **that heading now reads "THREE workers"**, amended 22 Sep when Sambhu left the daily tier; the rate it authorises is unchanged). **₹41.25 was the floor rate only THROUGH W19** — `attendance/2026-W19.md` records it applied flat to nine workers and `decisions/2026-05-16.md` ratified it as the base rate — **and it moved to ₹47.50 FROM W20**, surviving thereafter only on Champai's office line for a "special status — not factory worker for license purposes". 🔧 *An earlier version of this row said "never the floor rate", which is false pre-W20 (Iuno, cross-jurisdiction, 22 Sep). The conclusion is unchanged: a global ₹41.25 is wrong for every post-W20 week.* Seeding it globally applied one man's rate to eleven hands, so **every contract wage this app computed ran ~13% under the card.** |
-| Perm `dailyRate` flat 496 × 6 | Per-worker: Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Lal 360 · Uday 300 · Shyam 576 | The ratified 1 Apr 2026 card (`decisions/2026-06-10.md` §1). 496 was a placeholder. It remains correct as `permOtBaseRate` — that is a standing convention, not a rate. |
+| Perm `dailyRate` flat 496 × 6 | Per-worker: Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Lal 360 · Uday 300 · Shyam 576 | The ratified 1 Apr 2026 card (`decisions/2026-06-10.md` §1). 496 was a placeholder. It remains correct as `permOtBaseRate` — 🔧 *since the 23 Sep ruling it is the OT **cap** (`min(daily, 496) ÷ 8 × 1.1`), not a flat rate and not "a standing convention".* |
 | "Lucky" · "Shambhu" · "Mantu" | **Lakhi · Sambhu · Montu** | Codex canon. "Lucky" was a mis-transliteration of Laxmi/Lakhi (= `lk_das`); the other two are Shyam's relay spellings. |
 | No Rakesh, no Vijay | Both added | Rakesh joined W22, Vijay 14 Jul 2026 (roster 19→20). Both evidenced contract-daily by presence on the weekly cash payout, which is itself the contract-tier instrument. **The handler PWA's check-in picker could not see either man.** |
 | Kusu, Tuklu active | `inactive: true` | Off active pool (Tuklu AWOL-confirmed 18 May). Marked, **never deleted** — deleting orphans their historical attendance. |
@@ -1446,7 +1446,7 @@ global — is precisely what produced the 41.25 bug.
 ~~**tier changed and the pay did not**~~ — **his ₹380/day is unchanged, but the
 PAY CHANGED by ≈₹2,300–2,500/month** *(Castor C-H1, 22 Sep: the original sentence
 was false as written — true of the ₹/day, and it then listed three ways the pay
-moves)*: rest credit ≈4.33 Sundays × ₹380 ≈ **+₹1,645/mo at full attendance**, gate-dependent (`S × g`, g = 100/50/0% at the ≥90 / 80–90 / <80% gate). ⭐ **The gate scales the GAIN, never the floor**: g multiplies only the rest credit, and days worked are ungated on both tiers. His old daily basis paid **no** rest Sundays (*"no Sunday pay unless Sunday work assigned"*), so at g = 0 the rest credit is zero — exactly what the daily tier paid. **He cannot earn less than on the daily tier in any month.** 🔧 *An earlier version said a bad month could fall below the daily tier; that was wrong, and the BM caught it (23 Sep). It transplanted HIGH-5's logic — which is about men whose old basis INCLUDED paid Sundays — onto a man whose old basis had none.* · OT premium ₹4.75/hr on ~152 OT hr/mo
+moves)*: rest credit ≈4.33 Sundays × ₹380 ≈ **+₹1,645/mo at full attendance**, gate-dependent (`S × g`, g = 100/50/0% at the ≥90 / 80–90 / <80% gate). ⭐ **The gate scales the GAIN, never the floor**: g multiplies only the rest credit, and days worked are ungated on both tiers. His old daily basis paid **no** rest Sundays (*"no Sunday pay unless Sunday work assigned"*), so at g = 0 the rest credit is zero — exactly what the daily tier paid. **The attendance gate cannot cut his floor.** ⚠ *Scoped 23 Sep (Castor C-H3): an earlier version said "he cannot earn less … in any month", which is broader than this argument. Two conditions are unruled and each can make a month come out lower: a Sunday worked beyond 8 hours (the daily tier paid it at ₹47.50 × actual hours; the monthly tier pays one day at ₹380), and how monthly OT hours are counted from the clock span (a 6 AM–5 PM day is ₹522.50 daily-tier, ₹536.75 monthly at 3 OT hours, ₹510.63 at 2.5).* 🔧 *An earlier version said a bad month could fall below the daily tier; that was wrong, and the BM caught it (23 Sep). It transplanted HIGH-5's logic — which is about men whose old basis INCLUDED paid Sundays — onto a man whose old basis had none.* · OT premium ₹4.75/hr on ~152 OT hr/mo
 ≈ **+₹720/mo** · a worked Sunday as an uncapped extra day at ₹380. **His OT rate is ₹52.25/hr** (= ₹380 ÷ 8 × 1.1). **OT rate RULED 23 Sep (BM): `min(daily, ₹496) ÷ 8 × 1.1`** — 1.1× the man's own rate below ₹496/day, capped at ₹68.20 at or above it. → `decisions/2026-09-23.md` §4. So the monthly uplift at full attendance is ≈**₹2,400** (≈₹720 at g = 0), and the ≈₹4,800 contract-term alternative quoted on 22–23 Sep no longer applies. 🔧 *Those quotes also said the app paid ₹68.20; it paid **₹68** — it floored the rate to whole rupees. Fixed in alpha.11.* He is the plant's
 heaviest-worked hand (80-hour weeks; the T-DV fatigue anchor), so the move also
 puts his hours on an instrument the weekly cash payout does not govern — which
@@ -1515,3 +1515,64 @@ recompute — the same limit already recorded for Sambhu's pre-September weeks.
 `APP_VERSION 2.1.0-alpha.11`, both SW caches bumped.
 
 *Amendment documented 23 September 2026 by Aurelius (Claude Code).*
+
+### Amendment — Castor + Janus review of the OT change (23 September 2026, alpha.12)
+
+Both Governors reviewed alpha.11 and the guard ruling. Janus returned **HOLD**,
+on one blocker that Castor raised independently.
+
+**The blocker: the rulings reached fresh installs only (Janus B-1 / Castor
+C-H6).** `initData()` seeded the roster, area rosters and wage config into
+localStorage *only when absent*, and every reader preferred the saved copy. A
+device first booted before alpha.9 therefore still held `hourRate 41.25`, four
+men at the ₹496 placeholder — which `permOtRate` turns into ₹68.20 OT, the
+superseded flat rate reproduced — and Sambhu on the contract list at the
+contract rate. So every rate claim made since Session 21 was true of the shipped
+config and false of the one device actually running the app. **Fixed:**
+`src/shared/storage/seed-sync.js` reconciles on every boot. Shipped values win
+for the wage config, the area rosters and every known worker id; a known id is
+removed from the tier it has left, so Sambhu can't be paid twice; workers added
+by an operator are kept; and so is an operator's deactivate/reactivate, which
+the app stamps. Attendance, advances, logs and locks are never touched. Tested
+against the verbatim main-era seed: a stale device reconciles to exactly a fresh
+install, by name.
+
+**Also fixed:** `permOtRate` returns 0 for a guard id and for a non-numeric cap
+or multiplier (Janus M-4, L-4). The Costs CSV no longer adds OT to a Total that
+already contains it (Janus H-2; this predated alpha.11). The History wage pill
+now says it is a recompute at today's rates (Janus M-3); it is the only
+past-date recompute a user can reach, and it applies the cap to July and August.
+And `dist/` now holds exactly one clean build — 11 chunks, all reachable, none
+missing, rebuild byte-identical. It had accumulated 25 orphans. ⚠ It had also
+been **missing** `chunk-SLYXW4KS.js` from alpha.8 to alpha.10, which would have
+broken the Live, Edit and Adoption boot on Pages. alpha.11 restored it without
+saying so (Janus M-1).
+
+**Corrections to the alpha.11 amendment above:**
+- "Guards … excluded in three places": there are **five** (production roster,
+  `calcDayWages`, `calcPermMonthlyPay`, the finance-tab and export OT loops, and
+  print-pay), and now `permOtRate` itself as well.
+- The ₹79.20 citation: no pre-September **monthly** slip paid Shyam OT at ₹79.20
+  (0 OT hours in June and July). The rate was applied in the April–May arrears,
+  soma-internal `operations/payouts/2026-04-05-backlog-new-rates.md` (Castor C-M8).
+- "Pre-September months come from the payout files": **there is no August
+  permanent salary file** in the codex (Castor C-H2). If August is still to be
+  paid, it must be computed outside the app on the uncapped per-worker rates.
+- Test counts: 381 at alpha.11 and 383 after the guard pin. Now **407** unit
+  (383 → 407: seed-sync, the permOtRate guard/NaN cases, the roster guard
+  cases) and **43** e2e; the
+  Costs e2e now seeds OT hours and asserts OT is counted once.
+
+**Not changed, and stated so it isn't read as done:**
+- **OT is floored per day** (Janus H-1 / Castor C-M1). On fractional rates this
+  pays up to ₹1 per man per OT day less than the payout files' method, which
+  totals the month and keeps paisa. The granularity is a BM ruling and is open.
+- **This app is not the permanent slip instrument** (Janus H-3). It computes
+  days × `dailyRate` + OT only. It has no `S × g` rest credit, no attendance
+  gate, no EXTRA-day exclusion and no worked-Sunday rule, so the Sambhu figures
+  above are the codex's, not this app's.
+
+`BUILD 8 → 9`, `APP_VERSION 2.1.0-alpha.12`, both SW caches bumped.
+
+*Amendment documented 23 September 2026 by Aurelius (Claude Code).*
+

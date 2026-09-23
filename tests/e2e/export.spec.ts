@@ -140,7 +140,7 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
         { id: 'cw_gamma', name: 'Gamma CW', inactive: false },
       ]));
       localStorage.setItem('sep_cw_att_v2', JSON.stringify({
-        [`cw_gamma_${todayKeyDate}`]: { status: 'P', time: '09:00:00', otHours: 0 },
+        [`cw_gamma_${todayKeyDate}`]: { status: 'P', time: '09:00:00', otHours: 2 },
       }));
       // Seed prod day with extra + snack costs so the costs CSV captures them.
       localStorage.setItem('sep_prod_log_v1', JSON.stringify({
@@ -161,16 +161,18 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
     const { filename, rows } = await captureDownload(page, '[data-export-costs]');
 
     expect(filename).toBe(`SEP_costs_${CURRENT_MONTH}.csv`);
-    expect(rows[0]).toEqual(['Date', 'Day Wages', 'Extra Cost', 'Snack Cost', 'OT Cost', 'Total']);
+    expect(rows[0]).toEqual(['Date', 'Day Wages (incl. OT)', 'Extra Cost', 'Snack Cost', 'of which OT', 'Total']);
     const todayRow = rows.find((r) => r[0] === today);
     expect(todayRow, `cost row for ${today} must exist; saw: ${JSON.stringify(rows)}`).toBeTruthy();
     expect(parseInt(todayRow![1])).toBeGreaterThan(0); // day wages > 0
     expect(todayRow![2]).toBe('200');
     expect(todayRow![3]).toBe('100');
-    expect(todayRow![4]).toBe('0');
-    // total = wages + extra + snack + ot
+    // 2 OT hr at the contract rate: a breakdown of Day Wages, not an addend.
+    expect(parseInt(todayRow![4])).toBeGreaterThan(0);
+    // total = wages (which already include OT) + extra + snack — OT counted ONCE
+    // (Janus H-2, 23 Sep: the old Total added the OT column on top again).
     const total = parseInt(todayRow![5]);
-    const sum = parseInt(todayRow![1]) + 200 + 100 + 0;
+    const sum = parseInt(todayRow![1]) + 200 + 100;
     expect(total).toBe(sum);
   });
 

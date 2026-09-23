@@ -1,6 +1,7 @@
 import { DEF_PERM, DEF_CW } from '../../src/shared/config/workers.js';
 import { DEF_AREAS } from '../../src/shared/config/areas.js';
 import { DEF_CFG } from '../../src/shared/config/wage.js';
+import { getActivePermProd, getGuards } from '../../src/shared/storage/workers.js';
 import {
   cwHourRate, permOtRate, calcDayWages, calcPermMonthlyPay, getAttKey,
 } from '../../src/shared/utils/payroll.js';
@@ -111,8 +112,9 @@ describe('rate card — ratified 1 Apr 2026', () => {
   });
 
   test('the flat 496 placeholder is gone from individual rates', () => {
-    // 496 stays legitimate as permOtBaseRate (a standing convention), but no
-    // worker's OWN daily rate is 496 on the ratified card.
+    // 496 stays legitimate as permOtBaseRate — since 23 Sep it is the OT CAP
+    // (min(daily, 496) ÷ 8 × 1.1) — but no worker's OWN daily rate is 496 on
+    // the ratified card.
     expect(DEF_PERM.filter((w) => w.dailyRate === 496)).toEqual([]);
     expect(DEF_CFG.permOtBaseRate).toBe(496);
   });
@@ -231,6 +233,16 @@ describe('guards get no OT (ruled 23 Sep 2026)', () => {
   const uday = DEF_PERM.find((w) => w.id === 'uday');
   const date = '2026-09-07';
   const peAtt = { [getAttKey('perm', 'uday', date)]: { status: 'P', otHours: 4 } };
+
+  test('the production roster (getActivePermProd) leaves Uday out', () => {
+    localStorage.clear();
+    expect(getActivePermProd().map((w) => w.id)).not.toContain('uday');
+    expect(getGuards().map((w) => w.id)).toEqual(['uday']);
+  });
+
+  test('permOtRate itself refuses a guard, on the shipped config', () => {
+    expect(permOtRate(DEF_CFG, uday)).toBe(0);
+  });
 
   test('Uday is a configured guard', () => {
     expect(DEF_CFG.guardIds).toContain('uday');

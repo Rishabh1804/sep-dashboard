@@ -134,6 +134,15 @@ describe('calcPermMonthlyPay', () => {
 // hourly rate; at or above it, capped at ₹68.20. Before this ruling the perm OT
 // path had NO assertion anywhere in this file — a change to it was invisible.
 describe('permOtRate', () => {
+  test('a guard id gets 0 even if a caller routes him in (BM, 23 Sep)', () => {
+    expect(permOtRate({ ...cfg, guardIds: ['uday'] }, { id: 'uday', dailyRate: 300 })).toBe(0);
+  });
+
+  test('a non-numeric cap or multiplier yields 0, never NaN pay', () => {
+    expect(permOtRate({ ...cfg, permOtBaseRate: 'x' }, { dailyRate: 380 })).toBe(0);
+    expect(permOtRate({ ...cfg, permOtMultiplier: undefined }, { dailyRate: 380 })).toBe(0);
+  });
+
   test('below the cap: 1.1× his own hourly rate — Sambhu ₹380 → ₹52.25 exactly', () => {
     expect(permOtRate(cfg, { dailyRate: 380 })).toBeCloseTo(52.25, 10);
   });
@@ -174,7 +183,7 @@ describe('perm OT through the payroll functions — the paid AMOUNT is floored, 
     expect(total).toBe(536);
   });
 
-  test('calcDayWages — Shyam, 2 OT hr: 576 + floor(2 × 68.20 = 136.40) = 712 (the old flat ₹68 paid 712 too; 3 hr is where they part)', () => {
+  test('calcDayWages — Shyam, 2 OT hr: 576 + floor(2 × 68.20 = 136.40) = 712 (the old flat ₹68 paid 712 too; 5 hr is the first whole hour where they part)', () => {
     const total = calcDayWages({
       date, cfg, cwAtt: {}, activeCW: [], guards: [],
       peAtt: { [getAttKey('perm', 'shyam', date)]: { status: 'P', otHours: 2 } },

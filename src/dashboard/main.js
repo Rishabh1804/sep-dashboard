@@ -9,7 +9,8 @@
 // violation. Future cleanup: replace template onclicks with delegated
 // data-action handlers.
 
-import { saveJSON } from '../shared/storage/storage.js';
+import { loadJSON, saveJSON } from '../shared/storage/storage.js';
+import { reconcileSeed } from '../shared/storage/seed-sync.js';
 import { K } from '../shared/storage/keys.js';
 import { getState, setState } from '../shared/storage/state.js';
 import { formatDate } from '../shared/utils/date.js';
@@ -117,12 +118,26 @@ function initTabRouting() {
   }, { passive: true });
 }
 
-// --- Default-data seed (idempotent; only writes if key absent). ---
+// --- Default-data seed (idempotent). ---
+// Roster, area rosters and wage config are RECONCILED against the shipped
+// config on every boot, not only seeded when absent — see seed-sync.js for
+// why a seed-once policy left every existing device on the old rates.
 function initData() {
-  if (!localStorage.getItem(K.peEmp))     saveJSON(K.peEmp, DEF_PERM);
-  if (!localStorage.getItem(K.cwEmp))     saveJSON(K.cwEmp, DEF_CW);
-  if (!localStorage.getItem(K.prodAreas)) saveJSON(K.prodAreas, DEF_AREAS);
-  if (!localStorage.getItem(K.prodCfg))   saveJSON(K.prodCfg, DEF_CFG);
+  const next = reconcileSeed({
+    savedPerm: loadJSON(K.peEmp, []),
+    savedCW: loadJSON(K.cwEmp, []),
+    savedCfg: loadJSON(K.prodCfg, {}),
+    defPerm: DEF_PERM, defCW: DEF_CW, defCfg: DEF_CFG, defAreas: DEF_AREAS,
+  });
+  // Write only what actually changed, so a steady-state boot neither touches
+  // storage nor fires the save-dot.
+  const writeIfChanged = (key, val) => {
+    if (localStorage.getItem(key) !== JSON.stringify(val)) saveJSON(key, val);
+  };
+  writeIfChanged(K.peEmp, next.perm);
+  writeIfChanged(K.cwEmp, next.cw);
+  writeIfChanged(K.prodAreas, next.areas);
+  writeIfChanged(K.prodCfg, next.cfg);
   if (!localStorage.getItem(K.stock))     saveJSON(K.stock, DEF_STOCK);
   if (!localStorage.getItem(K.invCfg))    saveJSON(K.invCfg, DEF_INV_CFG);
 }

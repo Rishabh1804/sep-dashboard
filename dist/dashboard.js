@@ -10,7 +10,7 @@ import {
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-OTT2F3UL.js";
+} from "./chunks/chunk-H4XQKWAC.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-CBAO3757.js";
+} from "./chunks/chunk-QQIDWLIW.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -60,6 +60,42 @@ function saveJSON(key, data) {
   } catch (e) {
     console.error("Save error:", e);
   }
+}
+
+// src/shared/storage/seed-sync.js
+var OPERATOR_STATUS = ["inactive", "deactivatedOn", "deactivateReason", "reactivatedOn"];
+function reconcileWorkers(saved, shipped, otherTierShipped) {
+  const list = (Array.isArray(saved) ? saved : []).filter((w) => w && w.id);
+  const savedById = new Map(list.map((w) => [w.id, w]));
+  const shippedIds = new Set(shipped.map((w) => w.id));
+  const otherIds = new Set(otherTierShipped.map((w) => w.id));
+  const known = shipped.map((w) => {
+    const s = savedById.get(w.id);
+    const next = { ...w };
+    if (s && (s.deactivatedOn || s.reactivatedOn)) {
+      for (const f of OPERATOR_STATUS) {
+        if (f in s) next[f] = s[f];
+      }
+    }
+    return next;
+  });
+  const added = list.filter((w) => !shippedIds.has(w.id) && !otherIds.has(w.id));
+  return [...known, ...added];
+}
+function reconcileCfg(saved, shipped) {
+  const base = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  return { ...base, ...clone(shipped) };
+}
+function reconcileSeed({ savedPerm, savedCW, savedCfg, defPerm, defCW, defCfg, defAreas }) {
+  return {
+    perm: reconcileWorkers(savedPerm, defPerm, defCW),
+    cw: reconcileWorkers(savedCW, defCW, defPerm),
+    cfg: reconcileCfg(savedCfg, defCfg),
+    areas: clone(defAreas)
+  };
+}
+function clone(v) {
+  return JSON.parse(JSON.stringify(v));
 }
 
 // src/shared/storage/keys.js
@@ -706,8 +742,12 @@ function cwHourRate(cfg, workerId) {
   return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
 }
 function permOtRate(cfg, worker) {
+  if (worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id)) return 0;
   const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
-  return Math.min(daily, Number(cfg.permOtBaseRate)) / 8 * Number(cfg.permOtMultiplier);
+  const cap = Number(cfg.permOtBaseRate);
+  const mult = Number(cfg.permOtMultiplier);
+  if (!Number.isFinite(cap) || !Number.isFinite(mult)) return 0;
+  return Math.min(daily, cap) / 8 * mult;
 }
 function getAttKey(type, id, date) {
   return `${id}_${date.replace(/-/g, "_")}`;
@@ -2842,7 +2882,7 @@ function renderHistory() {
     <div class="card-title">Attendance</div>
     <div class="mt-8 stat-grid">
       <div class="stat-pill"><span class="stat-pill-value text-attend">${present}</span><span class="stat-pill-label">Present</span></div>
-      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost</span></div>
+      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost (at today's rates)</span></div>
     </div>
   </div>`;
   if (prod) {
@@ -4110,7 +4150,7 @@ function exportPayrollCSV() {
 function exportCostsCSV() {
   const month = monthOf(getState().today);
   const dates = monthDates(month);
-  const rows = [["Date", "Day Wages", "Extra Cost", "Snack Cost", "OT Cost", "Total"]];
+  const rows = [["Date", "Day Wages (incl. OT)", "Extra Cost", "Snack Cost", "of which OT", "Total"]];
   let nonzeroCount = 0;
   for (const ds of dates) {
     const dayWage = calcDayWages({
@@ -4139,7 +4179,7 @@ function exportCostsCSV() {
       const rec = peAtt[k];
       if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
     }
-    const total = dayWage + extra + snack + otCost;
+    const total = dayWage + extra + snack;
     if (total === 0) continue;
     rows.push([ds, dayWage, extra, snack, otCost, total]);
     nonzeroCount++;
@@ -4216,10 +4256,22 @@ function initTabRouting() {
   }, { passive: true });
 }
 function initData() {
-  if (!localStorage.getItem(K.peEmp)) saveJSON(K.peEmp, DEF_PERM);
-  if (!localStorage.getItem(K.cwEmp)) saveJSON(K.cwEmp, DEF_CW);
-  if (!localStorage.getItem(K.prodAreas)) saveJSON(K.prodAreas, DEF_AREAS);
-  if (!localStorage.getItem(K.prodCfg)) saveJSON(K.prodCfg, DEF_CFG);
+  const next = reconcileSeed({
+    savedPerm: loadJSON(K.peEmp, []),
+    savedCW: loadJSON(K.cwEmp, []),
+    savedCfg: loadJSON(K.prodCfg, {}),
+    defPerm: DEF_PERM,
+    defCW: DEF_CW,
+    defCfg: DEF_CFG,
+    defAreas: DEF_AREAS
+  });
+  const writeIfChanged = (key, val) => {
+    if (localStorage.getItem(key) !== JSON.stringify(val)) saveJSON(key, val);
+  };
+  writeIfChanged(K.peEmp, next.perm);
+  writeIfChanged(K.cwEmp, next.cw);
+  writeIfChanged(K.prodAreas, next.areas);
+  writeIfChanged(K.prodCfg, next.cfg);
   if (!localStorage.getItem(K.stock)) saveJSON(K.stock, DEF_STOCK);
   if (!localStorage.getItem(K.invCfg)) saveJSON(K.invCfg, DEF_INV_CFG);
 }

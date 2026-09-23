@@ -17,6 +17,8 @@
 > | `sep_cw_cfg_v2 → {hourRate: 41.25}` | `{hourRate: 47.50}` |
 > | Contract workers **(11)**: Kusu, Sripati, Naren, Champai, Budheswar, Sai, Shambhu, Mantu, Rocky, Birsa, Tuklu | **10 active**: Sripati, Budheswer, Birsa, Rocky, Champai, Sai, Naren, **Montu**, **Rakesh**, **Vijay**. Kusu and Tuklu are off-pool; **Sambhu** moved to the monthly tier in September 2026; *Shambhu*/*Mantu* were mis-transliterations |
 > | — | Roster is **20**: 10 monthly-tier + 10 daily hands |
+> | Perm daily rates flat **₹496** for six men; Uday ₹360 | Per-worker 1-Apr card: Shyam 576 · Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Sambhu 380 · Lal 360 · Uday 300 |
+> | **Perm OT rate** ₹496 ÷ 8 × 1.1 = **₹68/hr** for all eligible perm, and the `OT_hours × ₹68/hr` formula | **`min(dailyRate, ₹496) ÷ 8 × 1.1`**, capped at ₹68.20 — per-worker below ₹496 (Sambhu ₹52.25 … Lal ₹49.50). BM ruling 23 Sep 2026, from the September slip. **Guards get no OT.** *(Castor C-H4, 23 Sep)* |
 >
 > Everything architectural below (the localStorage key inventory, the tab
 > structure, the function census) remains an accurate record of v2.1 and is why

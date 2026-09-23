@@ -75,8 +75,8 @@ var DEF_STOCK = [
 ];
 
 // src/shared/config/app.js
-var APP_VERSION = "2.1.0-alpha.9";
-var BUILD = 6;
+var APP_VERSION = "2.1.0-alpha.12";
+var BUILD = 9;
 
 // src/shared/types/rule-bounds.js
 var QTY_MAX = 1e5;
@@ -120,4 +120,4 @@ export {
   CHECK_SLOTS,
   deriveTotalQty
 };
-//# sourceMappingURL=chunk-EXK47AZP.js.map
+//# sourceMappingURL=chunk-QQIDWLIW.js.map
