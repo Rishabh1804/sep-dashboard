@@ -1503,7 +1503,9 @@ fails CI rather than surfacing on a slip.
 OT. 7-7 is his shift."* His 12-hour span is his standard day. The app already
 excluded guards from OT in three places (production roster, `calcDayWages`,
 `calcPermMonthlyPay`); that is now pinned against the shipped config in
-`roster-codex.test.js`, and Uday is out of the per-man OT-rate map.
+`roster-codex.test.js`, and Uday is out of the per-man OT-rate map. 🔧 *(Later
+the same day: the 7–7 shift carries no OT, but hours above his 12-hour day ARE
+paid at his plain hourly rate — see the alpha.14 amendment.)*
 
 **The cap applies from the September slip (BM, 23 Sep).** ⚠ The app has **no
 effective-dated rates** — it computes any month with the rules it holds now, so
@@ -1591,11 +1593,14 @@ they are cost estimates, not pay.
 
 **2. Directed work by the guard is paid.** The 7 AM–7 PM gate shift is his
 standard day and is never recorded as OT. BM-directed non-gate work beyond it
-**is** paid, on the W24 precedent (2 hr at ₹41.25). ~~So hours recorded as OT on a
+**is** paid, on the W24 precedent (2 hr at ₹41.25). 🔧 *(Mis-scoped, per the codex's
+Governor chain: W24 was an 8:30 AM start, so those 2 hours were inside twelve and
+are not the hours the later ruling prices. See alpha.14's Scope paragraph.)* ~~So hours recorded as OT on a
 guard now price at `permOtRate` like any other monthly man.~~ 🔴 **Superseded
 in alpha.14 (below): no 1.1× and not `permOtRate`. The hours are paid at his
 plain hourly rate, which follows the month.** That reverses
-alpha.12's guard-zero in `permOtRate` and the guard skip in
+~~alpha.12's guard-zero in `permOtRate` and~~ 🔧 *(the guard-zero was restored in
+`c628466`, Janus M-1: `permOtRate` returns 0 for a guard again)* the guard skip in
 `calcPermMonthlyPay`, and adds guard OT to the daily and cost views. The
 production roster still excludes guards. ⚠ The BM ruled on soma-internal `main`
 (14 Sep) that Uday is paid ₹9,000/month with the day rate = ₹9,000 ÷ days in the
@@ -1607,7 +1612,10 @@ app is not the slip instrument (alpha.12 amendment).
 **3. August's permanent salary was paid.** It is on soma-internal `main`
 (`operations/payouts/2026-08-permanent-salary.md`, paid 14 Sep, OT at the
 uncapped per-worker rates). The alpha.12 claim that no file existed was measured
-on a branch cut 22 Aug and 207 commits behind `main`.
+on a branch cut 22 Aug and 207 commits behind `main`. ⚠ *Paid is a confirmation,
+not a reconciliation: it went out on the superseded Rev 5 face with no recorded
+authorisation, and Uday was paid ₹7,650.00 against the ruled ₹8,129.03, so
+₹479.03 is owed (soma-internal T-GS).*
 
 **4. A Sunday worked past 8 hours pays the excess as OT.** This app has no
 worked-Sunday rule (alpha.12 amendment). A Sunday recorded as present with its
@@ -1650,7 +1658,8 @@ no ruling states its rate, so the app has no rule for it.
 
 **This also closes alpha.13's approximation.** The day rate follows the month
 too, not a fixed ₹300. August now reproduces the codex's ruled ₹8,129.03
-(28 days × ₹9,000 ÷ 31). The app shows ₹8,129 because it floors the month
+(28 days × ₹9,000 ÷ 31) — the ruled figure, not what was paid: the bank paid
+₹7,650.00 and ₹479.03 is owed (soma-internal T-GS). The app shows ₹8,129 because it floors the month
 total once, the same as OT. `calcPermMonthlyPay` accumulates day pay unrounded
 for that reason. The daily cost views floor the guard's day at ₹290 in a 31-day
 month, because they are cost estimates.
