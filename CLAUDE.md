@@ -1638,8 +1638,15 @@ his rates come from the month being paid, in `utils/payroll.js`:
 ⚠ **The ÷ 12 divisor is this app's reading, not the ruling's words.** The
 ruling says the rate is set by the days in the month but does not say what the
 day is divided by. His standard day is 12 hours, so ÷ 12 is the natural reading.
-÷ 8 would give ₹37.50 and ₹36.29. It is the `shiftHours` field on his row, so a
-different ruling is a one-field change.
+÷ 8 would give ₹37.50 and ₹36.29; ÷ 11, if the unpaid 12:30–1:30 hour reaches
+the gate, ₹27.27 and ₹26.39 (Castor C-H2). The divisor is an open BM question on
+soma-internal T-HU. It is the `shiftHours` field on his row, so a different
+ruling is a one-field change.
+
+⚠ **Scope** (Castor C-H1): the ruling prices hours **above his 12-hour day**,
+which is after 7 PM only on a 7 AM start. `otHours` on a guard means that and
+nothing else. Directed non-gate work inside the 12 (the W24 class) is paid, but
+no ruling states its rate, so the app has no rule for it.
 
 **This also closes alpha.13's approximation.** The day rate follows the month
 too, not a fixed ₹300. August now reproduces the codex's ruled ₹8,129.03

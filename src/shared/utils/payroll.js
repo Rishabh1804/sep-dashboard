@@ -61,13 +61,17 @@ export function permOtRate(cfg, worker) {
 //     ruled at ₹8,129.03 = 28 days × ₹9,000 ÷ 31.
 //   · 23 Sep: "7-7 is his shift" — the 12-hour gate shift is his standard day
 //     and is never recorded as OT.
-//   · 23 Sep: hours beyond the 12 are paid at his PLAIN hourly rate — no 1.1×,
-//     no special OT rate — and that hourly rate follows the days in the month.
+//   · 23 Sep: hours ABOVE his 12-hour day are paid at his PLAIN hourly rate —
+//     no 1.1×, no special OT rate — and that hourly rate follows the days in the
+//     month. otHours on a guard means hours above 12 and nothing else: directed
+//     non-gate work INSIDE the 12 is paid too, at a rate no ruling states.
 //
 // ⚠ The hourly rate is day rate ÷ shiftHours (12). The ruling says the rate is
 // "decided based on the days in that specific month"; dividing the day by his
 // 12-hour day rather than by 8 is this app's reading of it (₹24.19/hr in a
-// 31-day month, ₹25.00 in a 30-day one; ÷ 8 would be ₹36.29 / ₹37.50).
+// 31-day month, ₹25.00 in a 30-day one; ÷ 8 would be ₹36.29 / ₹37.50, and ÷ 11
+// — if the unpaid 12:30–1:30 hour reaches the gate — ₹26.39 / ₹27.27). The
+// divisor is an open BM question (soma-internal T-HU). It is `shiftHours`.
 //
 // A worker with no monthlyWage falls back to the fixed dailyRate, so an
 // operator-added guard still prices. Rates are exact; callers floor the paid

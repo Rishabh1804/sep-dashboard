@@ -58,7 +58,7 @@ export const DEF_CFG = {
   permOtMultiplier: 1.1,
   permOtBaseRate: 496,
   // Guards: not on the production roster. Their 7–7 shift is their standard
-  // day; hours recorded as OT on a guard are hours beyond it, paid at his
+  // day; otHours on a guard means hours ABOVE his 12-hour day only, paid at his
   // plain hourly rate (day rate ÷ 12, no multiplier; BM, 23 Sep 2026) — see
   // guardHourRate in utils/payroll.js, never permOtRate.
   guardIds: ['uday'],
