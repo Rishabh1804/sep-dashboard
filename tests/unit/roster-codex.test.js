@@ -1,7 +1,7 @@
 import { DEF_PERM, DEF_CW } from '../../src/shared/config/workers.js';
 import { DEF_AREAS } from '../../src/shared/config/areas.js';
 import { DEF_CFG } from '../../src/shared/config/wage.js';
-import { cwHourRate } from '../../src/shared/utils/payroll.js';
+import { cwHourRate, permOtRate } from '../../src/shared/utils/payroll.js';
 
 // These figures are PINNED to the soma-internal codex, which owns the roster
 // and the rate card. They are restated here rather than imported because that
@@ -177,5 +177,41 @@ describe('handler picker sees the live floor', () => {
     expect(names).not.toContain('Kusu');
     expect(names).not.toContain('Tuklu');
     expect(names).not.toContain('Rounak');
+  });
+});
+
+
+// ── Perm OT per man, from the SHIPPED config — BM ruling, 23 Sep 2026 ──────
+// OT/hr = min(dailyRate, 496) ÷ 8 × 1.1 (soma-internal `decisions/2026-09-23.md`
+// §4). Pinned per worker so that a change to anyone's daily rate that moves his
+// OT fails here, by name, rather than surfacing on a slip.
+describe('perm OT rate per worker (ruled 23 Sep 2026)', () => {
+  const expected = {
+    shyam_bera: 68.2,   // 576 → capped (79.20 uncapped)
+    sharat_mahato: 68.2, // 500 → capped (68.75 uncapped)
+    rupa_bera: 68.2,    // 500 → capped (68.75 uncapped)
+    sunil_mahato: 64.625, // 470
+    suklal: 60.5,       // 440
+    shambhu: 52.25,     // 380 — the ruling names this figure explicitly
+    lk_das: 57.75,      // 420 (Lakhi)
+    bp_sharma: 56.375,  // 410 (Bhanu)
+    lal: 49.5,          // 360
+    uday: 41.25,        // 300 — the guard; see the eligibility note below
+  };
+
+  test('every active perm man is pinned, and none is left unpinned', () => {
+    const active = DEF_PERM.filter((w) => !w.inactive).map((w) => w.id).sort();
+    expect(active).toEqual(Object.keys(expected).sort());
+  });
+
+  test.each(Object.entries(expected))('%s → ₹%s/hr', (id, rate) => {
+    const w = DEF_PERM.find((x) => x.id === id);
+    expect(permOtRate(DEF_CFG, w)).toBeCloseTo(rate, 10);
+  });
+
+  test('exactly three men sit on the cap, and they are the three above ₹496', () => {
+    const capped = DEF_PERM.filter((w) => !w.inactive && w.dailyRate >= DEF_CFG.permOtBaseRate)
+      .map((w) => w.id).sort();
+    expect(capped).toEqual(['rupa_bera', 'sharat_mahato', 'shyam_bera']);
   });
 });

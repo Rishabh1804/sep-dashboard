@@ -7,7 +7,7 @@ import { sepRound } from '../../shared/utils/currency.js';
 import { getWeekEnd } from '../../shared/utils/date.js';
 import { monthOf, monthDates } from '../../shared/utils/month.js';
 import { csvDownload } from '../../shared/utils/csv.js';
-import { getAttKey, calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay } from '../../shared/utils/payroll.js';
+import { getAttKey, calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay, permOtRate, cwHourRate } from '../../shared/utils/payroll.js';
 import { getActiveCW, getActivePermProd, getGuards, getPermWorkers } from '../../shared/storage/workers.js';
 import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production.js';
 import { DEF_CFG } from '../../shared/config/wage.js';
@@ -124,12 +124,12 @@ export function exportCostsCSV() {
     for (const w of getActiveCW()) {
       const k = getAttKey('cw', w.id, ds);
       const rec = cwAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+      if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
     }
     for (const w of getActivePermProd()) {
       const k = getAttKey('perm', w.id, ds);
       const rec = peAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier));
+      if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
     }
     const total = dayWage + extra + snack + otCost;
     if (total === 0) continue;

@@ -1447,7 +1447,7 @@ global — is precisely what produced the 41.25 bug.
 PAY CHANGED by ≈₹2,300–2,500/month** *(Castor C-H1, 22 Sep: the original sentence
 was false as written — true of the ₹/day, and it then listed three ways the pay
 moves)*: rest credit ≈4.33 Sundays × ₹380 ≈ **+₹1,645/mo at full attendance**, gate-dependent (`S × g`, g = 100/50/0% at the ≥90 / 80–90 / <80% gate). ⭐ **The gate scales the GAIN, never the floor**: g multiplies only the rest credit, and days worked are ungated on both tiers. His old daily basis paid **no** rest Sundays (*"no Sunday pay unless Sunday work assigned"*), so at g = 0 the rest credit is zero — exactly what the daily tier paid. **He cannot earn less than on the daily tier in any month.** 🔧 *An earlier version said a bad month could fall below the daily tier; that was wrong, and the BM caught it (23 Sep). It transplanted HIGH-5's logic — which is about men whose old basis INCLUDED paid Sundays — onto a man whose old basis had none.* · OT premium ₹4.75/hr on ~152 OT hr/mo
-≈ **+₹720/mo** · a worked Sunday as an uncapped extra day at ₹380. **His OT rate is ₹52.25/hr on the per-worker basis** (= ₹380 ÷ 8 × 1.1) — ⚠ **but the app computes perm OT on the P01 v3 contract term**, `permOtBaseRate` 496 ÷ 8 × 1.1 = **₹68.20/hr for every permanent man regardless of daily rate** (`src/shared/config/wage.js`, `payroll.js`). Which basis applies is **T-CJ's open question** (Iuno M-1). Until BM rules, a September slip computed by the app pays him **₹68.20**, and the monthly uplift is ≈**₹2,400** (per-worker) or ≈**₹4,800** (contract term) at full attendance. Either way it is above the daily tier's ₹47.50. He is the plant's
+≈ **+₹720/mo** · a worked Sunday as an uncapped extra day at ₹380. **His OT rate is ₹52.25/hr** (= ₹380 ÷ 8 × 1.1). **OT rate RULED 23 Sep (BM): `min(daily, ₹496) ÷ 8 × 1.1`** — 1.1× the man's own rate below ₹496/day, capped at ₹68.20 at or above it. → `decisions/2026-09-23.md` §4. So the monthly uplift at full attendance is ≈**₹2,400** (≈₹720 at g = 0), and the ≈₹4,800 contract-term alternative quoted on 22–23 Sep no longer applies. 🔧 *Those quotes also said the app paid ₹68.20; it paid **₹68** — it floored the rate to whole rupees. Fixed in alpha.11.* He is the plant's
 heaviest-worked hand (80-hour weeks; the T-DV fatigue anchor), so the move also
 puts his hours on an instrument the weekly cash payout does not govern — which
 is the exact gap Castor's C-1 keeps raising.
@@ -1469,3 +1469,40 @@ Suklal is Pickling Lead and permanent — so his area rosters are unaffected.
 caches bumped.
 
 *Amendment documented 21 September 2026 by Aurelius (Claude Code).*
+
+### Amendment — perm OT rate ruled (23 September 2026, alpha.11)
+
+**BM ruling:** permanent-tier OT = **`min(dailyRate, ₹496) ÷ 8 × 1.1`**. Below
+₹496/day it is 1.1× the man's own hourly rate (Sambhu ₹52.25, Suklal ₹60.50,
+Lal ₹49.50…); at or above it, capped at **₹68.20** (Shyam, Sarat, Rupa). The
+`permOtBaseRate` of 496 survives as the **cap**, not as a flat rate.
+
+**What was wrong before, and it was two things, not one.** The app paid every
+permanent man one flat rate regardless of daily rate — and that rate was **₹68,
+not the ₹68.20** the codex kept quoting, because all four compute sites did
+`sepRound((496 / 8) × 1.1)` and `sepRound` floors to whole **rupees**. Applying
+the new rule on that pattern would have paid Sambhu ₹52 against a ruled ₹52.25.
+
+**Now:** one function, `permOtRate(cfg, worker)` in `utils/payroll.js`, used by
+`calcDayWages`, `calcPermMonthlyPay`, the Finance tab and the Finance export. The
+rate is exact; only the paid amount is floored, as before. The CW-OT lines beside
+them had the same shape — `cfg.hourRate` direct, bypassing the Session-21
+`cwHourRate` override helper — and now route through it too (no effect today;
+the override map is empty). The Settings panel, which displayed one flat rate,
+now shows the rule.
+
+**Coverage that did not exist.** The perm OT path had **no assertion anywhere** —
+`payroll.test.js` set `permOtBaseRate` and never checked an OT figure, so any
+change to it was invisible. Now: the rule and its boundary at exactly ₹496, the
+unfloored rate, a junk-rate guard, the paid amount through both payroll
+functions, and every live permanent man's rate pinned **by name from the shipped
+config** in `roster-codex.test.js`, so a daily-rate change that moves someone's OT
+fails CI rather than surfacing on a slip.
+
+**Not changed, and worth knowing:** guards (Uday) remain **ineligible for OT**
+in the app before any rate applies. The ruling set a rate, not an eligibility.
+
+**Tests:** unit 360 → **381**, e2e **43**, build clean. `BUILD 7 → 8`,
+`APP_VERSION 2.1.0-alpha.11`, both SW caches bumped.
+
+*Amendment documented 23 September 2026 by Aurelius (Claude Code).*

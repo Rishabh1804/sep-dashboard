@@ -8,7 +8,7 @@ import { sepRound, formatCurrency } from '../../shared/utils/currency.js';
 import { getWeekEnd, formatDateShort } from '../../shared/utils/date.js';
 import { monthOf } from '../../shared/utils/month.js';
 import { isMonthLocked, requireUnlocked, getMonthLocks } from '../../shared/storage/lock.js';
-import { getAttKey, calcDayWages, calcMonthWages, calcCWWeeklyPay, calcPermMonthlyPay } from '../../shared/utils/payroll.js';
+import { getAttKey, calcDayWages, calcMonthWages, calcCWWeeklyPay, calcPermMonthlyPay, permOtRate, cwHourRate } from '../../shared/utils/payroll.js';
 import { getActiveCW, getActivePermProd, getGuards, getPermWorkers, getAllProdWorkers } from '../../shared/storage/workers.js';
 import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production.js';
 import { getInvoices } from '../../shared/storage/invoice.js';
@@ -88,12 +88,12 @@ export function renderFinance() {
   getActiveCW().forEach((w) => {
     const k = getAttKey('cw', w.id, date);
     const rec = cwAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+    if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
   });
   getActivePermProd().forEach((w) => {
     const k = getAttKey('perm', w.id, date);
     const rec = peAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier));
+    if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
   });
   document.getElementById('finOT').textContent = formatCurrency(otCost);
 

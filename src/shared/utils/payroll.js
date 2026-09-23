@@ -17,6 +17,27 @@ export function cwHourRate(cfg, workerId) {
   return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
 }
 
+// Permanent-tier OT rate — BM ruling, 23 Sep 2026 (soma-internal
+// `decisions/2026-09-23.md` §4):
+//
+//   OT/hr = min(dailyRate, permOtBaseRate) ÷ 8 × permOtMultiplier
+//
+// Below ₹496/day a man's OT is 1.1× his own hourly rate (Sambhu ₹380 → ₹52.25).
+// At or above ₹496 it is CAPPED at the P01 v3 contract term, ₹496 ÷ 8 × 1.1 =
+// ₹68.20 (Shyam, Sarat, Rupa). The two are continuous at exactly ₹496.
+//
+// Deliberately NOT rounded. `sepRound` floors to whole RUPEES, and every caller
+// used to floor the RATE: the app paid ₹68/hr against a stated ₹68.20, and the
+// per-worker rule would have paid Sambhu ₹52 against a ruled ₹52.25. Only the
+// paid AMOUNT is floored, at the call site, exactly as before.
+//
+// A missing or non-numeric dailyRate yields 0 — a visible zero on the slip, not
+// a silently capped payment.
+export function permOtRate(cfg, worker) {
+  const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
+  return (Math.min(daily, Number(cfg.permOtBaseRate)) / 8) * Number(cfg.permOtMultiplier);
+}
+
 
 // Build the storage-key suffix used by attendance subtables.
 export function getAttKey(type, id, date) {
@@ -47,7 +68,7 @@ export function calcDayWages({
     if (!rec || rec.status === 'A') continue;
     total += w.dailyRate;
     if (rec.otHours && rec.otHours > 0) {
-      const otRate = sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier);
+      const otRate = permOtRate(cfg, w);
       total += sepRound(rec.otHours * otRate);
     }
   }
@@ -146,7 +167,7 @@ export function calcPermMonthlyPay({
       days++;
       basePay += w.dailyRate;
       if (rec.otHours && rec.otHours > 0 && !guardIds.includes(w.id)) {
-        const rate = sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier);
+        const rate = permOtRate(cfg, w);
         otPay += sepRound(rec.otHours * rate);
         otH += rec.otHours;
       }

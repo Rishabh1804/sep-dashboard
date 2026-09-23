@@ -1,6 +1,8 @@
-// Wage and shift defaults. CW are paid hourly (`hourRate`); Perm OT is
-// pro-rated on `permOtBaseRate` × `permOtMultiplier` regardless of the
-// worker's normal daily rate, by Sovereign convention.
+// Wage and shift defaults. CW are paid hourly (`hourRate`). Perm OT is
+// `min(dailyRate, permOtBaseRate) ÷ 8 × permOtMultiplier` — 1.1× the man's own
+// hourly rate below ₹496/day, capped at ₹68.20/hr at or above it (BM, 23 Sep
+// 2026; see `permOtRate` in utils/payroll.js). It USED to be the flat
+// `permOtBaseRate` for every perm man regardless of daily rate — floored to ₹68.
 //
 // ── hourRate: 41.25 → 47.50 (corrected) ─────────────────────────────────────
 // ₹47.50/hr is the ratified CONTRACT DAILY-HAND rate and has been since

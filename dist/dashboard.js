@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-UGLDB35L.js";
+} from "./chunks/chunk-CUWADEJ4.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-GVY6HQ26.js";
+} from "./chunks/chunk-OTT2F3UL.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-ENAYTB3R.js";
+} from "./chunks/chunk-CBAO3757.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -586,7 +586,7 @@ function openSettings() {
             <div class="settings-row"><span class="card-label">Version</span><span class="card-meta">v${APP_VERSION}</span></div>
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">\u20B9${cfg.hourRate}/hr</span></div>
             <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">\u20B9${cfg.snackRate}/day</span></div>
-            <div class="settings-row"><span class="card-label">Perm OT Base</span><span class="card-meta">\u20B9${cfg.permOtBaseRate}/day \u2192 \u20B9${sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier)}/hr</span></div>
+            <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, \u20B9${cfg.permOtBaseRate}) \xF7 8 \xD7 ${cfg.permOtMultiplier} \xB7 cap \u20B9${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
           </div>
         </div>
 
@@ -705,6 +705,10 @@ function cwHourRate(cfg, workerId) {
   const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
   return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
 }
+function permOtRate(cfg, worker) {
+  const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
+  return Math.min(daily, Number(cfg.permOtBaseRate)) / 8 * Number(cfg.permOtMultiplier);
+}
 function getAttKey(type, id, date) {
   return `${id}_${date.replace(/-/g, "_")}`;
 }
@@ -732,7 +736,7 @@ function calcDayWages({
     if (!rec || rec.status === "A") continue;
     total += w.dailyRate;
     if (rec.otHours && rec.otHours > 0) {
-      const otRate = sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier);
+      const otRate = permOtRate(cfg, w);
       total += sepRound(rec.otHours * otRate);
     }
   }
@@ -858,7 +862,7 @@ function calcPermMonthlyPay({
       days++;
       basePay += w.dailyRate;
       if (rec.otHours && rec.otHours > 0 && !guardIds.includes(w.id)) {
-        const rate2 = sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier);
+        const rate2 = permOtRate(cfg, w);
         otPay += sepRound(rec.otHours * rate2);
         otH += rec.otHours;
       }
@@ -2097,12 +2101,12 @@ function renderFinance() {
   getActiveCW().forEach((w) => {
     const k = getAttKey("cw", w.id, date);
     const rec = cwAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+    if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
   });
   getActivePermProd().forEach((w) => {
     const k = getAttKey("perm", w.id, date);
     const rec = peAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier));
+    if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
   });
   document.getElementById("finOT").textContent = formatCurrency(otCost);
   renderCWPayCard();
@@ -4128,12 +4132,12 @@ function exportCostsCSV() {
     for (const w of getActiveCW()) {
       const k = getAttKey("cw", w.id, ds);
       const rec = cwAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+      if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
     }
     for (const w of getActivePermProd()) {
       const k = getAttKey("perm", w.id, ds);
       const rec = peAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier));
+      if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
     }
     const total = dayWage + extra + snack + otCost;
     if (total === 0) continue;

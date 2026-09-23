@@ -8,7 +8,6 @@ import { getPermWorkers, getCWWorkers } from '../shared/storage/workers.js';
 import { getSettings } from '../shared/storage/settings.js';
 import { getCfg } from '../shared/storage/production.js';
 import { getInvCfg } from '../shared/storage/invoice.js';
-import { sepRound } from '../shared/utils/currency.js';
 import { esc } from '../shared/utils/format.js';
 import { formatDateShort } from '../shared/utils/date.js';
 import { getState } from '../shared/storage/state.js';
@@ -82,7 +81,7 @@ export function openSettings() {
             <div class="settings-row"><span class="card-label">Version</span><span class="card-meta">v${APP_VERSION}</span></div>
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">₹${cfg.hourRate}/hr</span></div>
             <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">₹${cfg.snackRate}/day</span></div>
-            <div class="settings-row"><span class="card-label">Perm OT Base</span><span class="card-meta">₹${cfg.permOtBaseRate}/day → ₹${sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier)}/hr</span></div>
+            <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, ₹${cfg.permOtBaseRate}) ÷ 8 × ${cfg.permOtMultiplier} · cap ₹${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
           </div>
         </div>
 
