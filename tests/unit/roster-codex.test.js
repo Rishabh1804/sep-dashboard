@@ -1,7 +1,9 @@
 import { DEF_PERM, DEF_CW } from '../../src/shared/config/workers.js';
 import { DEF_AREAS } from '../../src/shared/config/areas.js';
 import { DEF_CFG } from '../../src/shared/config/wage.js';
-import { cwHourRate, permOtRate } from '../../src/shared/utils/payroll.js';
+import {
+  cwHourRate, permOtRate, calcDayWages, calcPermMonthlyPay, getAttKey,
+} from '../../src/shared/utils/payroll.js';
 
 // These figures are PINNED to the soma-internal codex, which owns the roster
 // and the rate card. They are restated here rather than imported because that
@@ -196,11 +198,13 @@ describe('perm OT rate per worker (ruled 23 Sep 2026)', () => {
     lk_das: 57.75,      // 420 (Lakhi)
     bp_sharma: 56.375,  // 410 (Bhanu)
     lal: 49.5,          // 360
-    uday: 41.25,        // 300 — the guard; see the eligibility note below
+    // uday is NOT here: guards get no OT at all (BM, 23 Sep) — see below.
   };
 
-  test('every active perm man is pinned, and none is left unpinned', () => {
-    const active = DEF_PERM.filter((w) => !w.inactive).map((w) => w.id).sort();
+  test('every active OT-eligible perm man is pinned, and none is left unpinned', () => {
+    const active = DEF_PERM
+      .filter((w) => !w.inactive && !DEF_CFG.guardIds.includes(w.id))
+      .map((w) => w.id).sort();
     expect(active).toEqual(Object.keys(expected).sort());
   });
 
@@ -213,5 +217,41 @@ describe('perm OT rate per worker (ruled 23 Sep 2026)', () => {
     const capped = DEF_PERM.filter((w) => !w.inactive && w.dailyRate >= DEF_CFG.permOtBaseRate)
       .map((w) => w.id).sort();
     expect(capped).toEqual(['rupa_bera', 'sharat_mahato', 'shyam_bera']);
+  });
+});
+
+
+// ── Guards get NO OT — BM ruling, 23 Sep 2026 ─────────────────────────────
+// "Uday gets no OT. 7-7 is his shift." His 12-hour span is his standard day,
+// so an otHours value on a guard's record must never reach his pay. The app
+// enforces this in three places (the production roster excludes guardIds;
+// calcDayWages pays guards dailyRate only; calcPermMonthlyPay skips OT for
+// guardIds) — pinned here against the SHIPPED config, not a fixture.
+describe('guards get no OT (ruled 23 Sep 2026)', () => {
+  const uday = DEF_PERM.find((w) => w.id === 'uday');
+  const date = '2026-09-07';
+  const peAtt = { [getAttKey('perm', 'uday', date)]: { status: 'P', otHours: 4 } };
+
+  test('Uday is a configured guard', () => {
+    expect(DEF_CFG.guardIds).toContain('uday');
+    expect(uday && !uday.inactive).toBe(true);
+  });
+
+  test('calcDayWages pays a guard his daily rate and nothing for OT hours', () => {
+    const total = calcDayWages({
+      date, cfg: DEF_CFG, cwAtt: {}, peAtt, activeCW: [], activePermProd: [], guards: [uday],
+    });
+    expect(total).toBe(uday.dailyRate);
+  });
+
+  test('calcPermMonthlyPay records no OT hours or OT pay for a guard', () => {
+    const { workers } = calcPermMonthlyPay({
+      date, today: date, cfg: DEF_CFG, peAtt, peAdv: {},
+      activePermProd: [], guards: [uday], guardIds: DEF_CFG.guardIds,
+    });
+    const r = workers.find((x) => x.id === 'uday');
+    expect(r.otPay).toBe(0);
+    expect(r.otH).toBe(0);
+    expect(r.basePay).toBe(uday.dailyRate);
   });
 });

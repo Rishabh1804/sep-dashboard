@@ -1499,8 +1499,17 @@ functions, and every live permanent man's rate pinned **by name from the shipped
 config** in `roster-codex.test.js`, so a daily-rate change that moves someone's OT
 fails CI rather than surfacing on a slip.
 
-**Not changed, and worth knowing:** guards (Uday) remain **ineligible for OT**
-in the app before any rate applies. The ruling set a rate, not an eligibility.
+**Guards get no OT — ruled, not just inherited (BM, 23 Sep):** *"Uday gets no
+OT. 7-7 is his shift."* His 12-hour span is his standard day. The app already
+excluded guards from OT in three places (production roster, `calcDayWages`,
+`calcPermMonthlyPay`); that is now pinned against the shipped config in
+`roster-codex.test.js`, and Uday is out of the per-man OT-rate map.
+
+**The cap applies from the September slip (BM, 23 Sep).** ⚠ The app has **no
+effective-dated rates** — it computes any month with the rules it holds now, so
+recomputing July or August here caps Shyam's OT at ₹68.20 against the ₹79.20
+rate the pre-September slips used. Pre-September months come from the codex's payout files, not a
+recompute — the same limit already recorded for Sambhu's pre-September weeks.
 
 **Tests:** unit 360 → **381**, e2e **43**, build clean. `BUILD 7 → 8`,
 `APP_VERSION 2.1.0-alpha.11`, both SW caches bumped.
