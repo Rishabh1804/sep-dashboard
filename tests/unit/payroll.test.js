@@ -1,5 +1,6 @@
 import {
   calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay, getAttKey, cwHourRate, permOtRate,
+  monthlyOtRate, guardDayRate, guardHourRate, daysInMonthOf,
 } from '../../src/shared/utils/payroll.js';
 
 // Fixture, not the shipped config — but it now carries the RATIFIED contract
@@ -134,8 +135,11 @@ describe('calcPermMonthlyPay', () => {
 // hourly rate; at or above it, capped at ₹68.20. Before this ruling the perm OT
 // path had NO assertion anywhere in this file — a change to it was invisible.
 describe('permOtRate', () => {
-  test('a guard is priced by the same rule — directed work beyond his shift is paid (BM, 23 Sep)', () => {
-    expect(permOtRate({ ...cfg, guardIds: ['uday'] }, { id: 'uday', dailyRate: 300 })).toBeCloseTo(41.25, 10);
+  test('monthlyOtRate routes a guard to his plain hourly rate, never this rule (BM, 23 Sep)', () => {
+    const g = { id: 'uday', dailyRate: 300, monthlyWage: 9000, shiftHours: 12 };
+    const c = { ...cfg, guardIds: ['uday'] };
+    expect(monthlyOtRate(c, g, '2026-09-07')).toBeCloseTo(25, 10);
+    expect(monthlyOtRate(c, { id: 'x', dailyRate: 380 }, '2026-09-07')).toBeCloseTo(52.25, 10);
   });
 
   test('a non-numeric cap or multiplier yields 0, never NaN pay', () => {
@@ -238,3 +242,30 @@ describe('perm OT is rounded once per month, not per day (ruled 23 Sep 2026)', (
   });
 });
 
+
+
+// ── Guard rates — BM, 14 + 23 Sep 2026 ───────────────────────────────────────
+// Day rate = monthlyWage ÷ days in the month; hourly = day rate ÷ shiftHours,
+// no multiplier. A guard with no monthlyWage falls back to his dailyRate.
+describe('guard rates', () => {
+  const g = { id: 'uday', dailyRate: 300, monthlyWage: 9000, shiftHours: 12 };
+
+  test('daysInMonthOf reads the calendar, leap year included', () => {
+    expect(daysInMonthOf('2026-09-30')).toBe(30);
+    expect(daysInMonthOf('2026-10-01')).toBe(31);
+    expect(daysInMonthOf('2027-02-14')).toBe(28);
+    expect(daysInMonthOf('2028-02-14')).toBe(29);
+  });
+
+  test('the day and hour rates are exact, not floored', () => {
+    expect(guardDayRate(g, '2026-10-07')).toBeCloseTo(290.3225806, 6);
+    expect(guardHourRate(g, '2026-10-07')).toBeCloseTo(24.1935484, 6);
+  });
+
+  test('no monthlyWage → dailyRate; no shiftHours → 12', () => {
+    expect(guardDayRate({ dailyRate: 360 }, '2026-10-07')).toBe(360);
+    expect(guardHourRate({ dailyRate: 360 }, '2026-10-07')).toBe(30);
+    expect(guardDayRate({ dailyRate: 'x' }, '2026-10-07')).toBe(0);
+    expect(guardHourRate({ monthlyWage: 9000, shiftHours: 0 }, '2026-09-07')).toBeCloseTo(25, 10);
+  });
+});

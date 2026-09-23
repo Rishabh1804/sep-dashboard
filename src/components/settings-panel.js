@@ -82,6 +82,7 @@ export function openSettings() {
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">₹${cfg.hourRate}/hr</span></div>
             <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">₹${cfg.snackRate}/day</span></div>
             <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, ₹${cfg.permOtBaseRate}) ÷ 8 × ${cfg.permOtMultiplier} · cap ₹${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
+            <div class="settings-row"><span class="card-label">Guard beyond 12 h</span><span class="card-meta">(monthly ÷ days in month) ÷ 12 · no multiplier</span></div>
           </div>
         </div>
 
@@ -93,7 +94,7 @@ export function openSettings() {
                 <span class="card-label">${esc(w.name)}</span>
                 <span class="card-meta"> — ${w.role || 'Worker'}${w.inactive ? ' (inactive)' : ''}</span>
               </div>
-              <span class="card-meta">₹${w.dailyRate}/day</span>
+              <span class="card-meta">${w.monthlyWage ? `₹${w.monthlyWage}/mo` : `₹${w.dailyRate}/day`}</span>
             </div>`).join('')}
           </div>
           <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>

@@ -30,7 +30,9 @@
 //   longer counts OT twice, History wage pill labelled as a recompute.
 // alpha.13: two BM rulings (23 Sep) — perm OT totalled per month and floored
 //   once; hours recorded as OT on a guard are paid directed work.
-const CACHE_NAME = 'sep-v2.1.0-alpha.13';
+// alpha.14: guard pay follows the month (BM, 23 Sep) — day rate ₹9,000 ÷ days
+//   in the month, hours beyond his 12-hour shift at day rate ÷ 12, no 1.1×.
+const CACHE_NAME = 'sep-v2.1.0-alpha.14';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

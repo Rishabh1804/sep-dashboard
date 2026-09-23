@@ -8,7 +8,7 @@ import { sepRound, formatCurrency } from '../../shared/utils/currency.js';
 import { getWeekEnd, formatDateShort } from '../../shared/utils/date.js';
 import { monthOf } from '../../shared/utils/month.js';
 import { isMonthLocked, requireUnlocked, getMonthLocks } from '../../shared/storage/lock.js';
-import { getAttKey, calcDayWages, calcMonthWages, calcCWWeeklyPay, calcPermMonthlyPay, permOtRate, cwHourRate } from '../../shared/utils/payroll.js';
+import { getAttKey, calcDayWages, calcMonthWages, calcCWWeeklyPay, calcPermMonthlyPay, monthlyOtRate, cwHourRate } from '../../shared/utils/payroll.js';
 import { getActiveCW, getActivePermProd, getGuards, getPermWorkers, getAllProdWorkers } from '../../shared/storage/workers.js';
 import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production.js';
 import { getInvoices } from '../../shared/storage/invoice.js';
@@ -90,11 +90,12 @@ export function renderFinance() {
     const rec = cwAtt[k];
     if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
   });
-  // Guards included: recorded OT on a guard is paid directed work (BM, 23 Sep).
+  // Guards included: hours beyond a guard's 12-hour shift are paid at his plain
+  // hourly rate (BM, 23 Sep) — monthlyOtRate routes him there.
   [...getActivePermProd(), ...getGuards()].forEach((w) => {
     const k = getAttKey('perm', w.id, date);
     const rec = peAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
+    if (rec?.otHours) otCost += sepRound(rec.otHours * monthlyOtRate(cfg, w, date));
   });
   document.getElementById('finOT').textContent = formatCurrency(otCost);
 

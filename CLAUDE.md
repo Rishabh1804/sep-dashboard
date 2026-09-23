@@ -1591,14 +1591,17 @@ they are cost estimates, not pay.
 
 **2. Directed work by the guard is paid.** The 7 AM–7 PM gate shift is his
 standard day and is never recorded as OT. BM-directed non-gate work beyond it
-**is** paid, on the W24 precedent (2 hr at ₹41.25). So hours recorded as OT on a
-guard now price at `permOtRate` like any other monthly man. That reverses
+**is** paid, on the W24 precedent (2 hr at ₹41.25). ~~So hours recorded as OT on a
+guard now price at `permOtRate` like any other monthly man.~~ 🔴 **Superseded
+in alpha.14 (below): no 1.1× and not `permOtRate`. The hours are paid at his
+plain hourly rate, which follows the month.** That reverses
 alpha.12's guard-zero in `permOtRate` and the guard skip in
 `calcPermMonthlyPay`, and adds guard OT to the daily and cost views. The
 production roster still excludes guards. ⚠ The BM ruled on soma-internal `main`
 (14 Sep) that Uday is paid ₹9,000/month with the day rate = ₹9,000 ÷ days in the
-month. This app holds one fixed `dailyRate`, so its ₹300 is the 30-day figure,
-and his pay and directed-work rate are approximations in 31-day months. The
+month. ~~This app holds one fixed `dailyRate`, so its ₹300 is the 30-day figure,
+and his pay and directed-work rate are approximations in 31-day months.~~ ✅
+**Implemented in alpha.14: both now follow the month.** The
 app is not the slip instrument (alpha.12 amendment).
 
 **3. August's permanent salary was paid.** It is on soma-internal `main`
@@ -1617,3 +1620,50 @@ bumped.
 
 *Amendment documented 23 September 2026 by Aurelius (Claude Code).*
 
+### Amendment — the guard's rate follows the month (23 September 2026, alpha.14)
+
+**BM ruling:** *"Uday gets no special OT rate, no 1.1x multiplier. Hourly rate
+above the 12 hrs is decided based on the days in that specific month."* This
+supersedes alpha.13, which priced his extra hours at `permOtRate` (₹300 ÷ 8 × 1.1
+= ₹41.25).
+
+**Now:** Uday's row carries `monthlyWage: 9000` and `shiftHours: 12`. Both of
+his rates come from the month being paid, in `utils/payroll.js`:
+
+| | Formula | 30-day month | 31-day month |
+|---|---|---:|---:|
+| Day rate (`guardDayRate`) | ₹9,000 ÷ days in the month | ₹300.00 | ₹290.32 |
+| Hourly beyond 12 h (`guardHourRate`) | day rate ÷ 12 | ₹25.00 | ₹24.19 |
+
+⚠ **The ÷ 12 divisor is this app's reading, not the ruling's words.** The
+ruling says the rate is set by the days in the month but does not say what the
+day is divided by. His standard day is 12 hours, so ÷ 12 is the natural reading.
+÷ 8 would give ₹37.50 and ₹36.29. It is the `shiftHours` field on his row, so a
+different ruling is a one-field change.
+
+**This also closes alpha.13's approximation.** The day rate follows the month
+too, not a fixed ₹300. August now reproduces the codex's ruled ₹8,129.03
+(28 days × ₹9,000 ÷ 31). The app shows ₹8,129 because it floors the month
+total once, the same as OT. `calcPermMonthlyPay` accumulates day pay unrounded
+for that reason. The daily cost views floor the guard's day at ₹290 in a 31-day
+month, because they are cost estimates.
+
+**Routing:** `monthlyOtRate(cfg, worker, date)` sends a guard to
+`guardHourRate` and everyone else to `permOtRate`. The Finance tab and the Costs
+CSV both use it. `permOtRate` is now documented as never applying to a guard.
+Settings shows Uday as ₹9,000/mo and states the guard rule. A worker with no
+`monthlyWage` falls back to `dailyRate`, so an operator-added guard still gets
+priced. `seed-sync` propagates the two new fields to existing devices, because
+the shipped entry replaces a known id's saved one.
+
+**Tests:** unit 410 → **414**. The guard blocks were rewritten:
+- September and October rates, and February at 28 days.
+- No multiplier.
+- August at ₹8,129.
+- A 10-day October month with 3 extra hours a day, paying ₹725.
+- `daysInMonthOf` including a leap year, and the fallbacks.
+
+E2E **43**. `BUILD 10 → 11`, `APP_VERSION 2.1.0-alpha.14`, both SW caches
+bumped, and `dist/` is one clean build (13 reachable, 0 missing, 0 orphans).
+
+*Amendment documented 23 September 2026 by Aurelius (Claude Code).*

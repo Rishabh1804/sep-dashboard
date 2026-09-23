@@ -4,7 +4,7 @@ import { DEF_AREAS } from '../../src/shared/config/areas.js';
 import { reconcileSeed, reconcileWorkers } from '../../src/shared/storage/seed-sync.js';
 import { MAIN_ERA } from './fixtures/main-era-seed.js';
 import {
-  permOtRate, cwHourRate, calcPermMonthlyPay, getAttKey,
+  permOtRate, monthlyOtRate, cwHourRate, calcPermMonthlyPay, getAttKey,
 } from '../../src/shared/utils/payroll.js';
 
 // The state a pre-alpha.9 device holds (Janus B-1 / Castor C-H6, 23 Sep 2026).
@@ -40,9 +40,12 @@ describe('a main-era device reaches the September figures after reconcile', () =
     expect(permOtRate(cfg, byId(perm, id))).toBeCloseTo(rate, 10);
   });
 
-  test('Uday is at ₹300/day, and directed work beyond his shift prices at ₹41.25', () => {
-    expect(byId(perm, 'uday').dailyRate).toBe(300);
-    expect(permOtRate(cfg, byId(perm, 'uday'))).toBeCloseTo(41.25, 10);
+  test('Uday reaches ₹9,000/month on a 12-hour day, so hours beyond it price per month with no 1.1×', () => {
+    const uday = byId(perm, 'uday');
+    expect(uday.monthlyWage).toBe(9000);
+    expect(uday.shiftHours).toBe(12);
+    expect(monthlyOtRate(cfg, uday, '2026-09-07')).toBeCloseTo(25, 10);         // 9000 ÷ 30 ÷ 12
+    expect(monthlyOtRate(cfg, uday, '2026-10-07')).toBeCloseTo(9000 / 31 / 12, 10);
   });
 
   test('Sambhu is on the permanent list and OFF the contract list (never paid twice)', () => {

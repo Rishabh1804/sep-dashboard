@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-5AO4PDRK.js";
+} from "./chunks/chunk-LK2BWCCQ.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-VBW6ZQWQ.js";
+} from "./chunks/chunk-COHIPAGS.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-CALU2GG5.js";
+} from "./chunks/chunk-QQMVOVFD.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -207,8 +207,9 @@ var DEF_CFG = {
   permOtMultiplier: 1.1,
   permOtBaseRate: 496,
   // Guards: not on the production roster. Their 7–7 shift is their standard
-  // day; hours recorded as OT on a guard are BM-directed work beyond it, and
-  // ARE paid at permOtRate (BM, 23 Sep 2026).
+  // day; hours recorded as OT on a guard are hours beyond it, paid at his
+  // plain hourly rate (day rate ÷ 12, no multiplier; BM, 23 Sep 2026) — see
+  // guardHourRate in utils/payroll.js, never permOtRate.
   guardIds: ["uday"],
   excludedIds: ["rounak"],
   standardShift: { start: "08:30", end: "17:00", hours: 8 },
@@ -626,6 +627,7 @@ function openSettings() {
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">\u20B9${cfg.hourRate}/hr</span></div>
             <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">\u20B9${cfg.snackRate}/day</span></div>
             <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, \u20B9${cfg.permOtBaseRate}) \xF7 8 \xD7 ${cfg.permOtMultiplier} \xB7 cap \u20B9${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
+            <div class="settings-row"><span class="card-label">Guard beyond 12 h</span><span class="card-meta">(monthly \xF7 days in month) \xF7 12 \xB7 no multiplier</span></div>
           </div>
         </div>
 
@@ -637,7 +639,7 @@ function openSettings() {
                 <span class="card-label">${esc(w.name)}</span>
                 <span class="card-meta"> \u2014 ${w.role || "Worker"}${w.inactive ? " (inactive)" : ""}</span>
               </div>
-              <span class="card-meta">\u20B9${w.dailyRate}/day</span>
+              <span class="card-meta">${w.monthlyWage ? `\u20B9${w.monthlyWage}/mo` : `\u20B9${w.dailyRate}/day`}</span>
             </div>`).join("")}
           </div>
           <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>
@@ -751,6 +753,25 @@ function permOtRate(cfg, worker) {
   if (!Number.isFinite(cap) || !Number.isFinite(mult)) return 0;
   return Math.min(daily, cap) / 8 * mult;
 }
+function daysInMonthOf(dateStr) {
+  const d = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+function guardDayRate(worker, dateStr) {
+  const monthly = Number(worker && worker.monthlyWage);
+  if (Number.isFinite(monthly) && monthly > 0) return monthly / daysInMonthOf(dateStr);
+  return Math.max(Number(worker && worker.dailyRate) || 0, 0);
+}
+function guardHourRate(worker, dateStr) {
+  const h = Number(worker && worker.shiftHours);
+  return guardDayRate(worker, dateStr) / (Number.isFinite(h) && h > 0 ? h : 12);
+}
+function isGuard(cfg, worker) {
+  return !!worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id);
+}
+function monthlyOtRate(cfg, worker, dateStr) {
+  return isGuard(cfg, worker) ? guardHourRate(worker, dateStr) : permOtRate(cfg, worker);
+}
 function getAttKey(type, id, date) {
   return `${id}_${date.replace(/-/g, "_")}`;
 }
@@ -786,8 +807,8 @@ function calcDayWages({
     const k = getAttKey("perm", w.id, date);
     const rec = peAtt[k];
     if (!rec || rec.status === "A") continue;
-    total += w.dailyRate;
-    if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * permOtRate(cfg, w));
+    total += sepRound(guardDayRate(w, date));
+    if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
   }
   return total;
 }
@@ -892,10 +913,12 @@ function calcPermMonthlyPay({
   const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const all = [...activePermProd, ...guards];
+  const guardSet = new Set(guards.map((g) => g.id));
   const workers = all.map((w) => {
+    const guard = guardSet.has(w.id);
     let days = 0;
     let otH = 0;
-    let basePay = 0;
+    let baseExact = 0;
     let otExact = 0;
     for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
       const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
@@ -903,12 +926,13 @@ function calcPermMonthlyPay({
       const rec = peAtt[k];
       if (!rec || rec.status === "A") continue;
       days++;
-      basePay += w.dailyRate;
+      baseExact += guard ? guardDayRate(w, ds) : w.dailyRate;
       if (rec.otHours && rec.otHours > 0) {
-        otExact += rec.otHours * permOtRate(cfg, w);
+        otExact += rec.otHours * (guard ? guardHourRate(w, ds) : permOtRate(cfg, w));
         otH += rec.otHours;
       }
     }
+    const basePay = sepRound(baseExact);
     const otPay = sepRound(otExact);
     const advKey = `${w.id}_${y}_${m + 1}`;
     const advance = peAdv[advKey] || 0;
@@ -2149,7 +2173,7 @@ function renderFinance() {
   [...getActivePermProd(), ...getGuards()].forEach((w) => {
     const k = getAttKey("perm", w.id, date);
     const rec = peAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
+    if (rec?.otHours) otCost += sepRound(rec.otHours * monthlyOtRate(cfg, w, date));
   });
   document.getElementById("finOT").textContent = formatCurrency(otCost);
   renderCWPayCard();
@@ -4180,7 +4204,7 @@ function exportCostsCSV() {
     for (const w of [...getActivePermProd(), ...getGuards()]) {
       const k = getAttKey("perm", w.id, ds);
       const rec = peAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
+      if (rec?.otHours) otCost += sepRound(rec.otHours * monthlyOtRate(cfg, w, ds));
     }
     const total = dayWage + extra + snack;
     if (total === 0) continue;
