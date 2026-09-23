@@ -2,7 +2,7 @@ import {
   DEF_CW,
   DEF_PERM,
   esc
-} from "./chunks/chunk-CUWADEJ4.js";
+} from "./chunks/chunk-5AO4PDRK.js";
 import {
   LANGS,
   enqueueWrite,
@@ -32,7 +32,7 @@ import {
   PCS_MAX,
   QTY_MAX,
   deriveTotalQty
-} from "./chunks/chunk-QQIDWLIW.js";
+} from "./chunks/chunk-CALU2GG5.js";
 
 // src/handler/feedback.js
 var MUTE_KEY = "sep_handler_mute";
@@ -912,7 +912,7 @@ async function boot() {
     if (clock) clock.textContent = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, 6e4);
   preFlushCheck({ onReview: () => openSyncSheet(refreshChip) });
-  import("./chunks/firebase-boot-RYGRA7BI.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
+  import("./chunks/firebase-boot-KD6HTHYW.js").then((m) => m.startFirebase({ onChange: refreshChip })).catch(() => {
   });
   globalThis.addEventListener?.("online", refreshChip);
   globalThis.addEventListener?.("offline", refreshChip);

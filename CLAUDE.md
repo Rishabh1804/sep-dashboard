@@ -1446,7 +1446,7 @@ global — is precisely what produced the 41.25 bug.
 ~~**tier changed and the pay did not**~~ — **his ₹380/day is unchanged, but the
 PAY CHANGED by ≈₹2,300–2,500/month** *(Castor C-H1, 22 Sep: the original sentence
 was false as written — true of the ₹/day, and it then listed three ways the pay
-moves)*: rest credit ≈4.33 Sundays × ₹380 ≈ **+₹1,645/mo at full attendance**, gate-dependent (`S × g`, g = 100/50/0% at the ≥90 / 80–90 / <80% gate). ⭐ **The gate scales the GAIN, never the floor**: g multiplies only the rest credit, and days worked are ungated on both tiers. His old daily basis paid **no** rest Sundays (*"no Sunday pay unless Sunday work assigned"*), so at g = 0 the rest credit is zero — exactly what the daily tier paid. **The attendance gate cannot cut his floor.** ⚠ *Scoped 23 Sep (Castor C-H3): an earlier version said "he cannot earn less … in any month", which is broader than this argument. Two conditions are unruled and each can make a month come out lower: a Sunday worked beyond 8 hours (the daily tier paid it at ₹47.50 × actual hours; the monthly tier pays one day at ₹380), and how monthly OT hours are counted from the clock span (a 6 AM–5 PM day is ₹522.50 daily-tier, ₹536.75 monthly at 3 OT hours, ₹510.63 at 2.5).* 🔧 *An earlier version said a bad month could fall below the daily tier; that was wrong, and the BM caught it (23 Sep). It transplanted HIGH-5's logic — which is about men whose old basis INCLUDED paid Sundays — onto a man whose old basis had none.* · OT premium ₹4.75/hr on ~152 OT hr/mo
+moves)*: rest credit ≈4.33 Sundays × ₹380 ≈ **+₹1,645/mo at full attendance**, gate-dependent (`S × g`, g = 100/50/0% at the ≥90 / 80–90 / <80% gate). ⭐ **The gate scales the GAIN, never the floor**: g multiplies only the rest credit, and days worked are ungated on both tiers. His old daily basis paid **no** rest Sundays (*"no Sunday pay unless Sunday work assigned"*), so at g = 0 the rest credit is zero — exactly what the daily tier paid. **The attendance gate cannot cut his floor** — ✅ *and with both conditions below settled in his favour the same day (a Sunday's excess over 8 hours is OT; the shop credits 6 AM → 5 PM as 3 OT hours), he cannot earn less in any month.* ⚠ *Scoped 23 Sep (Castor C-H3): an earlier version said "he cannot earn less … in any month", which is broader than this argument. Two conditions are unruled and each can make a month come out lower: a Sunday worked beyond 8 hours (the daily tier paid it at ₹47.50 × actual hours; the monthly tier pays one day at ₹380), and how monthly OT hours are counted from the clock span (a 6 AM–5 PM day is ₹522.50 daily-tier, ₹536.75 monthly at 3 OT hours, ₹510.63 at 2.5).* 🔧 *An earlier version said a bad month could fall below the daily tier; that was wrong, and the BM caught it (23 Sep). It transplanted HIGH-5's logic — which is about men whose old basis INCLUDED paid Sundays — onto a man whose old basis had none.* · OT premium ₹4.75/hr on ~152 OT hr/mo
 ≈ **+₹720/mo** · a worked Sunday as an uncapped extra day at ₹380. **His OT rate is ₹52.25/hr** (= ₹380 ÷ 8 × 1.1). **OT rate RULED 23 Sep (BM): `min(daily, ₹496) ÷ 8 × 1.1`** — 1.1× the man's own rate below ₹496/day, capped at ₹68.20 at or above it. → `decisions/2026-09-23.md` §4. So the monthly uplift at full attendance is ≈**₹2,400** (≈₹720 at g = 0), and the ≈₹4,800 contract-term alternative quoted on 22–23 Sep no longer applies. 🔧 *Those quotes also said the app paid ₹68.20; it paid **₹68** — it floored the rate to whole rupees. Fixed in alpha.11.* He is the plant's
 heaviest-worked hand (80-hour weeks; the T-DV fatigue anchor), so the move also
 puts his hours on an instrument the weekly cash payout does not govern — which
@@ -1555,24 +1555,65 @@ saying so (Janus M-1).
 - The ₹79.20 citation: no pre-September **monthly** slip paid Shyam OT at ₹79.20
   (0 OT hours in June and July). The rate was applied in the April–May arrears,
   soma-internal `operations/payouts/2026-04-05-backlog-new-rates.md` (Castor C-M8).
-- "Pre-September months come from the payout files": **there is no August
-  permanent salary file** in the codex (Castor C-H2). If August is still to be
-  paid, it must be computed outside the app on the uncapped per-worker rates.
+- ~~"Pre-September months come from the payout files": **there is no August
+  permanent salary file** in the codex (Castor C-H2).~~ 🔴 **Withdrawn (alpha.13
+  amendment below):** the file exists on soma-internal `main` and August was paid
+  on 14 Sep. The null was measured on a branch 207 commits behind `main`.
 - Test counts: 381 at alpha.11 and 383 after the guard pin. Now **407** unit
   (383 → 407: seed-sync, the permOtRate guard/NaN cases, the roster guard
   cases) and **43** e2e; the
   Costs e2e now seeds OT hours and asserts OT is counted once.
 
 **Not changed, and stated so it isn't read as done:**
-- **OT is floored per day** (Janus H-1 / Castor C-M1). On fractional rates this
-  pays up to ₹1 per man per OT day less than the payout files' method, which
-  totals the month and keeps paisa. The granularity is a BM ruling and is open.
+- ~~**OT is floored per day** (Janus H-1 / Castor C-M1). The granularity is a BM
+  ruling and is open.~~ ✅ **Ruled per month, 23 Sep; implemented in alpha.13.**
 - **This app is not the permanent slip instrument** (Janus H-3). It computes
   days × `dailyRate` + OT only. It has no `S × g` rest credit, no attendance
   gate, no EXTRA-day exclusion and no worked-Sunday rule, so the Sambhu figures
   above are the codex's, not this app's.
 
 `BUILD 8 → 9`, `APP_VERSION 2.1.0-alpha.12`, both SW caches bumped.
+
+*Amendment documented 23 September 2026 by Aurelius (Claude Code).*
+
+### Amendment — the BM's four answers (23 September 2026, alpha.13)
+
+The BM answered the four questions the review raised. Two change this app.
+
+**1. OT is computed per month.** `calcPermMonthlyPay` now totals the month's
+OT hours × each man's rate **unrounded** and floors **once**. The per-day floor
+lost up to ₹1 per man per OT day. Sambhu at 3 hours on 10 days is now ₹1,567
+(it was ₹1,560); Sarat capped is ₹2,046, which is the payout file's own figure.
+The floor stays at the whole rupee (Build Rule 5), so a month can still sit up to
+₹0.99 under the soma-internal payout files, which keep paisa. The daily cost
+views (`calcDayWages`, the Finance tab, the Costs CSV) still floor each day:
+they are cost estimates, not pay.
+
+**2. Directed work by the guard is paid.** The 7 AM–7 PM gate shift is his
+standard day and is never recorded as OT. BM-directed non-gate work beyond it
+**is** paid, on the W24 precedent (2 hr at ₹41.25). So hours recorded as OT on a
+guard now price at `permOtRate` like any other monthly man. That reverses
+alpha.12's guard-zero in `permOtRate` and the guard skip in
+`calcPermMonthlyPay`, and adds guard OT to the daily and cost views. The
+production roster still excludes guards. ⚠ The BM ruled on soma-internal `main`
+(14 Sep) that Uday is paid ₹9,000/month with the day rate = ₹9,000 ÷ days in the
+month. This app holds one fixed `dailyRate`, so its ₹300 is the 30-day figure,
+and his pay and directed-work rate are approximations in 31-day months. The
+app is not the slip instrument (alpha.12 amendment).
+
+**3. August's permanent salary was paid.** It is on soma-internal `main`
+(`operations/payouts/2026-08-permanent-salary.md`, paid 14 Sep, OT at the
+uncapped per-worker rates). The alpha.12 claim that no file existed was measured
+on a branch cut 22 Aug and 207 commits behind `main`.
+
+**4. A Sunday worked past 8 hours pays the excess as OT.** This app has no
+worked-Sunday rule (alpha.12 amendment). A Sunday recorded as present with its
+excess hours as `otHours` already prices by this ruling. Sambhu's floor claim
+is settled in his favour; see the Session 21 amendment above.
+
+**Tests:** unit 407 → **410** (per-month rounding ×2; the guard block rewritten
+for the ruling). `BUILD 9 → 10`, `APP_VERSION 2.1.0-alpha.13`, both SW caches
+bumped.
 
 *Amendment documented 23 September 2026 by Aurelius (Claude Code).*
 

@@ -200,12 +200,12 @@ describe('perm OT rate per worker (ruled 23 Sep 2026)', () => {
     lk_das: 57.75,      // 420 (Lakhi)
     bp_sharma: 56.375,  // 410 (Bhanu)
     lal: 49.5,          // 360
-    // uday is NOT here: guards get no OT at all (BM, 23 Sep) — see below.
+    uday: 41.25,        // 300 — directed non-gate work only; his 7–7 shift is never OT (below)
   };
 
-  test('every active OT-eligible perm man is pinned, and none is left unpinned', () => {
+  test('every active perm man is pinned, and none is left unpinned', () => {
     const active = DEF_PERM
-      .filter((w) => !w.inactive && !DEF_CFG.guardIds.includes(w.id))
+      .filter((w) => !w.inactive)
       .map((w) => w.id).sort();
     expect(active).toEqual(Object.keys(expected).sort());
   });
@@ -223,47 +223,53 @@ describe('perm OT rate per worker (ruled 23 Sep 2026)', () => {
 });
 
 
-// ── Guards get NO OT — BM ruling, 23 Sep 2026 ─────────────────────────────
-// "Uday gets no OT. 7-7 is his shift." His 12-hour span is his standard day,
-// so an otHours value on a guard's record must never reach his pay. The app
-// enforces this in three places (the production roster excludes guardIds;
-// calcDayWages pays guards dailyRate only; calcPermMonthlyPay skips OT for
-// guardIds) — pinned here against the SHIPPED config, not a fixture.
-describe('guards get no OT (ruled 23 Sep 2026)', () => {
+// ── The guard: the 7–7 shift is not OT; directed work beyond it IS paid ─────
+// BM, 23 Sep 2026: "Uday gets no OT. 7-7 is his shift." — so the gate shift is
+// his standard day and is never recorded as OT. And, the same day: BM-directed
+// non-gate work beyond 7 PM IS paid, on the W24 precedent (2 hr at ₹41.25 =
+// ₹300 ÷ 8 × 1.1). So hours recorded as OT on a guard are that directed work,
+// priced at the ordinary rule. Pinned against the SHIPPED config.
+describe('the guard: 7–7 is not OT, directed work beyond it is paid (ruled 23 Sep 2026)', () => {
   const uday = DEF_PERM.find((w) => w.id === 'uday');
   const date = '2026-09-07';
-  const peAtt = { [getAttKey('perm', 'uday', date)]: { status: 'P', otHours: 4 } };
+  const key = getAttKey('perm', 'uday', date);
 
-  test('the production roster (getActivePermProd) leaves Uday out', () => {
+  test('the production roster (getActivePermProd) leaves Uday out; he is the one guard', () => {
     localStorage.clear();
     expect(getActivePermProd().map((w) => w.id)).not.toContain('uday');
     expect(getGuards().map((w) => w.id)).toEqual(['uday']);
-  });
-
-  test('permOtRate itself refuses a guard, on the shipped config', () => {
-    expect(permOtRate(DEF_CFG, uday)).toBe(0);
-  });
-
-  test('Uday is a configured guard', () => {
     expect(DEF_CFG.guardIds).toContain('uday');
     expect(uday && !uday.inactive).toBe(true);
   });
 
-  test('calcDayWages pays a guard his daily rate and nothing for OT hours', () => {
+  test('directed work prices at ₹41.25/hr — the June precedent (₹300 ÷ 8 × 1.1)', () => {
+    expect(permOtRate(DEF_CFG, uday)).toBeCloseTo(41.25, 10);
+  });
+
+  test('a plain 7–7 day (no OT recorded) pays his day rate and nothing more', () => {
     const total = calcDayWages({
-      date, cfg: DEF_CFG, cwAtt: {}, peAtt, activeCW: [], activePermProd: [], guards: [uday],
+      date, cfg: DEF_CFG, cwAtt: {}, activeCW: [], activePermProd: [], guards: [uday],
+      peAtt: { [key]: { status: 'P' } },
     });
     expect(total).toBe(uday.dailyRate);
   });
 
-  test('calcPermMonthlyPay records no OT hours or OT pay for a guard', () => {
+  test('2 hr of directed work: day rate + floor(2 × 41.25) = 300 + 82', () => {
+    const total = calcDayWages({
+      date, cfg: DEF_CFG, cwAtt: {}, activeCW: [], activePermProd: [], guards: [uday],
+      peAtt: { [key]: { status: 'P', otHours: 2 } },
+    });
+    expect(total).toBe(uday.dailyRate + 82);
+  });
+
+  test('calcPermMonthlyPay pays the guard\'s directed hours at the ruled rate', () => {
     const { workers } = calcPermMonthlyPay({
-      date, today: date, cfg: DEF_CFG, peAtt, peAdv: {},
-      activePermProd: [], guards: [uday], guardIds: DEF_CFG.guardIds,
+      date, today: date, cfg: DEF_CFG, peAdv: {},
+      peAtt: { [key]: { status: 'P', otHours: 2 } },
+      activePermProd: [], guards: [uday],
     });
     const r = workers.find((x) => x.id === 'uday');
-    expect(r.otPay).toBe(0);
-    expect(r.otH).toBe(0);
-    expect(r.basePay).toBe(uday.dailyRate);
+    expect(r.otH).toBe(2);
+    expect(r.otPay).toBe(82); // floor(82.50), one month, one floor
   });
 });

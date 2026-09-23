@@ -6,6 +6,11 @@ var DEF_PERM = [
   { id: "rupa_bera", name: "Rupa", role: "VAT A2 Lead", dailyRate: 500, inactive: false },
   { id: "sunil_mahato", name: "Sunil", role: "Barrel Floor", dailyRate: 470, inactive: false },
   { id: "suklal", name: "Suklal", role: "Pickling Lead", dailyRate: 440, inactive: false },
+  // Uday: the BM ruled (soma-internal, 14 Sep 2026) ₹9,000/month with the day
+  // rate = ₹9,000 ÷ days in the month (₹290.32 in a 31-day month). This app has
+  // one fixed dailyRate per man, so 300 is the 30-day figure — an approximation
+  // of his pay, and of his directed-work OT rate (₹41.25 here, ₹39.92 in a
+  // 31-day month). His 7–7 gate shift is never OT (BM, 23 Sep).
   { id: "uday", name: "Uday", role: "Day Guard", dailyRate: 300, inactive: false },
   // Permanent contract tier — job-work, monthly (= daily rate × 30), flex
   // VAT/Barrel, explicitly NOT pickling (roles-responsibilities-v1.1 §"Three
@@ -76,4 +81,4 @@ export {
   esc,
   escAttr
 };
-//# sourceMappingURL=chunk-CUWADEJ4.js.map
+//# sourceMappingURL=chunk-5AO4PDRK.js.map

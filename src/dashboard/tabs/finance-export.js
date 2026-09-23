@@ -129,7 +129,7 @@ export function exportCostsCSV() {
       const rec = cwAtt[k];
       if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
     }
-    for (const w of getActivePermProd()) {
+    for (const w of [...getActivePermProd(), ...getGuards()]) {
       const k = getAttKey('perm', w.id, ds);
       const rec = peAtt[k];
       if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));

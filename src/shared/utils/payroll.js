@@ -28,20 +28,24 @@ export function cwHourRate(cfg, workerId) {
 //
 // Deliberately NOT rounded. `sepRound` floors to whole RUPEES, and every caller
 // used to floor the RATE: the app paid ₹68/hr against a stated ₹68.20, and the
-// per-worker rule would have paid Sambhu ₹52 against a ruled ₹52.25. Only the
-// paid AMOUNT is floored, at the call site — PER DAY, which on these
-// fractional rates under-pays a month by up to ₹1 per man per OT day against
-// the payout files' month-total method. Granularity is an open BM question
-// (soma-internal decisions/2026-09-23.md §5); not changed until ruled.
+// per-worker rule would have paid Sambhu ₹52 against a ruled ₹52.25.
 //
-// Guards get NO OT (BM, 23 Sep: "Uday gets no OT. 7-7 is his shift."), so a
-// guard id returns 0 here as well as being excluded upstream — the rate
-// function itself must not price a guard's hours if a caller ever routes him in.
+// Where the paid amount is rounded is a separate rule — BM, 23 Sep: OT is
+// computed PER MONTH. calcPermMonthlyPay totals the month's hours × rate and
+// floors ONCE (the app's locked currency rule); a per-day floor on these
+// fractional rates lost up to ₹1 per man per OT day. The daily cost views
+// (calcDayWages, the Finance tab, the Costs CSV) still floor per day: they are
+// cost estimates, not pay.
+//
+// Guards: the 7 AM–7 PM gate shift is his standard day and is never recorded
+// as OT (BM, 23 Sep: "Uday gets no OT. 7-7 is his shift."). Hours that ARE
+// recorded as OT on a guard are BM-directed non-gate work beyond the shift,
+// which IS paid at this same rule (BM, 23 Sep, on the W24 precedent of
+// 2 hr at ₹41.25) — so a guard is priced like any other monthly man here.
 //
 // A missing or non-numeric dailyRate, cap or multiplier yields 0 — a visible
 // zero on the slip, not NaN pay or a silently capped payment.
 export function permOtRate(cfg, worker) {
-  if (worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id)) return 0;
   const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
   const cap = Number(cfg.permOtBaseRate);
   const mult = Number(cfg.permOtMultiplier);
@@ -87,7 +91,10 @@ export function calcDayWages({
   for (const w of guards) {
     const k = getAttKey('perm', w.id, date);
     const rec = peAtt[k];
-    if (rec && rec.status !== 'A') total += w.dailyRate;
+    if (!rec || rec.status === 'A') continue;
+    total += w.dailyRate;
+    // Recorded OT on a guard = directed non-gate work beyond his shift (paid).
+    if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * permOtRate(cfg, w));
   }
 
   return total;
@@ -159,7 +166,7 @@ export function calcCWWeeklyPay({
 // --- Perm Monthly Pay: per-worker base+OT-advance for the month containing `date`,
 // summed up to `today`.
 export function calcPermMonthlyPay({
-  date, today, cfg, peAtt, peAdv, activePermProd, guards, guardIds,
+  date, today, cfg, peAtt, peAdv, activePermProd, guards,
 }) {
   const d = new Date(date + 'T00:00:00');
   const y = d.getFullYear(); const m = d.getMonth();
@@ -169,7 +176,8 @@ export function calcPermMonthlyPay({
   const all = [...activePermProd, ...guards];
 
   const workers = all.map((w) => {
-    let days = 0; let otH = 0; let basePay = 0; let otPay = 0;
+    // OT is accumulated UNROUNDED and floored once for the month (BM, 23 Sep).
+    let days = 0; let otH = 0; let basePay = 0; let otExact = 0;
     for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
       const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
       const k = getAttKey('perm', w.id, ds);
@@ -177,12 +185,12 @@ export function calcPermMonthlyPay({
       if (!rec || rec.status === 'A') continue;
       days++;
       basePay += w.dailyRate;
-      if (rec.otHours && rec.otHours > 0 && !guardIds.includes(w.id)) {
-        const rate = permOtRate(cfg, w);
-        otPay += sepRound(rec.otHours * rate);
+      if (rec.otHours && rec.otHours > 0) {
+        otExact += rec.otHours * permOtRate(cfg, w);
         otH += rec.otHours;
       }
     }
+    const otPay = sepRound(otExact);
     const advKey = `${w.id}_${y}_${m + 1}`;
     const advance = peAdv[advKey] || 0;
     return {

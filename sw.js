@@ -28,7 +28,9 @@
 //   config on every boot (seed-sync.js) — before this, alpha.9–11's rates only
 //   reached fresh installs. Also: guards refused in permOtRate, Costs CSV no
 //   longer counts OT twice, History wage pill labelled as a recompute.
-const CACHE_NAME = 'sep-v2.1.0-alpha.12';
+// alpha.13: two BM rulings (23 Sep) — perm OT totalled per month and floored
+//   once; hours recorded as OT on a guard are paid directed work.
+const CACHE_NAME = 'sep-v2.1.0-alpha.13';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

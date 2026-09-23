@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-CUWADEJ4.js";
+} from "./chunks/chunk-5AO4PDRK.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-H4XQKWAC.js";
+} from "./chunks/chunk-VBW6ZQWQ.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-QQIDWLIW.js";
+} from "./chunks/chunk-CALU2GG5.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -206,6 +206,9 @@ var DEF_CFG = {
   snackRate: 20,
   permOtMultiplier: 1.1,
   permOtBaseRate: 496,
+  // Guards: not on the production roster. Their 7–7 shift is their standard
+  // day; hours recorded as OT on a guard are BM-directed work beyond it, and
+  // ARE paid at permOtRate (BM, 23 Sep 2026).
   guardIds: ["uday"],
   excludedIds: ["rounak"],
   standardShift: { start: "08:30", end: "17:00", hours: 8 },
@@ -742,7 +745,6 @@ function cwHourRate(cfg, workerId) {
   return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
 }
 function permOtRate(cfg, worker) {
-  if (worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id)) return 0;
   const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
   const cap = Number(cfg.permOtBaseRate);
   const mult = Number(cfg.permOtMultiplier);
@@ -783,7 +785,9 @@ function calcDayWages({
   for (const w of guards) {
     const k = getAttKey("perm", w.id, date);
     const rec = peAtt[k];
-    if (rec && rec.status !== "A") total += w.dailyRate;
+    if (!rec || rec.status === "A") continue;
+    total += w.dailyRate;
+    if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * permOtRate(cfg, w));
   }
   return total;
 }
@@ -880,8 +884,7 @@ function calcPermMonthlyPay({
   peAtt,
   peAdv,
   activePermProd,
-  guards,
-  guardIds
+  guards
 }) {
   const d = /* @__PURE__ */ new Date(date + "T00:00:00");
   const y = d.getFullYear();
@@ -893,7 +896,7 @@ function calcPermMonthlyPay({
     let days = 0;
     let otH = 0;
     let basePay = 0;
-    let otPay = 0;
+    let otExact = 0;
     for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
       const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
       const k = getAttKey("perm", w.id, ds);
@@ -901,12 +904,12 @@ function calcPermMonthlyPay({
       if (!rec || rec.status === "A") continue;
       days++;
       basePay += w.dailyRate;
-      if (rec.otHours && rec.otHours > 0 && !guardIds.includes(w.id)) {
-        const rate2 = permOtRate(cfg, w);
-        otPay += sepRound(rec.otHours * rate2);
+      if (rec.otHours && rec.otHours > 0) {
+        otExact += rec.otHours * permOtRate(cfg, w);
         otH += rec.otHours;
       }
     }
+    const otPay = sepRound(otExact);
     const advKey = `${w.id}_${y}_${m + 1}`;
     const advance = peAdv[advKey] || 0;
     return {
@@ -2143,7 +2146,7 @@ function renderFinance() {
     const rec = cwAtt[k];
     if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
   });
-  getActivePermProd().forEach((w) => {
+  [...getActivePermProd(), ...getGuards()].forEach((w) => {
     const k = getAttKey("perm", w.id, date);
     const rec = peAtt[k];
     if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));
@@ -4174,7 +4177,7 @@ function exportCostsCSV() {
       const rec = cwAtt[k];
       if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
     }
-    for (const w of getActivePermProd()) {
+    for (const w of [...getActivePermProd(), ...getGuards()]) {
       const k = getAttKey("perm", w.id, ds);
       const rec = peAtt[k];
       if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));

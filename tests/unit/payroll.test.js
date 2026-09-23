@@ -134,8 +134,8 @@ describe('calcPermMonthlyPay', () => {
 // hourly rate; at or above it, capped at ₹68.20. Before this ruling the perm OT
 // path had NO assertion anywhere in this file — a change to it was invisible.
 describe('permOtRate', () => {
-  test('a guard id gets 0 even if a caller routes him in (BM, 23 Sep)', () => {
-    expect(permOtRate({ ...cfg, guardIds: ['uday'] }, { id: 'uday', dailyRate: 300 })).toBe(0);
+  test('a guard is priced by the same rule — directed work beyond his shift is paid (BM, 23 Sep)', () => {
+    expect(permOtRate({ ...cfg, guardIds: ['uday'] }, { id: 'uday', dailyRate: 300 })).toBeCloseTo(41.25, 10);
   });
 
   test('a non-numeric cap or multiplier yields 0, never NaN pay', () => {
@@ -212,3 +212,29 @@ describe('perm OT through the payroll functions — the paid AMOUNT is floored, 
     expect(r.otH).toBe(4);
   });
 });
+
+// BM, 23 Sep 2026: OT is computed PER MONTH — the month's hours × rate, floored
+// once. A per-day floor on the fractional rates lost up to ₹1 per OT day.
+describe('perm OT is rounded once per month, not per day (ruled 23 Sep 2026)', () => {
+  const month = (id, rate, daysWithOT, hrs) => {
+    const peAtt = {};
+    for (let d = 1; d <= daysWithOT; d++) {
+      peAtt[getAttKey('perm', id, `2026-09-${String(d).padStart(2, '0')}`)] = { status: 'P', otHours: hrs };
+    }
+    return calcPermMonthlyPay({
+      date: '2026-09-15', today: '2026-09-30', cfg, peAtt, peAdv: {},
+      activePermProd: [{ id, name: id, dailyRate: rate }], guards: [],
+    }).workers[0];
+  };
+
+  test('Sambhu, 3 OT hr on 10 days: floor(30 × 52.25 = 1,567.50) = 1,567 — a per-day floor paid 1,560', () => {
+    const r = month('shambhu', 380, 10, 3);
+    expect(r.otH).toBe(30);
+    expect(r.otPay).toBe(1567);
+  });
+
+  test('Sarat (capped), 3 OT hr on 10 days: 30 × 68.20 = 2,046 — the payout file\'s figure, where per-day paid 2,040', () => {
+    expect(month('sharat_mahato', 500, 10, 3).otPay).toBe(2046);
+  });
+});
+

@@ -90,7 +90,8 @@ export function renderFinance() {
     const rec = cwAtt[k];
     if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
   });
-  getActivePermProd().forEach((w) => {
+  // Guards included: recorded OT on a guard is paid directed work (BM, 23 Sep).
+  [...getActivePermProd(), ...getGuards()].forEach((w) => {
     const k = getAttKey('perm', w.id, date);
     const rec = peAtt[k];
     if (rec?.otHours) otCost += sepRound(rec.otHours * permOtRate(cfg, w));

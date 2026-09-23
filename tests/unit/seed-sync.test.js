@@ -40,9 +40,9 @@ describe('a main-era device reaches the September figures after reconcile', () =
     expect(permOtRate(cfg, byId(perm, id))).toBeCloseTo(rate, 10);
   });
 
-  test('Uday is at ₹300/day and gets no OT', () => {
+  test('Uday is at ₹300/day, and directed work beyond his shift prices at ₹41.25', () => {
     expect(byId(perm, 'uday').dailyRate).toBe(300);
-    expect(permOtRate(cfg, byId(perm, 'uday'))).toBe(0);
+    expect(permOtRate(cfg, byId(perm, 'uday'))).toBeCloseTo(41.25, 10);
   });
 
   test('Sambhu is on the permanent list and OFF the contract list (never paid twice)', () => {
