@@ -1418,9 +1418,10 @@ rules (`permOtMultiplier`, shifts, `guardIds`) and ships the three rate-card fie
   structure with invented rates. The per-worker rate pins moved to the generator's self-checks
   in soma-internal, beside the data they check.
 - **`handler-demo.html` was regenerated** from source (`pnpm build:demo`): the committed copy
-  embedded the old seed with real day rates *(Castor C-H3 / Janus J-H4)*. ⚠ **`bm-role.html`**, a
-  mock uploaded in May, carries business figures and named debtors; whether they are real is the
-  Director's to say, so it is left in place and raised on the PR.
+  embedded the old seed with real day rates *(Castor C-H3 / Janus J-H4)*. **`bm-role.html`** — a May mock carrying business figures (bank balance, receivables, a bonus
+  accrual) and named debtors — **was moved to soma-internal on the Director's word** (24 Sep:
+  "move bm-role as well"), byte-identical, as `analysis/sep-dashboard-bm-role-2026-05.html`. Nothing
+  here linked to it.
 - ⚠ **Public history is not rewritten.** Earlier commits on the PR branch, and main's own history
   before this merge, still contain the figures. A squash merge keeps the branch commits out of
   main; purging history needs a force-push and is the Director's call.
