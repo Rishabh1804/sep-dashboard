@@ -55,7 +55,7 @@ this session nor this file verified it. Two things are known:
 
 **This repo is public.** Business data has never been committed here; the `seed-staging`
 workflow in private `soma-internal` exists for exactly that reason. Whatever the backend becomes,
-attendance and production data stay out of this repo's history. **Its destination is ruled** (owner, 24 Sep 2026): **all sensitive data is transferred to `soma-internal`, the private repo, at every compile**, and `soma-internal` holds the record. **This app captures and shows.** It is not the ledger.
+attendance and production data stay out of this repo's history. **Its destination is ruled** (owner, 24 Sep 2026): **all sensitive data is copied to `soma-internal`, the private repo, at every compile**, and `soma-internal` holds the record. **It is a copy, not a move: the data stays on the device and readable in this app.** This app captures and shows. It is not the ledger.
 
 ---
 
@@ -96,6 +96,6 @@ Session D checks these against the other repos' descriptions. **If one changes, 
 
 | Flow | This repo's side |
 |---|---|
-| **Consumes** the WhatsApp group | **Planned.** Route to be settled (⚠ B). ⚖ **`soma-internal` owns the record** (owner's ruling, 24 Sep: it is the private repo, and all sensitive data is transferred there at every compile). **This backend captures and shows; what it captures is exported to `soma-internal`, which holds the record.** Design the capture so it can be exported whole, including the flagged-unreadable lines and their reasons. |
+| **Consumes** the WhatsApp group | **Planned.** Route to be settled (⚠ B). ⚖ **`soma-internal` owns the record** (owner's ruling, 24 Sep: it is the private repo, and all sensitive data is transferred there at every compile). **This backend captures and shows; what it captures is **copied** to `soma-internal`, which holds the record, and **stays readable here**.** Design the capture so it can be exported whole, including the flagged-unreadable lines and their reasons. |
 | **Consumes** the private seed ← `soma-internal` | Live for the old Firestore architecture through `soma-internal`'s `seed-staging` workflow. **Under review** with ⚠ A. |
 | **Stock** | **Owned by `soma-internal`.** v2.1 had a stock tab (`src/dashboard/tabs/stock.js`), and the new scope is attendance and production only. A PR that retires the tab should say so. |
