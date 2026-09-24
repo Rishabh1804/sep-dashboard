@@ -46,7 +46,7 @@ export function cwHourRate(cfg, workerId) {
 // A missing or non-numeric dailyRate, cap or multiplier yields 0 — a visible
 // zero on the slip, not NaN pay or a silently capped payment.
 export function permOtRate(cfg, worker) {
-  if (isGuard(cfg, worker)) return 0;
+  if (usesPlainRate(cfg, worker)) return 0;
   const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
   const cap = Number(cfg.permOtBaseRate);
   const mult = Number(cfg.permOtMultiplier);
@@ -66,12 +66,14 @@ export function permOtRate(cfg, worker) {
 //     month. otHours on a guard means hours above 12 and nothing else: directed
 //     non-gate work INSIDE the 12 is paid too, at a rate no ruling states.
 //
-// ⚠ The hourly rate is day rate ÷ shiftHours (12). The ruling says the rate is
-// "decided based on the days in that specific month"; dividing the day by his
-// 12-hour day rather than by 8 is this app's reading of it (₹24.19/hr in a
-// 31-day month, ₹25.00 in a 30-day one; ÷ 8 would be ₹36.29 / ₹37.50, and ÷ 11
-// — if the unpaid 12:30–1:30 hour reaches the gate — ₹26.39 / ₹27.27). The
-// divisor is an open BM question (soma-internal T-HU). It is `shiftHours`.
+//   · 24 Sep: the divisor is ÷ 12, confirmed — the hourly rate is day rate ÷
+//     shiftHours (12): ₹25.00 in a 30-day month, ₹24.19 in a 31-day one.
+//   · 24 Sep: "Have it as an option for non-floor staff." This pay model —
+//     monthly wage ÷ days ÷ shift hours, no multiplier, pricing directed work
+//     inside the shift as well as hours beyond it — is an OPTION any non-floor
+//     worker can carry (`payModel: 'monthly-plain'`), not a guard-only rule.
+//     Guards are on it by default. (This app's reading of a five-word ruling;
+//     soma-internal decisions/2026-09-24.md §8 (payroll).)
 //
 // A worker with no monthlyWage falls back to the fixed dailyRate, so an
 // operator-added guard still prices. Rates are exact; callers floor the paid
@@ -96,10 +98,18 @@ export function isGuard(cfg, worker) {
   return !!worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id);
 }
 
-// OT rate for anyone on the monthly tier: the guard's plain hourly rate for a
-// guard, the permanent rule for everyone else.
+// Non-floor staff on the plain monthly model: every guard, plus any worker who
+// carries the option. They are off the production roster and are priced by
+// guardDayRate / guardHourRate, never by permOtRate.
+export const PLAIN_PAY_MODEL = 'monthly-plain';
+export function usesPlainRate(cfg, worker) {
+  return isGuard(cfg, worker) || (!!worker && worker.payModel === PLAIN_PAY_MODEL);
+}
+
+// OT rate for anyone on the monthly tier: the plain hourly rate for non-floor
+// staff on the plain model, the permanent rule for everyone else.
 export function monthlyOtRate(cfg, worker, dateStr) {
-  return isGuard(cfg, worker) ? guardHourRate(worker, dateStr) : permOtRate(cfg, worker);
+  return usesPlainRate(cfg, worker) ? guardHourRate(worker, dateStr) : permOtRate(cfg, worker);
 }
 
 
@@ -130,6 +140,12 @@ export function calcDayWages({
     const k = getAttKey('perm', w.id, date);
     const rec = peAtt[k];
     if (!rec || rec.status === 'A') continue;
+    if (usesPlainRate(cfg, w)) {
+      // A plain-model worker passed in the production list: price him as one.
+      total += sepRound(guardDayRate(w, date));
+      if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
+      continue;
+    }
     total += w.dailyRate;
     if (rec.otHours && rec.otHours > 0) {
       const otRate = permOtRate(cfg, w);
@@ -231,7 +247,7 @@ export function calcPermMonthlyPay({
     // (BM, 23 Sep). A guard's day and hour rates follow the month's length.
     // One definition of a guard: in the guards list passed in, or in
     // cfg.guardIds (Janus L-3).
-    const guard = guardSet.has(w.id) || isGuard(cfg, w);
+    const guard = guardSet.has(w.id) || usesPlainRate(cfg, w);
     let days = 0; let otH = 0; let baseExact = 0; let otExact = 0;
     for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
       const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;

@@ -19,7 +19,7 @@ export function exportAttendanceCSV() {
   const peAtt = loadJSON(K.peAtt, {});
   const cw = getActiveCW();
   const perm = getActivePermProd();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const all = [
     ...perm.map((w) => ({ ...w, type: 'perm' })),
     ...guard.map((w) => ({ ...w, type: 'perm' })),

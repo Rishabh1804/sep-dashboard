@@ -32,7 +32,9 @@
 //   once; hours recorded as OT on a guard are paid directed work.
 // alpha.14: guard pay follows the month (BM, 23 Sep) — day rate ₹9,000 ÷ days
 //   in the month, hours beyond his 12-hour shift at day rate ÷ 12, no 1.1×.
-const CACHE_NAME = 'sep-v2.1.0-alpha.14';
+// alpha.15: ÷12 confirmed; the plain monthly model becomes an option for any
+//   non-floor staff (payModel 'monthly-plain'), selectable in Settings.
+const CACHE_NAME = 'sep-v2.1.0-alpha.15';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

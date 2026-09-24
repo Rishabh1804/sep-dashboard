@@ -5,7 +5,7 @@ import { loadJSON, saveJSON } from '../../shared/storage/storage.js';
 import { K } from '../../shared/storage/keys.js';
 import { getState, setState } from '../../shared/storage/state.js';
 import { getAttKey } from '../../shared/utils/payroll.js';
-import { getActivePermProd, getActiveCW, getPermWorkers } from '../../shared/storage/workers.js';
+import { getActivePermProd, getActiveCW, getPermWorkers, getGuards } from '../../shared/storage/workers.js';
 import { DEF_CFG } from '../../shared/config/wage.js';
 import { isMonthLocked, requireUnlocked } from '../../shared/storage/lock.js';
 import { monthOf } from '../../shared/utils/month.js';
@@ -18,7 +18,7 @@ export function renderAttendance() {
   const monthLocked = isMonthLocked(monthOf(date));
   const perm = getActivePermProd();
   const cw = getActiveCW();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const cwAtt = loadJSON(K.cwAtt, {});
   const peAtt = loadJSON(K.peAtt, {});
   const list = document.getElementById('workerList');

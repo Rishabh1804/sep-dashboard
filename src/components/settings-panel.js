@@ -10,6 +10,7 @@ import { getCfg } from '../shared/storage/production.js';
 import { getInvCfg } from '../shared/storage/invoice.js';
 import { esc } from '../shared/utils/format.js';
 import { formatDateShort } from '../shared/utils/date.js';
+import { PLAIN_PAY_MODEL } from '../shared/utils/payroll.js';
 import { getState } from '../shared/storage/state.js';
 import { APP_VERSION } from '../shared/config/app.js';
 
@@ -82,7 +83,7 @@ export function openSettings() {
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">₹${cfg.hourRate}/hr</span></div>
             <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">₹${cfg.snackRate}/day</span></div>
             <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, ₹${cfg.permOtBaseRate}) ÷ 8 × ${cfg.permOtMultiplier} · cap ₹${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
-            <div class="settings-row"><span class="card-label">Guard beyond 12 h</span><span class="card-meta">(monthly ÷ days in month) ÷ 12 · no multiplier · ÷ 12 is the app's reading; the ruling does not state the divisor</span></div>
+            <div class="settings-row"><span class="card-label">Non-floor staff</span><span class="card-meta">(monthly ÷ days in month) ÷ shift hours (12, confirmed) · no multiplier · an option for any non-floor staff</span></div>
           </div>
         </div>
 
@@ -159,11 +160,25 @@ export function addWorkerPrompt(type) {
   const id = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now().toString(36).slice(-4);
 
   if (type === 'perm') {
-    const rate = prompt('Daily rate (₹):', '496');
-    const dailyRate = parseInt(rate) || 496;
-    const role = prompt('Role:', 'Worker');
+    // Non-floor staff may carry the plain monthly pay model (BM, 24 Sep 2026):
+    // monthly wage ÷ days in the month ÷ shift hours, no 1.1×, off the
+    // production roster. Floor staff keep a daily rate and the permanent OT rule.
+    const nonFloor = confirm('Non-floor staff on a monthly wage (guard, office)?\n\nOK = monthly wage: hourly = wage ÷ days in the month ÷ shift hours, no 1.1×.\nCancel = floor worker on a daily rate.');
+    const role = prompt('Role:', nonFloor ? 'Non-floor' : 'Worker');
     const workers = getPermWorkers();
-    workers.push({ id, name: name.trim(), role: role || 'Worker', dailyRate, inactive: false });
+    if (nonFloor) {
+      const monthlyWage = parseInt(prompt('Monthly wage (₹):', '9000')) || 0;
+      const shiftHours = parseInt(prompt('Standard shift (hours):', '12')) || 12;
+      if (monthlyWage <= 0) return;
+      workers.push({
+        id, name: name.trim(), role: role || 'Non-floor',
+        dailyRate: Math.round(monthlyWage / 30), monthlyWage, shiftHours,
+        payModel: PLAIN_PAY_MODEL, inactive: false,
+      });
+    } else {
+      const dailyRate = parseInt(prompt('Daily rate (₹):', '496')) || 496;
+      workers.push({ id, name: name.trim(), role: role || 'Worker', dailyRate, inactive: false });
+    }
     saveJSON(K.peEmp, workers);
   } else {
     const workers = getCWWorkers();

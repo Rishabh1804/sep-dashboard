@@ -257,7 +257,7 @@ export function recordAdvance() {
   const today = getState().today;
   if (requireUnlocked(monthOf(today), 'Perm advance')) return;
   const perm = getActivePermProd();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const all = [...perm, ...guard];
   const names = all.map((w, i) => `${i + 1}. ${w.name}`).join('\n');
   const choice = prompt('Select worker number:\n' + names);

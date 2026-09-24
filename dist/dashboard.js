@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-LK2BWCCQ.js";
+} from "./chunks/chunk-ADDOPD4G.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-COHIPAGS.js";
+} from "./chunks/chunk-5Q5TT2D4.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-QQMVOVFD.js";
+} from "./chunks/chunk-Q5VVMZHR.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -208,8 +208,9 @@ var DEF_CFG = {
   permOtBaseRate: 496,
   // Guards: not on the production roster. Their 7–7 shift is their standard
   // day; otHours on a guard means hours ABOVE his 12-hour day only, paid at his
-  // plain hourly rate (day rate ÷ 12, no multiplier; BM, 23 Sep 2026) — see
-  // guardHourRate in utils/payroll.js, never permOtRate.
+  // plain hourly rate (day rate ÷ 12, confirmed 24 Sep; no multiplier) — see
+  // guardHourRate in utils/payroll.js, never permOtRate. Any other non-floor
+  // worker can opt into the same model with payModel 'monthly-plain'.
   guardIds: ["uday"],
   excludedIds: ["rounak"],
   standardShift: { start: "08:30", end: "17:00", hours: 8 },
@@ -319,7 +320,245 @@ function saveProdDay(date, dayData) {
   saveJSON(K.prodLog, logs);
 }
 
+// src/shared/utils/currency.js
+function sepRound(n) {
+  return Math.floor(Number(n) || 0);
+}
+function formatCurrency(n) {
+  return "\u20B9" + sepRound(n).toLocaleString("en-IN");
+}
+
+// src/shared/utils/payroll.js
+function cwHourRate(cfg, workerId) {
+  const o = cfg.hourRateOverrides;
+  const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
+  return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
+}
+function permOtRate(cfg, worker) {
+  if (usesPlainRate(cfg, worker)) return 0;
+  const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
+  const cap = Number(cfg.permOtBaseRate);
+  const mult = Number(cfg.permOtMultiplier);
+  if (!Number.isFinite(cap) || !Number.isFinite(mult)) return 0;
+  return Math.min(daily, cap) / 8 * mult;
+}
+function daysInMonthOf(dateStr) {
+  const d = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+function guardDayRate(worker, dateStr) {
+  const monthly = Number(worker && worker.monthlyWage);
+  if (Number.isFinite(monthly) && monthly > 0) return monthly / daysInMonthOf(dateStr);
+  return Math.max(Number(worker && worker.dailyRate) || 0, 0);
+}
+function guardHourRate(worker, dateStr) {
+  const h = Number(worker && worker.shiftHours);
+  return guardDayRate(worker, dateStr) / (Number.isFinite(h) && h > 0 ? h : 12);
+}
+function isGuard(cfg, worker) {
+  return !!worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id);
+}
+var PLAIN_PAY_MODEL = "monthly-plain";
+function usesPlainRate(cfg, worker) {
+  return isGuard(cfg, worker) || !!worker && worker.payModel === PLAIN_PAY_MODEL;
+}
+function monthlyOtRate(cfg, worker, dateStr) {
+  return usesPlainRate(cfg, worker) ? guardHourRate(worker, dateStr) : permOtRate(cfg, worker);
+}
+function getAttKey(type, id, date) {
+  return `${id}_${date.replace(/-/g, "_")}`;
+}
+function calcDayWages({
+  date,
+  cfg,
+  cwAtt,
+  peAtt,
+  activeCW,
+  activePermProd,
+  guards
+}) {
+  let total = 0;
+  for (const w of activeCW) {
+    const k = getAttKey("cw", w.id, date);
+    const rec = cwAtt[k];
+    if (!rec || rec.status === "A") continue;
+    let hours = cfg.standardShift.hours;
+    if (rec.otHours) hours += rec.otHours;
+    total += sepRound(hours * cwHourRate(cfg, w.id));
+  }
+  for (const w of activePermProd) {
+    const k = getAttKey("perm", w.id, date);
+    const rec = peAtt[k];
+    if (!rec || rec.status === "A") continue;
+    if (usesPlainRate(cfg, w)) {
+      total += sepRound(guardDayRate(w, date));
+      if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
+      continue;
+    }
+    total += w.dailyRate;
+    if (rec.otHours && rec.otHours > 0) {
+      const otRate = permOtRate(cfg, w);
+      total += sepRound(rec.otHours * otRate);
+    }
+  }
+  for (const w of guards) {
+    const k = getAttKey("perm", w.id, date);
+    const rec = peAtt[k];
+    if (!rec || rec.status === "A") continue;
+    total += sepRound(guardDayRate(w, date));
+    if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
+  }
+  return total;
+}
+function calcMonthWages({
+  date,
+  today,
+  cfg,
+  cwAtt,
+  peAtt,
+  activeCW,
+  activePermProd,
+  guards
+}) {
+  const d = /* @__PURE__ */ new Date(date + "T00:00:00");
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
+  let total = 0;
+  for (let i = 1; i <= todayDay; i++) {
+    const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
+    total += calcDayWages({
+      date: ds,
+      cfg,
+      cwAtt,
+      peAtt,
+      activeCW,
+      activePermProd,
+      guards
+    });
+  }
+  return total;
+}
+function calcCWWeeklyPay({
+  satDate,
+  cfg,
+  cwAtt,
+  cwAdv,
+  prodLogs,
+  permSnacks,
+  activeCW
+}) {
+  const sat = /* @__PURE__ */ new Date(satDate + "T00:00:00");
+  const mon = new Date(sat);
+  mon.setDate(mon.getDate() - 5);
+  const workers = activeCW.map((w) => {
+    let days = 0;
+    let hours = 0;
+    let otH = 0;
+    let wage = 0;
+    for (let d = new Date(mon); d <= sat; d.setDate(d.getDate() + 1)) {
+      const ds = localDateStr(d);
+      const k = getAttKey("cw", w.id, ds);
+      const rec = cwAtt[k];
+      if (!rec || rec.status === "A") continue;
+      days++;
+      const dayH = cfg.standardShift.hours + (rec.otHours || 0);
+      hours += dayH;
+      otH += rec.otHours || 0;
+      wage += sepRound(dayH * cwHourRate(cfg, w.id));
+    }
+    const advKey = `${w.id}_${satDate}`;
+    const advance = cwAdv[advKey] || 0;
+    return { id: w.id, name: w.name, days, hours, otH, wage, advance, net: wage - advance };
+  });
+  let extraTotal = 0;
+  let snackTotal = 0;
+  for (let d = new Date(mon); d <= sat; d.setDate(d.getDate() + 1)) {
+    const ds = localDateStr(d);
+    const prod = prodLogs[ds];
+    extraTotal += prod?.totals?.extraCost || 0;
+    snackTotal += prod?.totals?.snackCost || 0;
+  }
+  const weekSnacks = (permSnacks || []).filter((s) => s.week === satDate);
+  const permSnackTotal = weekSnacks.reduce((sum2, s) => sum2 + (s.snack || 0), 0);
+  const cwWageTotal = workers.reduce((s, w) => s + w.wage, 0);
+  const cwAdvTotal = workers.reduce((s, w) => s + w.advance, 0);
+  const grandTotal = cwWageTotal - cwAdvTotal + extraTotal + snackTotal + permSnackTotal;
+  return {
+    workers,
+    cwWageTotal,
+    cwAdvTotal,
+    extraTotal,
+    snackTotal,
+    permSnackTotal,
+    grandTotal,
+    satDate,
+    monDate: localDateStr(mon)
+  };
+}
+function calcPermMonthlyPay({
+  date,
+  today,
+  cfg,
+  peAtt,
+  peAdv,
+  activePermProd,
+  guards
+}) {
+  const d = /* @__PURE__ */ new Date(date + "T00:00:00");
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const all = [...activePermProd, ...guards];
+  const guardSet = new Set(guards.map((g) => g.id));
+  const workers = all.map((w) => {
+    const guard = guardSet.has(w.id) || usesPlainRate(cfg, w);
+    let days = 0;
+    let otH = 0;
+    let baseExact = 0;
+    let otExact = 0;
+    for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
+      const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
+      const k = getAttKey("perm", w.id, ds);
+      const rec = peAtt[k];
+      if (!rec || rec.status === "A") continue;
+      days++;
+      baseExact += guard ? guardDayRate(w, ds) : w.dailyRate;
+      if (rec.otHours && rec.otHours > 0) {
+        otExact += rec.otHours * (guard ? guardHourRate(w, ds) : permOtRate(cfg, w));
+        otH += rec.otHours;
+      }
+    }
+    const basePay = sepRound(baseExact);
+    const otPay = sepRound(otExact);
+    const advKey = `${w.id}_${y}_${m + 1}`;
+    const advance = peAdv[advKey] || 0;
+    return {
+      id: w.id,
+      name: w.name,
+      role: w.role,
+      days,
+      otH,
+      basePay,
+      otPay,
+      advance,
+      total: basePay + otPay - advance
+    };
+  });
+  const grandTotal = workers.reduce((s, w) => s + w.total, 0);
+  return {
+    workers,
+    grandTotal,
+    month: `${y}-${String(m + 1).padStart(2, "0")}`,
+    daysInMonth
+  };
+}
+
 // src/shared/storage/workers.js
+function isNonFloor(w) {
+  return usesPlainRate(DEF_CFG, w);
+}
 function getPermWorkers() {
   return loadJSON(K.peEmp, DEF_PERM);
 }
@@ -328,7 +567,7 @@ function getCWWorkers() {
 }
 function getActivePermProd() {
   return getPermWorkers().filter(
-    (w) => !w.inactive && !DEF_CFG.guardIds.includes(w.id) && !DEF_CFG.excludedIds.includes(w.id)
+    (w) => !w.inactive && !isNonFloor(w) && !DEF_CFG.excludedIds.includes(w.id)
   );
 }
 function getActiveCW() {
@@ -336,7 +575,7 @@ function getActiveCW() {
 }
 function getGuards() {
   return getPermWorkers().filter(
-    (w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive
+    (w) => isNonFloor(w) && !w.inactive
   );
 }
 function getAllProdWorkers() {
@@ -380,14 +619,6 @@ function monthDates(monthStr) {
     out.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
   return out;
-}
-
-// src/shared/utils/currency.js
-function sepRound(n) {
-  return Math.floor(Number(n) || 0);
-}
-function formatCurrency(n) {
-  return "\u20B9" + sepRound(n).toLocaleString("en-IN");
 }
 
 // src/shared/utils/calc-prod.js
@@ -627,7 +858,7 @@ function openSettings() {
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">\u20B9${cfg.hourRate}/hr</span></div>
             <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">\u20B9${cfg.snackRate}/day</span></div>
             <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, \u20B9${cfg.permOtBaseRate}) \xF7 8 \xD7 ${cfg.permOtMultiplier} \xB7 cap \u20B9${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
-            <div class="settings-row"><span class="card-label">Guard beyond 12 h</span><span class="card-meta">(monthly \xF7 days in month) \xF7 12 \xB7 no multiplier \xB7 \xF7 12 is the app's reading; the ruling does not state the divisor</span></div>
+            <div class="settings-row"><span class="card-label">Non-floor staff</span><span class="card-meta">(monthly \xF7 days in month) \xF7 shift hours (12, confirmed) \xB7 no multiplier \xB7 an option for any non-floor staff</span></div>
           </div>
         </div>
 
@@ -700,11 +931,27 @@ function addWorkerPrompt(type) {
   if (!name || !name.trim()) return;
   const id = name.trim().toLowerCase().replace(/[^a-z0-9]/g, "_") + "_" + Date.now().toString(36).slice(-4);
   if (type === "perm") {
-    const rate2 = prompt("Daily rate (\u20B9):", "496");
-    const dailyRate = parseInt(rate2) || 496;
-    const role = prompt("Role:", "Worker");
+    const nonFloor = confirm("Non-floor staff on a monthly wage (guard, office)?\n\nOK = monthly wage: hourly = wage \xF7 days in the month \xF7 shift hours, no 1.1\xD7.\nCancel = floor worker on a daily rate.");
+    const role = prompt("Role:", nonFloor ? "Non-floor" : "Worker");
     const workers = getPermWorkers();
-    workers.push({ id, name: name.trim(), role: role || "Worker", dailyRate, inactive: false });
+    if (nonFloor) {
+      const monthlyWage = parseInt(prompt("Monthly wage (\u20B9):", "9000")) || 0;
+      const shiftHours = parseInt(prompt("Standard shift (hours):", "12")) || 12;
+      if (monthlyWage <= 0) return;
+      workers.push({
+        id,
+        name: name.trim(),
+        role: role || "Non-floor",
+        dailyRate: Math.round(monthlyWage / 30),
+        monthlyWage,
+        shiftHours,
+        payModel: PLAIN_PAY_MODEL,
+        inactive: false
+      });
+    } else {
+      const dailyRate = parseInt(prompt("Daily rate (\u20B9):", "496")) || 496;
+      workers.push({ id, name: name.trim(), role: role || "Worker", dailyRate, inactive: false });
+    }
     saveJSON(K.peEmp, workers);
   } else {
     const workers = getCWWorkers();
@@ -738,224 +985,6 @@ function initSettingsBackHandler() {
   window.addEventListener("popstate", () => {
     closeSettings();
   });
-}
-
-// src/shared/utils/payroll.js
-function cwHourRate(cfg, workerId) {
-  const o = cfg.hourRateOverrides;
-  const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
-  return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
-}
-function permOtRate(cfg, worker) {
-  if (isGuard(cfg, worker)) return 0;
-  const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
-  const cap = Number(cfg.permOtBaseRate);
-  const mult = Number(cfg.permOtMultiplier);
-  if (!Number.isFinite(cap) || !Number.isFinite(mult)) return 0;
-  return Math.min(daily, cap) / 8 * mult;
-}
-function daysInMonthOf(dateStr) {
-  const d = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-}
-function guardDayRate(worker, dateStr) {
-  const monthly = Number(worker && worker.monthlyWage);
-  if (Number.isFinite(monthly) && monthly > 0) return monthly / daysInMonthOf(dateStr);
-  return Math.max(Number(worker && worker.dailyRate) || 0, 0);
-}
-function guardHourRate(worker, dateStr) {
-  const h = Number(worker && worker.shiftHours);
-  return guardDayRate(worker, dateStr) / (Number.isFinite(h) && h > 0 ? h : 12);
-}
-function isGuard(cfg, worker) {
-  return !!worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id);
-}
-function monthlyOtRate(cfg, worker, dateStr) {
-  return isGuard(cfg, worker) ? guardHourRate(worker, dateStr) : permOtRate(cfg, worker);
-}
-function getAttKey(type, id, date) {
-  return `${id}_${date.replace(/-/g, "_")}`;
-}
-function calcDayWages({
-  date,
-  cfg,
-  cwAtt,
-  peAtt,
-  activeCW,
-  activePermProd,
-  guards
-}) {
-  let total = 0;
-  for (const w of activeCW) {
-    const k = getAttKey("cw", w.id, date);
-    const rec = cwAtt[k];
-    if (!rec || rec.status === "A") continue;
-    let hours = cfg.standardShift.hours;
-    if (rec.otHours) hours += rec.otHours;
-    total += sepRound(hours * cwHourRate(cfg, w.id));
-  }
-  for (const w of activePermProd) {
-    const k = getAttKey("perm", w.id, date);
-    const rec = peAtt[k];
-    if (!rec || rec.status === "A") continue;
-    total += w.dailyRate;
-    if (rec.otHours && rec.otHours > 0) {
-      const otRate = permOtRate(cfg, w);
-      total += sepRound(rec.otHours * otRate);
-    }
-  }
-  for (const w of guards) {
-    const k = getAttKey("perm", w.id, date);
-    const rec = peAtt[k];
-    if (!rec || rec.status === "A") continue;
-    total += sepRound(guardDayRate(w, date));
-    if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
-  }
-  return total;
-}
-function calcMonthWages({
-  date,
-  today,
-  cfg,
-  cwAtt,
-  peAtt,
-  activeCW,
-  activePermProd,
-  guards
-}) {
-  const d = /* @__PURE__ */ new Date(date + "T00:00:00");
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
-  let total = 0;
-  for (let i = 1; i <= todayDay; i++) {
-    const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
-    total += calcDayWages({
-      date: ds,
-      cfg,
-      cwAtt,
-      peAtt,
-      activeCW,
-      activePermProd,
-      guards
-    });
-  }
-  return total;
-}
-function calcCWWeeklyPay({
-  satDate,
-  cfg,
-  cwAtt,
-  cwAdv,
-  prodLogs,
-  permSnacks,
-  activeCW
-}) {
-  const sat = /* @__PURE__ */ new Date(satDate + "T00:00:00");
-  const mon = new Date(sat);
-  mon.setDate(mon.getDate() - 5);
-  const workers = activeCW.map((w) => {
-    let days = 0;
-    let hours = 0;
-    let otH = 0;
-    let wage = 0;
-    for (let d = new Date(mon); d <= sat; d.setDate(d.getDate() + 1)) {
-      const ds = localDateStr(d);
-      const k = getAttKey("cw", w.id, ds);
-      const rec = cwAtt[k];
-      if (!rec || rec.status === "A") continue;
-      days++;
-      const dayH = cfg.standardShift.hours + (rec.otHours || 0);
-      hours += dayH;
-      otH += rec.otHours || 0;
-      wage += sepRound(dayH * cwHourRate(cfg, w.id));
-    }
-    const advKey = `${w.id}_${satDate}`;
-    const advance = cwAdv[advKey] || 0;
-    return { id: w.id, name: w.name, days, hours, otH, wage, advance, net: wage - advance };
-  });
-  let extraTotal = 0;
-  let snackTotal = 0;
-  for (let d = new Date(mon); d <= sat; d.setDate(d.getDate() + 1)) {
-    const ds = localDateStr(d);
-    const prod = prodLogs[ds];
-    extraTotal += prod?.totals?.extraCost || 0;
-    snackTotal += prod?.totals?.snackCost || 0;
-  }
-  const weekSnacks = (permSnacks || []).filter((s) => s.week === satDate);
-  const permSnackTotal = weekSnacks.reduce((sum2, s) => sum2 + (s.snack || 0), 0);
-  const cwWageTotal = workers.reduce((s, w) => s + w.wage, 0);
-  const cwAdvTotal = workers.reduce((s, w) => s + w.advance, 0);
-  const grandTotal = cwWageTotal - cwAdvTotal + extraTotal + snackTotal + permSnackTotal;
-  return {
-    workers,
-    cwWageTotal,
-    cwAdvTotal,
-    extraTotal,
-    snackTotal,
-    permSnackTotal,
-    grandTotal,
-    satDate,
-    monDate: localDateStr(mon)
-  };
-}
-function calcPermMonthlyPay({
-  date,
-  today,
-  cfg,
-  peAtt,
-  peAdv,
-  activePermProd,
-  guards
-}) {
-  const d = /* @__PURE__ */ new Date(date + "T00:00:00");
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const all = [...activePermProd, ...guards];
-  const guardSet = new Set(guards.map((g) => g.id));
-  const workers = all.map((w) => {
-    const guard = guardSet.has(w.id) || isGuard(cfg, w);
-    let days = 0;
-    let otH = 0;
-    let baseExact = 0;
-    let otExact = 0;
-    for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
-      const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
-      const k = getAttKey("perm", w.id, ds);
-      const rec = peAtt[k];
-      if (!rec || rec.status === "A") continue;
-      days++;
-      baseExact += guard ? guardDayRate(w, ds) : w.dailyRate;
-      if (rec.otHours && rec.otHours > 0) {
-        otExact += rec.otHours * (guard ? guardHourRate(w, ds) : permOtRate(cfg, w));
-        otH += rec.otHours;
-      }
-    }
-    const basePay = sepRound(baseExact);
-    const otPay = sepRound(otExact);
-    const advKey = `${w.id}_${y}_${m + 1}`;
-    const advance = peAdv[advKey] || 0;
-    return {
-      id: w.id,
-      name: w.name,
-      role: w.role,
-      days,
-      otH,
-      basePay,
-      otPay,
-      advance,
-      total: basePay + otPay - advance
-    };
-  });
-  const grandTotal = workers.reduce((s, w) => s + w.total, 0);
-  return {
-    workers,
-    grandTotal,
-    month: `${y}-${String(m + 1).padStart(2, "0")}`,
-    daysInMonth
-  };
 }
 
 // src/components/print-pay.js
@@ -1500,7 +1529,7 @@ function renderAttendance() {
   const monthLocked = isMonthLocked(monthOf(date));
   const perm = getActivePermProd();
   const cw = getActiveCW();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const cwAtt = loadJSON(K.cwAtt, {});
   const peAtt = loadJSON(K.peAtt, {});
   const list = document.getElementById("workerList");
@@ -2315,7 +2344,7 @@ function recordAdvance() {
   const today = getState().today;
   if (requireUnlocked(monthOf(today), "Perm advance")) return;
   const perm = getActivePermProd();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const all = [...perm, ...guard];
   const names = all.map((w, i) => `${i + 1}. ${w.name}`).join("\n");
   const choice = prompt("Select worker number:\n" + names);
@@ -4093,7 +4122,7 @@ function exportAttendanceCSV() {
   const peAtt = loadJSON(K.peAtt, {});
   const cw = getActiveCW();
   const perm = getActivePermProd();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const all = [
     ...perm.map((w) => ({ ...w, type: "perm" })),
     ...guard.map((w) => ({ ...w, type: "perm" })),

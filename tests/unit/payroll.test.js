@@ -1,6 +1,6 @@
 import {
   calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay, getAttKey, cwHourRate, permOtRate,
-  monthlyOtRate, guardDayRate, guardHourRate, daysInMonthOf,
+  monthlyOtRate, guardDayRate, guardHourRate, daysInMonthOf, usesPlainRate,
 } from '../../src/shared/utils/payroll.js';
 
 // Fixture, not the shipped config — but it now carries the RATIFIED contract
@@ -267,5 +267,45 @@ describe('guard rates', () => {
     expect(guardHourRate({ dailyRate: 360 }, '2026-10-07')).toBe(30);
     expect(guardDayRate({ dailyRate: 'x' }, '2026-10-07')).toBe(0);
     expect(guardHourRate({ monthlyWage: 9000, shiftHours: 0 }, '2026-09-07')).toBeCloseTo(25, 10);
+  });
+});
+
+// ── The plain monthly model as an option for non-floor staff — BM, 24 Sep ───
+// "Have it as an option for non-floor staff." Any worker carrying
+// payModel 'monthly-plain' is priced like the guard: monthly wage ÷ days ÷
+// shift hours, no 1.1×, never through permOtRate.
+describe('payModel monthly-plain (non-floor option)', () => {
+  const office = { id: 'office_x', name: 'Office', dailyRate: 400, monthlyWage: 12000, shiftHours: 8, payModel: 'monthly-plain' };
+  const c = { ...cfg, guardIds: ['uday'] };
+
+  test('usesPlainRate: guards by id, and anyone carrying the option', () => {
+    expect(usesPlainRate(c, { id: 'uday' })).toBe(true);
+    expect(usesPlainRate(c, office)).toBe(true);
+    expect(usesPlainRate(c, { id: 'lal', dailyRate: 360 })).toBe(false);
+  });
+
+  test('permOtRate refuses it; monthlyOtRate gives the plain rate (12000 ÷ 30 ÷ 8 = 50.00)', () => {
+    expect(permOtRate(c, office)).toBe(0);
+    expect(monthlyOtRate(c, office, '2026-09-07')).toBeCloseTo(50, 10);
+    expect(monthlyOtRate(c, office, '2026-10-07')).toBeCloseTo(12000 / 31 / 8, 10);
+  });
+
+  test('calcPermMonthlyPay prices an option-carrier on the plain model even in the production list', () => {
+    const peAtt = {};
+    for (let d = 1; d <= 3; d++) peAtt[`office_x_2026_09_0${d}`] = { status: 'P', otHours: 2 };
+    const { workers } = calcPermMonthlyPay({
+      date: '2026-09-07', today: '2026-09-30', cfg: c, peAdv: {}, peAtt,
+      activePermProd: [office], guards: [],
+    });
+    expect(workers[0].basePay).toBe(1200);   // 3 × 400.00
+    expect(workers[0].otPay).toBe(300);      // 6 h × 50.00, no 1.1×
+  });
+
+  test('calcDayWages prices it on the plain model from either list', () => {
+    const peAtt = { office_x_2026_10_07: { status: 'P', otHours: 2 } };
+    const day = Math.floor(12000 / 31); const ot = Math.floor(2 * 12000 / 31 / 8);
+    const base = { date: '2026-10-07', cfg: c, cwAtt: {}, activeCW: [], peAtt };
+    expect(calcDayWages({ ...base, activePermProd: [office], guards: [] })).toBe(day + ot);
+    expect(calcDayWages({ ...base, activePermProd: [], guards: [office] })).toBe(day + ot);
   });
 });

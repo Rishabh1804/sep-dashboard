@@ -242,6 +242,21 @@ describe('the guard: month-set day rate, plain hourly rate beyond 12 h (ruled 14
     peAtt: { [keyOf(ds)]: rec },
   });
 
+  test('Uday carries the plain monthly model explicitly (BM, 24 Sep: an option for non-floor staff)', () => {
+    expect(uday.payModel).toBe('monthly-plain');
+  });
+
+  test('a saved non-floor worker on the option leaves the production roster and joins the non-floor list', () => {
+    localStorage.clear();
+    localStorage.setItem('sep_pe_emp_v1', JSON.stringify([
+      ...DEF_PERM,
+      { id: 'office_x', name: 'Office', dailyRate: 400, monthlyWage: 12000, shiftHours: 8, payModel: 'monthly-plain', inactive: false },
+    ]));
+    expect(getActivePermProd().map((w) => w.id)).not.toContain('office_x');
+    expect(getGuards().map((w) => w.id)).toEqual(['uday', 'office_x']);
+    localStorage.clear();
+  });
+
   test('the production roster (getActivePermProd) leaves Uday out; he is the one guard', () => {
     localStorage.clear();
     expect(getActivePermProd().map((w) => w.id)).not.toContain('uday');

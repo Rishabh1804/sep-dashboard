@@ -12,7 +12,9 @@ var DEF_PERM = [
   // 23 Sep). Both are derived per month from monthlyWage + shiftHours by
   // guardDayRate / guardHourRate in utils/payroll.js. dailyRate 300 (the
   // 30-day figure) is only a fallback and the Settings display.
-  { id: "uday", name: "Uday", role: "Day Guard", dailyRate: 300, monthlyWage: 9e3, shiftHours: 12, inactive: false },
+  // ÷ 12 confirmed and the plain model made an option for any non-floor staff
+  // (BM, 24 Sep): payModel 'monthly-plain' says so explicitly.
+  { id: "uday", name: "Uday", role: "Day Guard", dailyRate: 300, monthlyWage: 9e3, shiftHours: 12, payModel: "monthly-plain", inactive: false },
   // Permanent contract tier — job-work, monthly (= daily rate × 30), flex
   // VAT/Barrel, explicitly NOT pickling (roles-responsibilities-v1.1 §"Three
   // workers"). Same monthly-salary treatment here as the rows above; the tier
@@ -82,4 +84,4 @@ export {
   esc,
   escAttr
 };
-//# sourceMappingURL=chunk-LK2BWCCQ.js.map
+//# sourceMappingURL=chunk-ADDOPD4G.js.map

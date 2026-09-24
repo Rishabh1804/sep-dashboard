@@ -1649,13 +1649,13 @@ his rates come from the month being paid, in `utils/payroll.js`:
 | Day rate (`guardDayRate`) | ₹9,000 ÷ days in the month | ₹300.00 | ₹290.32 |
 | Hourly beyond 12 h (`guardHourRate`) | day rate ÷ 12 | ₹25.00 | ₹24.19 |
 
-⚠ **The ÷ 12 divisor is this app's reading, not the ruling's words.** The
+✅ **Confirmed by the BM, 24 Sep: "Divisor is ÷12."** ~~⚠ **The ÷ 12 divisor is this app's reading, not the ruling's words.** The
 ruling says the rate is set by the days in the month but does not say what the
 day is divided by. His standard day is 12 hours, so ÷ 12 is the natural reading.
 ÷ 8 would give ₹37.50 and ₹36.29; ÷ 11, if the unpaid 12:30–1:30 hour reaches
 the gate, ₹27.27 and ₹26.39 (Castor C-H2). The divisor is an open BM question on
 soma-internal T-HU. It is the `shiftHours` field on his row, so a different
-ruling is a one-field change.
+ruling is a one-field change.~~
 
 ⚠ **Scope** (Castor C-H1): the ruling prices hours **above his 12-hour day**,
 which is after 7 PM only on a 7 AM start. `otHours` on a guard means that and
@@ -1706,3 +1706,41 @@ pins the OT column exactly, and fails if either Finance OT loop reverts to
 bumped, and `dist/` is one clean build (13 reachable, 0 missing, 0 orphans).
 
 *Amendment documented 23 September 2026 by Aurelius (Claude Code).*
+
+### Amendment — ÷ 12 confirmed; the plain model is an option for non-floor staff (24 September 2026, alpha.15)
+
+The BM answered the four items left open on 23 Sep (soma-internal
+`decisions/2026-09-24.md` §8 (payroll)).
+
+1. **The divisor is ÷ 12, confirmed.** The caveats above are struck; `shiftHours: 12`
+   stands.
+2. **"Have it as an option for non-floor staff."** Read as: the plain monthly
+   model (monthly wage ÷ days in the month ÷ shift hours, no 1.1×, pricing
+   directed work inside the shift as well as hours beyond it) is an **option any
+   non-floor worker can carry**, not a guard-only rule. ⚠ *A reading of a
+   five-word answer; if it meant something narrower, this is the paragraph to
+   correct.*
+   - `payModel: 'monthly-plain'` on a worker selects it. `usesPlainRate(cfg, w)`
+     is the one test: every guard, plus anyone carrying the option.
+   - `isNonFloor` in `storage/workers.js` uses it, so option-carriers leave the
+     production roster and join `getGuards()` — the same path the guard takes
+     through every pay view. The attendance, finance and export tabs, which each
+     filtered on `guardIds` themselves, now read `getGuards()`.
+   - `permOtRate` returns 0 for them and `monthlyOtRate` gives the plain rate;
+     `calcDayWages` prices one correctly even if passed in the production list.
+   - **Settings → + Add Perm Worker** asks whether the worker is non-floor staff
+     on a monthly wage; if so it takes the monthly wage and shift hours and sets
+     the option. Uday carries `payModel: 'monthly-plain'` explicitly.
+3. **August's ₹479.03 is paid with next month's salary** (soma-internal T-GS).
+4. The duplicated counter text is a soma-internal matter; fixed there.
+
+⚠ **Unchanged, and still blocking merge:** this repo is public, and the
+24-Sep sensitive-data rule says business data never enters a public repo. The
+shipped roster carries named workers' real rates (see the PR).
+
+**Tests:** unit 414 → **420** (the option: routing, permOtRate refusal, both pay
+paths, the storage lists, Uday's explicit flag). `BUILD 11 → 12`,
+`APP_VERSION 2.1.0-alpha.15`, both SW caches bumped.
+
+*Amendment documented 24 September 2026 by Aurelius (Claude Code).*
+

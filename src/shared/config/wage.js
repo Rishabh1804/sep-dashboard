@@ -59,8 +59,9 @@ export const DEF_CFG = {
   permOtBaseRate: 496,
   // Guards: not on the production roster. Their 7–7 shift is their standard
   // day; otHours on a guard means hours ABOVE his 12-hour day only, paid at his
-  // plain hourly rate (day rate ÷ 12, no multiplier; BM, 23 Sep 2026) — see
-  // guardHourRate in utils/payroll.js, never permOtRate.
+  // plain hourly rate (day rate ÷ 12, confirmed 24 Sep; no multiplier) — see
+  // guardHourRate in utils/payroll.js, never permOtRate. Any other non-floor
+  // worker can opt into the same model with payModel 'monthly-plain'.
   guardIds: ['uday'],
   excludedIds: ['rounak'],
   standardShift:      { start: '08:30', end: '17:00', hours: 8 },
