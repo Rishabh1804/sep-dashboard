@@ -3,6 +3,12 @@
 
 ---
 
+## ⚠ Session 20 onward — DIRECTION CHANGED, read `SESSION_20_KICKOFF.md` first
+
+**Set by the owner, 24 Sep 2026.** The next build is a **personal** PWA for desktop and Android — **attendance and production only**, on **free services plus Claude**, with a backend linked to the WhatsApp group that **flags unreadable data for action**. **The multi-device route (Sessions 12–19) is set aside, not deleted.** Everything below this section is history and design record; where it conflicts with the kickoff, the kickoff wins. This repo is one of three SEP repos, each worked in its own session, plus a fourth **compile session** that reconciles them (`soma-internal/docs/CROSS_REPO_SESSIONS.md`). The kickoff carries **this repo's side** of every data flow.
+
+---
+
 ## What I Found
 
 ### Current State
