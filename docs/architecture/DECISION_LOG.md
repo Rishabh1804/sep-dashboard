@@ -268,3 +268,33 @@ green locally.
 still 403s on serviceusage — the IAM grant (Firebase Rules Admin + Service
 Usage Consumer on the staging SA) remains with the Architect. The relaxed
 rules + CG reads are code-complete and deploy with one click once granted.
+
+---
+
+## 2026-09-24 — Session 20 (personal PWA): kickoff forks A, B and C settled
+
+Owner ratified all three forks in `SESSION_20_KICKOFF.md` at session open.
+
+### ⚠ A — Backend under the free-services rule
+
+**Decision:** Firestore on the free **Spark** plan, used only for sync between the owner's desktop and Android. **No Cloud Functions.** Aggregation (status flips, per-day rollups) moves into the client. The Session 17 aggregators are retired from the new app, not deleted from history.
+
+**Why:** Spark has no Functions, so any design that needs them breaks the free rule. Firestore sync is already built and verified (`src/shared/firebase-session.js`, the transport, the offline queue). Staying on it avoids rebuilding sync on another service.
+
+**Rejected:** device-only with JSON hand-off (no live desktop↔Android sync); Blaze with a spending cap (not free).
+
+### ⚠ B — WhatsApp intake
+
+**Verified (24 Sep 2026, Meta developer docs + provider docs):** the official Cloud API **Groups API** needs an Official Business Account. It caps a group at **8 participants**, only works in groups the API number itself created, and is not available to a number that stays on the phone app (coexistence). **It can't read the shop's existing group.** Unofficial libraries risk a ban on the shop's number.
+
+**Decision:** intake by **exported chat**. WhatsApp "Export chat" goes to the PWA, through the Android share sheet (Web Share Target) or a file upload on desktop. The parser runs in the browser. A line it can't place is stored with a reason and shown for action; nothing is silently dropped.
+
+**Banked:** a dedicated Cloud API number that the relay author also messages 1:1 (free to receive), fronted by a free-tier webhook worker. Revisit only if the export habit proves too slow.
+
+### ⚖ C — Scope and data destination
+
+**Decision:** the new app shows **attendance, production and the payroll view** (attendance feeds wages directly, so the owner kept payroll). **Stock is retired** from the app because `soma-internal` owns it. Invoice and history tabs are retired as well. Their v2.1 modules stay in git history.
+
+**Data:** none in this public repo. Captures, including flagged-unreadable lines and their reasons, must be exportable whole. They are **copied** to `soma-internal` at every compile and stay readable here.
+
+**Lock file:** [`SESSION_20_KICKOFF.md`](../../SESSION_20_KICKOFF.md) § *Settled*.
