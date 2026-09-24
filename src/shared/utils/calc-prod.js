@@ -84,3 +84,35 @@ export function recalcExtra(prod, areas, cfg) {
   prod.totals.extraCost = totalExtraCost;
   prod.totals.snackCost = snackCost;
 }
+
+// After a roster import: reprice the production days and perm snack entries that
+// were recorded while no rate was loaded, so a fresh install's first days do not
+// keep a ₹0 extra or snack cost for good (Janus J-H2). Only UNPRICED figures are
+// touched — a day whose extra or snack already carries a cost keeps it, so priced
+// (and possibly paid) history is never rewritten — and nothing in a locked month
+// moves. `isLocked(month)` takes 'YYYY-MM'. Mutates the logs and snack entries it
+// is given; returns how many of each it repriced.
+export function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
+  const rate = Number(cfg.hourRate) || 0;
+  const snackRate = Number(cfg.snackRate) || 0;
+  let days = 0; let snackEntries = 0;
+  for (const [date, prod] of Object.entries(logs || {})) {
+    if (!prod || !prod.periods || isLocked(date.slice(0, 7))) continue;
+    const t = prod.totals || {};
+    const extraUnpriced = (t.extraHours || 0) > 0 && !t.extraCost && rate > 0;
+    const snackUnpriced = prod.periods.eveningOT?.active
+      && (prod.periods.eveningOT.workers?.length || 0) > 0 && !t.snackCost && snackRate > 0;
+    if (!extraUnpriced && !snackUnpriced) continue;
+    const keep = { extraCost: t.extraCost, snackCost: t.snackCost };
+    recalcExtra(prod, areas, cfg);
+    if (!extraUnpriced) prod.totals.extraCost = keep.extraCost;
+    if (!snackUnpriced) prod.totals.snackCost = keep.snackCost;
+    days++;
+  }
+  for (const s of snacks || []) {
+    if (!s || s.snack || snackRate <= 0 || isLocked(String(s.date || '').slice(0, 7))) continue;
+    s.snack = snackRate;
+    snackEntries++;
+  }
+  return { days, snackEntries };
+}

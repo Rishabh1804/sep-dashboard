@@ -36,7 +36,10 @@
 // alpha.16: pay data leaves the public repo — rates arrive through Settings →
 //   Import roster (Director's sensitive-data rule, 24 Sep); seed-sync never
 //   overwrites them, so an updated device keeps the rates it holds.
-const CACHE_NAME = 'sep-v2.1.0-alpha.16';
+// alpha.17: Governor chain on the move — the import stamps the rate card, and
+//   rates a device holds but never imported are flagged on every pay surface;
+//   days recorded before the import are repriced; a full month pays in full.
+const CACHE_NAME = 'sep-v2.1.0-alpha.17';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

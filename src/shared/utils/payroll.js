@@ -60,6 +60,8 @@ export function permOtRate(cfg, worker) {
 // cost views).
 // A worker's day rate, or 0 when none has been imported yet (pay data arrives
 // through the roster import and never ships). Never NaN.
+const toPaisa = (x) => Math.round(x * 100) / 100;
+
 export function dayRateOf(worker) {
   const n = Number(worker && worker.dailyRate);
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -248,8 +250,11 @@ export function calcPermMonthlyPay({
         otH += rec.otHours;
       }
     }
-    const basePay = sepRound(baseExact);
-    const otPay = sepRound(otExact);
+    // Round to the paisa before flooring to the rupee: summing fractional rates
+    // leaves float residue (31 × 7200/31 = 7199.999…), and a bare floor turns that
+    // into a lost rupee (Janus J-H3).
+    const basePay = sepRound(toPaisa(baseExact));
+    const otPay = sepRound(toPaisa(otExact));
     const advKey = `${w.id}_${y}_${m + 1}`;
     const advance = peAdv[advKey] || 0;
     return {

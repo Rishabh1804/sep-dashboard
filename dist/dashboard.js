@@ -10,7 +10,7 @@ import {
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-7CKROZQ7.js";
+} from "./chunks/chunk-3LGMOQZ4.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-ZJ2XKDFL.js";
+} from "./chunks/chunk-VO32TSO4.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -84,6 +84,7 @@ var DEF_CFG = {
 };
 
 // src/shared/storage/seed-sync.js
+var PLAIN_MODEL = "monthly-plain";
 var OPERATOR_STATUS = ["inactive", "deactivatedOn", "deactivateReason", "reactivatedOn"];
 var RATE_WORKER_FIELDS = ["dailyRate", "monthlyWage"];
 var isRate = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
@@ -121,11 +122,24 @@ function reconcileSeed({ savedPerm, savedCW, savedCfg, defPerm, defCW, defCfg, d
   };
 }
 var ROSTER_FORMAT = "sep-dashboard-roster";
+var ROSTER_STAMP = "rosterAsOf";
+function rosterStatus(cfg, workers = []) {
+  if (cfg && typeof cfg[ROSTER_STAMP] === "string" && cfg[ROSTER_STAMP]) return "imported";
+  const anyCfg = RATE_CFG_FIELDS.some((f) => cfg && isRate(cfg[f]) && cfg[f] > 0);
+  const anyWorker = (workers || []).some((w) => w && RATE_WORKER_FIELDS.some((f) => isRate(w[f]) && w[f] > 0));
+  return anyCfg || anyWorker ? "held" : "none";
+}
+function rosterStatusNote(cfg, workers = []) {
+  const st = rosterStatus(cfg, workers);
+  if (st === "held") return "Rates on this device were never imported and may be out of date (Settings > Import roster).";
+  if (st === "none") return "No pay rates loaded: wages read 0 (Settings > Import roster).";
+  return "";
+}
 function applyRosterImport({ perm, cw, cfg }, doc) {
   if (!doc || doc.format !== ROSTER_FORMAT || doc.version !== 1) {
     throw new Error(`Not a ${ROSTER_FORMAT} v1 file.`);
   }
-  const stats = { workers: 0, cfg: 0, unknown: [], rejected: [] };
+  const stats = { workers: 0, cfg: 0, unknown: [], rejected: [], unpriced: [] };
   const nextCfg = { ...cfg || {} };
   for (const f of RATE_CFG_FIELDS) {
     if (doc.cfg && f in doc.cfg) {
@@ -136,26 +150,36 @@ function applyRosterImport({ perm, cw, cfg }, doc) {
     }
   }
   const byId = new Map((Array.isArray(doc.workers) ? doc.workers : []).map((w) => [w && w.id, w]));
-  const apply = (list) => (Array.isArray(list) ? list : []).map((w) => {
+  const guardIds = Array.isArray(nextCfg.guardIds) ? nextCfg.guardIds : [];
+  const plain = (w) => guardIds.includes(w.id) || w.payModel === PLAIN_MODEL;
+  const fieldFor = (w, tier) => tier === "cw" ? null : plain(w) ? "monthlyWage" : "dailyRate";
+  const apply = (list, tier) => (Array.isArray(list) ? list : []).map((w) => {
     const row = byId.get(w.id);
     if (!row) return w;
     byId.delete(w.id);
     const next = { ...w };
     let touched = false;
     for (const f of RATE_WORKER_FIELDS) {
-      if (f in row) {
-        if (isRate(row[f])) {
-          next[f] = row[f];
-          touched = true;
-        } else stats.rejected.push(`${w.id}.${f}`);
-      }
+      if (!(f in row)) continue;
+      if (f !== fieldFor(w, tier)) stats.rejected.push(`${w.id}.${f} (not how this worker is paid)`);
+      else if (isRate(row[f])) {
+        next[f] = row[f];
+        touched = true;
+      } else stats.rejected.push(`${w.id}.${f}`);
     }
     if (touched) stats.workers++;
     return next;
   });
-  const nextPerm = apply(perm);
-  const nextCW = apply(cw);
+  nextCfg[ROSTER_STAMP] = typeof doc.asOf === "string" && doc.asOf ? doc.asOf : "undated file";
+  const nextPerm = apply(perm, "perm");
+  const nextCW = apply(cw, "cw");
   stats.unknown = [...byId.keys()].filter(Boolean);
+  const excluded = Array.isArray(nextCfg.excludedIds) ? nextCfg.excludedIds : [];
+  const priced = (w) => {
+    const f = fieldFor(w, "perm");
+    return isRate(w[f]) && w[f] > 0;
+  };
+  stats.unpriced = nextPerm.filter((w) => !w.inactive && !excluded.includes(w.id) && !priced(w)).map((w) => w.id);
   return { perm: nextPerm, cw: nextCW, cfg: nextCfg, stats };
 }
 function clone(v) {
@@ -382,6 +406,7 @@ function permOtRate(cfg, worker) {
   if (!Number.isFinite(cap) || !Number.isFinite(mult)) return 0;
   return Math.min(daily, cap) / 8 * mult;
 }
+var toPaisa = (x) => Math.round(x * 100) / 100;
 function dayRateOf(worker) {
   const n = Number(worker && worker.dailyRate);
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -574,8 +599,8 @@ function calcPermMonthlyPay({
         otH += rec.otHours;
       }
     }
-    const basePay = sepRound(baseExact);
-    const otPay = sepRound(otExact);
+    const basePay = sepRound(toPaisa(baseExact));
+    const otPay = sepRound(toPaisa(otExact));
     const advKey = `${w.id}_${y}_${m + 1}`;
     const advance = peAdv[advKey] || 0;
     return {
@@ -733,6 +758,30 @@ function recalcExtra(prod, areas, cfg) {
   prod.totals.extraCost = totalExtraCost;
   prod.totals.snackCost = snackCost;
 }
+function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
+  const rate2 = Number(cfg.hourRate) || 0;
+  const snackRate = Number(cfg.snackRate) || 0;
+  let days = 0;
+  let snackEntries = 0;
+  for (const [date, prod] of Object.entries(logs || {})) {
+    if (!prod || !prod.periods || isLocked(date.slice(0, 7))) continue;
+    const t = prod.totals || {};
+    const extraUnpriced = (t.extraHours || 0) > 0 && !t.extraCost && rate2 > 0;
+    const snackUnpriced = prod.periods.eveningOT?.active && (prod.periods.eveningOT.workers?.length || 0) > 0 && !t.snackCost && snackRate > 0;
+    if (!extraUnpriced && !snackUnpriced) continue;
+    const keep = { extraCost: t.extraCost, snackCost: t.snackCost };
+    recalcExtra(prod, areas, cfg);
+    if (!extraUnpriced) prod.totals.extraCost = keep.extraCost;
+    if (!snackUnpriced) prod.totals.snackCost = keep.snackCost;
+    days++;
+  }
+  for (const s of snacks || []) {
+    if (!s || s.snack || snackRate <= 0 || isLocked(String(s.date || "").slice(0, 7))) continue;
+    s.snack = snackRate;
+    snackEntries++;
+  }
+  return { days, snackEntries };
+}
 
 // src/components/worker-picker.js
 function openPicker(periodKey, areaId) {
@@ -835,8 +884,15 @@ function genInvNumber() {
 }
 
 // src/components/settings-panel.js
+var RATE_STATUS = "none";
 function rateOrMissing(v, unit) {
-  return typeof v === "number" && Number.isFinite(v) ? `\u20B9${v}${unit}` : "not imported \u2014 Import roster";
+  if (!(typeof v === "number" && Number.isFinite(v))) return "not imported \u2014 Import roster";
+  return RATE_STATUS === "held" ? `\u20B9${v}${unit} \xB7 held, not imported` : `\u20B9${v}${unit}`;
+}
+function rateStatusLine(status, cfg) {
+  if (status === "imported") return `Rate card imported (as of ${esc(String(cfg[ROSTER_STAMP]))})`;
+  if (status === "held") return "Rates on this device were never imported and may be superseded \u2014 Import roster";
+  return "No rates loaded: pay reads \u20B90 \u2014 Import roster";
 }
 function getStorageUsed() {
   let total = 0;
@@ -897,11 +953,19 @@ function importRoster() {
       saveJSON(K.peEmp, res.perm);
       saveJSON(K.cwEmp, res.cw);
       saveJSON(K.prodCfg, res.cfg);
+      const logs = getProdLogs();
+      const snacks = loadJSON(K.permSnack, []);
+      const rp = repriceUnpriced({ logs, snacks, areas: getAreas(), cfg: getCfg(), isLocked: isMonthLocked });
+      if (rp.days) saveJSON(K.prodLog, logs);
+      if (rp.snackEntries) saveJSON(K.permSnack, snacks);
       const { stats } = res;
       alert(`Roster imported${doc.asOf ? ` (as of ${doc.asOf})` : ""}: ${stats.workers} workers, ${stats.cfg} rate-card values.` + (stats.unknown.length ? `
 Skipped \u2014 not on this device: ${stats.unknown.join(", ")}` : "") + (stats.rejected.length ? `
-Rejected \u2014 not a valid amount: ${stats.rejected.join(", ")}` : ""));
+Rejected: ${stats.rejected.join(", ")}` : "") + (stats.unpriced.length ? `
+Still unpriced \u2014 not in the file: ${stats.unpriced.join(", ")}` : "") + (rp.days || rp.snackEntries ? `
+Repriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : ""));
       closeSettings();
+      if (typeof window.renderActiveTab === "function") window.renderActiveTab();
       openSettings();
     } catch (err) {
       alert("Roster import failed: " + err.message);
@@ -917,6 +981,7 @@ function openSettings() {
   const _settings = getSettings();
   const cfg = getCfg();
   const invCfg = getInvCfg();
+  RATE_STATUS = rosterStatus(cfg, [...perm, ...cw]);
   const html = `<div class="settings-overlay" onclick="closeSettings()">
     <div class="settings-panel" onclick="event.stopPropagation()">
       <div class="flex-between" style="padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--border)">
@@ -929,8 +994,9 @@ function openSettings() {
           <div class="section-label-md">General</div>
           <div class="card-info">
             <div class="settings-row"><span class="card-label">Version</span><span class="card-meta">v${APP_VERSION}</span></div>
+            <div class="settings-row"><span class="card-label">Rate card</span><span class="card-meta" data-roster-status="${RATE_STATUS}">${rateStatusLine(RATE_STATUS, cfg)}</span></div>
             <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">${rateOrMissing(cfg.hourRate, "/hr")}</span></div>
-            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">${rateOrMissing(cfg.snackRate, "/day")}</span></div>
+            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">${rateOrMissing(cfg.snackRate, " per head per OT day")}</span></div>
             <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, cap) \xF7 8 \xD7 ${cfg.permOtMultiplier} \xB7 cap ${rateOrMissing(cfg.permOtBaseRate, "/day")}</span></div>
             <div class="settings-row"><span class="card-label">Non-floor staff</span><span class="card-meta">(monthly \xF7 days in month) \xF7 shift hours (12, confirmed) \xB7 no multiplier \xB7 an option for any non-floor staff</span></div>
           </div>
@@ -944,7 +1010,7 @@ function openSettings() {
                 <span class="card-label">${esc(w.name)}</span>
                 <span class="card-meta"> \u2014 ${w.role || "Worker"}${w.inactive ? " (inactive)" : ""}</span>
               </div>
-              <span class="card-meta">${w.monthlyWage ? `\u20B9${w.monthlyWage}/mo` : rateOrMissing(w.dailyRate, "/day")}</span>
+              <span class="card-meta">${w.monthlyWage ? rateOrMissing(w.monthlyWage, "/mo") : rateOrMissing(w.dailyRate, "/day")}</span>
             </div>`).join("")}
           </div>
           <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>
@@ -1006,25 +1072,26 @@ function addWorkerPrompt(type) {
   if (!name || !name.trim()) return;
   const id = name.trim().toLowerCase().replace(/[^a-z0-9]/g, "_") + "_" + Date.now().toString(36).slice(-4);
   if (type === "perm") {
-    const nonFloor = confirm("Non-floor staff on a monthly wage (guard, office)?\n\nOK = monthly wage: hourly = wage \xF7 days in the month \xF7 shift hours, no 1.1\xD7.\nCancel = floor worker on a daily rate.");
+    const nonFloor = confirm("Non-floor staff on a monthly wage (guard, office)?\n\nOK = monthly wage: hourly = wage \xF7 days in the month \xF7 shift hours, no 1.1\xD7.\nCancel = floor worker on a daily rate.\n\nNote: the CA-approved hours exemption covers the gate only, not other staff (soma-internal T-HU).");
     const role = prompt("Role:", nonFloor ? "Non-floor" : "Worker");
     const workers = getPermWorkers();
+    const amount = (label) => {
+      const v = Number(prompt(label, ""));
+      return Number.isFinite(v) && v > 0 ? v : void 0;
+    };
+    const row = { id, name: name.trim(), role: role || (nonFloor ? "Non-floor" : "Worker"), inactive: false };
     if (nonFloor) {
-      const monthlyWage = parseInt(prompt("Monthly wage (\u20B9):", "")) || 0;
       const shiftHours = parseInt(prompt("Standard shift (hours):", "12")) || 12;
-      if (monthlyWage <= 0) return;
-      workers.push({
-        id,
-        name: name.trim(),
-        role: role || "Non-floor",
-        monthlyWage,
-        shiftHours,
-        payModel: PLAIN_PAY_MODEL,
-        inactive: false
-      });
+      Object.assign(row, { shiftHours, payModel: PLAIN_PAY_MODEL });
+      const monthlyWage = amount("Monthly wage (\u20B9) \u2014 leave blank to import it:");
+      if (monthlyWage) row.monthlyWage = monthlyWage;
     } else {
-      const dailyRate = parseInt(prompt("Daily rate (\u20B9):", "")) || 0;
-      workers.push({ id, name: name.trim(), role: role || "Worker", dailyRate, inactive: false });
+      const dailyRate = amount("Daily rate (\u20B9) \u2014 leave blank to import it:");
+      if (dailyRate) row.dailyRate = dailyRate;
+    }
+    workers.push(row);
+    if (!row.monthlyWage && !row.dailyRate) {
+      alert(`${row.name} added with no rate. Pay reads \u20B90 until a rate is set or imported.`);
     }
     saveJSON(K.peEmp, workers);
   } else {
@@ -1062,6 +1129,10 @@ function initSettingsBackHandler() {
 }
 
 // src/components/print-pay.js
+function rateWarning() {
+  const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  return note ? `<p style="border:1px solid #000;padding:4pt;font-weight:bold">\u26A0 ${esc(note)}</p>` : "";
+}
 function cwWeekly(satDate) {
   return calcCWWeeklyPay({
     satDate,
@@ -1091,7 +1162,7 @@ function printCWPay() {
   const data = cwWeekly(satDate);
   const cfg = getInvCfg();
   let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
-    <p>CW Weekly Pay \u2014 ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>`;
+    <p>CW Weekly Pay \u2014 ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>${rateWarning()}`;
   html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
   html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Days</th><th>OT Hrs</th><th>Gross</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
   data.workers.filter((w2) => w2.days > 0).forEach((w2) => {
@@ -1116,7 +1187,7 @@ function printPermPay() {
   const cfg = getInvCfg();
   const monthLabel = (/* @__PURE__ */ new Date(data.month + "-01T00:00:00")).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
   let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
-    <p>Permanent Staff Monthly Pay \u2014 ${monthLabel}</p></div>`;
+    <p>Permanent Staff Monthly Pay \u2014 ${monthLabel}</p></div>${rateWarning()}`;
   html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
   html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Role</th><th>Days</th><th>OT Hrs</th><th>Base</th><th>OT Pay</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
   data.workers.filter((w2) => w2.days > 0).forEach((w2) => {
@@ -1473,6 +1544,12 @@ function getStockLog() {
 }
 
 // src/components/alerts.js
+function getRosterStatusAlerts() {
+  const status = rosterStatus(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  if (status === "held") return ['<div class="alert-banner alert-warning" data-roster-alert="held">\u26A0 Pay rates on this device were never imported and may be out of date. Settings \u2192 Import roster.</div>'];
+  if (status === "none") return ['<div class="alert-banner alert-warning" data-roster-alert="none">\u26A0 No pay rates loaded \u2014 wages read \u20B90. Settings \u2192 Import roster.</div>'];
+  return [];
+}
 function getCWPayDueAlerts() {
   const alerts = [];
   const today = getState().today;
@@ -1572,6 +1649,7 @@ function renderHomeAlerts(date, present, total) {
   if (present > 0 && present < total * 0.7) {
     alerts.push(`<div class="alert-banner alert-warning">\u26A0 Low attendance: ${present}/${total} workers present</div>`);
   }
+  alerts.push(...getRosterStatusAlerts());
   alerts.push(...getCWPayDueAlerts());
   alerts.push(...getAttendancePatternAlerts());
   const stock = getStock();
@@ -2255,6 +2333,8 @@ function monthWages(date) {
   });
 }
 function renderFinance() {
+  const note = document.getElementById("finRateNote");
+  if (note) note.innerHTML = getRosterStatusAlerts().join("");
   const date = getState().today;
   const dayWage = dayWages(date);
   const prod = getProdDay(date);
@@ -4189,6 +4269,10 @@ function panel(title, inner) {
 }
 
 // src/dashboard/tabs/finance-export.js
+function withRateNote(rows) {
+  const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  return note ? [...rows, [`NOTE: ${note}`]] : rows;
+}
 function exportAttendanceCSV() {
   const month = monthOf(getState().today);
   const dates = monthDates(month);
@@ -4276,7 +4360,7 @@ function exportPayrollCSV() {
     alert(`No payroll data for ${month}.`);
     return;
   }
-  csvDownload(`SEP_payroll_${month}.csv`, rows);
+  csvDownload(`SEP_payroll_${month}.csv`, withRateNote(rows));
 }
 function exportCostsCSV() {
   const month = monthOf(getState().today);
@@ -4319,7 +4403,7 @@ function exportCostsCSV() {
     alert(`No cost data for ${month}.`);
     return;
   }
-  csvDownload(`SEP_costs_${month}.csv`, rows);
+  csvDownload(`SEP_costs_${month}.csv`, withRateNote(rows));
 }
 
 // src/dashboard/main.js
@@ -4424,6 +4508,8 @@ function exposeWindowSurface() {
     APP_VERSION,
     switchTab,
     renderTab,
+    // Re-render whatever tab is showing — used after a roster import changes rates.
+    renderActiveTab: () => renderTab(getState().currentTab || "home"),
     // Save indicator + dark mode
     toggleDarkMode,
     // Storage helpers used by some inline handlers

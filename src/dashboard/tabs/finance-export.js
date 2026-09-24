@@ -11,6 +11,14 @@ import { getAttKey, calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay, monthlyOt
 import { getActiveCW, getActivePermProd, getGuards, getPermWorkers } from '../../shared/storage/workers.js';
 import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production.js';
 import { DEF_CFG } from '../../shared/config/wage.js';
+import { rosterStatusNote } from '../../shared/storage/seed-sync.js';
+
+// A pay export whose figures rest on rates that were never imported says so in
+// its last row, so the file carries the warning wherever it goes (Janus J-H1).
+function withRateNote(rows) {
+  const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  return note ? [...rows, [`NOTE: ${note}`]] : rows;
+}
 
 export function exportAttendanceCSV() {
   const month = monthOf(getState().today);
@@ -95,7 +103,7 @@ export function exportPayrollCSV() {
   }
 
   if (rows.length === 1) { alert(`No payroll data for ${month}.`); return; }
-  csvDownload(`SEP_payroll_${month}.csv`, rows);
+  csvDownload(`SEP_payroll_${month}.csv`, withRateNote(rows));
 }
 
 export function exportCostsCSV() {
@@ -141,5 +149,5 @@ export function exportCostsCSV() {
   }
 
   if (nonzeroCount === 0) { alert(`No cost data for ${month}.`); return; }
-  csvDownload(`SEP_costs_${month}.csv`, rows);
+  csvDownload(`SEP_costs_${month}.csv`, withRateNote(rows));
 }

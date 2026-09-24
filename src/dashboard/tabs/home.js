@@ -11,7 +11,7 @@ import { isMonthLocked } from '../../shared/storage/lock.js';
 import { isSunday } from '../../shared/utils/date.js';
 import { monthOf } from '../../shared/utils/month.js';
 import { formatCurrency } from '../../shared/utils/currency.js';
-import { getCWPayDueAlerts, getAttendancePatternAlerts } from '../../components/alerts.js';
+import { getCWPayDueAlerts, getRosterStatusAlerts, getAttendancePatternAlerts } from '../../components/alerts.js';
 
 export function renderHome() {
   const date = getState().today;
@@ -64,6 +64,7 @@ function renderHomeAlerts(date, present, total) {
     alerts.push(`<div class="alert-banner alert-warning">⚠ Low attendance: ${present}/${total} workers present</div>`);
   }
 
+  alerts.push(...getRosterStatusAlerts());
   alerts.push(...getCWPayDueAlerts());
   alerts.push(...getAttendancePatternAlerts());
 

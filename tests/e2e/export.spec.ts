@@ -108,7 +108,7 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
     await page.evaluate(({ todayKeyDate }) => {
       // Invented rate card: this repo ships no pay data, and a fresh install
       // prices at zero until Settings → Import roster supplies one.
-      localStorage.setItem('sep_prod_cfg_v1', JSON.stringify({ hourRate: 50, permOtBaseRate: 484, snackRate: 20 }));
+      localStorage.setItem('sep_prod_cfg_v1', JSON.stringify({ hourRate: 50, permOtBaseRate: 484, snackRate: 25, rosterAsOf: '2026-09-24' }));
       localStorage.setItem('sep_cw_emp_v2', JSON.stringify([
         { id: 'cw_beta', name: 'Beta CW', inactive: false },
       ]));
@@ -140,7 +140,7 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
     await page.evaluate(({ today, todayKeyDate }) => {
       // Invented rate card: this repo ships no pay data, and a fresh install
       // prices at zero until Settings → Import roster supplies one.
-      localStorage.setItem('sep_prod_cfg_v1', JSON.stringify({ hourRate: 50, permOtBaseRate: 484, snackRate: 20 }));
+      localStorage.setItem('sep_prod_cfg_v1', JSON.stringify({ hourRate: 50, permOtBaseRate: 484, snackRate: 25, rosterAsOf: '2026-09-24' }));
       // The guard's monthly wage, also invented; reconcile keeps a saved rate.
       localStorage.setItem('sep_pe_emp_v1', JSON.stringify([
         { id: 'uday', name: 'Uday', monthlyWage: 7200, shiftHours: 12, payModel: 'monthly-plain', inactive: false },

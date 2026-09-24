@@ -1373,8 +1373,11 @@ extraction.
    non-floor worker carrying `payModel: 'monthly-plain'`** — are paid monthly wage ÷ days in the
    month, with hours at that ÷ `shiftHours`, no multiplier. `usesPlainRate` is the one test;
    `permOtRate` returns 0 for them and `monthlyOtRate` routes them. `isNonFloor` takes them off the
-   production roster and into `getGuards()`. The ÷ shift-hours divisor is **confirmed** (BM, 24 Sep).
-   ⚠ *"An option for non-floor staff" is a reading of a five-word answer.*
+   production roster and into `getGuards()`. The BM confirmed **÷ 12 for the guard** (24 Sep);
+   dividing other option-carriers by *their* `shiftHours` is part of the reading, not the ruling
+   *(Castor C-M2)*. ⚠ *"An option for non-floor staff" is a reading of a five-word answer.* ⚠ The
+   gate's CA-approved hours exemption does **not** cover other staff, so a second worker on the
+   option needs the CA's answer first (soma-internal T-HU (2); Castor C-M3).
 5. **Pay data moved out (alpha.16).** See below.
 
 ### alpha.16 — the import door
@@ -1389,16 +1392,35 @@ rules (`permOtMultiplier`, shifts, `guardIds`) and ships the three rate-card fie
   `applyRosterImport` matches workers **by id** across both tiers, applies only rate fields,
   **skips and counts** an unknown id (never creates a worker), and **rejects and names** a junk
   figure. A name, role or tier in the file is ignored — structure stays the app's.
-- **A transfer is a COPY.** `seed-sync` never touches a rate: a device keeps the rates it holds
-  until an import replaces them. A device updated from alpha.15 therefore keeps the figures it
-  already had and loses nothing.
-- **A fresh install prices at zero, visibly.** `dayRateOf`, `cwHourRate` and `permOtRate` turn a
-  missing rate into 0, never NaN, and Settings shows *not imported — Import roster* in place of
-  each missing rate.
-- **Tests carry invented figures only.** The rule tests (`payroll.test.js`, `seed-sync.test.js`)
-  use a synthetic rate card; `tests/unit/fixtures/main-era-seed.js` keeps main's pre-alpha.9
+- **A transfer is a COPY — and a copy can be stale, so it is FLAGGED, never wiped.** `seed-sync`
+  never touches a rate: a device keeps the rates it holds until an import replaces them. 🔴 **The
+  realistic upgrade is `main` → this build, not alpha.15 → this build** *(Castor C-B1 / Janus J-B1)*:
+  `main` ships alpha.7, whose seed carries a contract rate about 13% under the card, six men on a
+  flat placeholder day rate, the guard on a flat day rate with no monthly wage, and Sambhu with no
+  permanent rate. Kept silently, those would price as if current. So **`applyRosterImport` stamps
+  `cfg.rosterAsOf`**, and `rosterStatus(cfg, workers)` reads **imported / held / none**. Until the
+  stamp exists, **Home and Finance carry a banner, Settings marks each figure "held, not imported",
+  and the pay prints and payroll/costs CSVs carry the warning themselves** (`rosterStatusNote`).
+  **Importing the roster is a required step on each device's first boot of this build.**
+- **A fresh install prices at zero, and says so on every pay surface** — not only in Settings
+  *(Janus J-H1)*. `dayRateOf`, `cwHourRate` and `permOtRate` turn a missing rate into 0, never NaN.
+- **Days recorded before the import are repriced at import** *(Janus J-H2)*: `repriceUnpriced`
+  prices extra and snack costs that were saved at ₹0 — unlocked months only, unpriced figures only,
+  so priced (and possibly paid) history is never rewritten.
+- **The import checks what it is given** *(Janus J-M2)*: a figure in the field a worker is not paid
+  by (a monthly wage on a floor hand, a day rate on a plain-model worker, anything on a contract
+  hand) is rejected and named, and active monthly-tier workers the file left unpriced are listed.
+  It cannot clear a field: a device upgraded from `main` keeps the guard's old `dailyRate` beside
+  the imported `monthlyWage`, which is harmless because `monthlyWage` wins.
+- **Tests carry invented figures only** — off-card values throughout, after the chain found three
+  that coincided with real card figures *(Janus J-M3 / Castor L2)*. The rule tests
+  (`payroll.test.js`, `seed-sync.test.js`) use a synthetic rate card; `tests/unit/fixtures/main-era-seed.js` keeps main's pre-alpha.9
   structure with invented rates. The per-worker rate pins moved to the generator's self-checks
   in soma-internal, beside the data they check.
+- **`handler-demo.html` was regenerated** from source (`pnpm build:demo`): the committed copy
+  embedded the old seed with real day rates *(Castor C-H3 / Janus J-H4)*. ⚠ **`bm-role.html`**, a
+  mock uploaded in May, carries business figures and named debtors; whether they are real is the
+  Director's to say, so it is left in place and raised on the PR.
 - ⚠ **Public history is not rewritten.** Earlier commits on the PR branch, and main's own history
   before this merge, still contain the figures. A squash merge keeps the branch commits out of
   main; purging history needs a force-push and is the Director's call.
@@ -1415,13 +1437,22 @@ rules (`permOtMultiplier`, shifts, `guardIds`) and ships the three rate-card fie
   gate, no EXTRA-day exclusion and no worked-Sunday rule.
 - **A recompute of a pre-September week reads zero for a worker who changed tier**, because his
   earlier attendance is keyed under the other tier's map.
+- **A non-floor worker cannot be put on a floor crew** *(Vulcanus V-L1)*: the plain model takes him
+  off the production roster, so directed floor work (the W24 class) leaves that area a head short
+  in the shortfall arithmetic.
+- **Area rosters predate this work and are unconfirmed** *(Vulcanus V-L2)*: some leads and hands sit
+  on no roster, one lead sits on two, and the pickling split is still marked for confirmation. They
+  need the BM and a relay check; `roster-codex.test.js` now at least pins that no rostered hand is on
+  the plain model (V-M1), which would silently drop him from his crew.
 
 ### Test Results
 
-Unit **341 → 420** across alpha.9–15, then **400** at alpha.16 (the per-worker rate pins left for
-soma-internal; the import-door and copy-semantics tests added) · E2E **43** (the specs that price
-wages now seed an invented rate card) · `BUILD 12 → 13`, `APP_VERSION 2.1.0-alpha.16`, both SW
-caches bumped.
+Unit **341 → 420** across alpha.9–15, **400** at alpha.16 (the per-worker rate pins left for
+soma-internal; the import-door and copy-semantics tests added), **411** at alpha.17 after the
+Governor chain (import stamp and status, pay-model and coverage checks, repricing, a full month
+paying the whole wage — Janus J-H3's float-residue rupee — the override map, rostered hands off
+the plain model) · E2E **43 → 46** (`roster_status.spec.ts`: none / held / imported) ·
+`BUILD 12 → 13 → 14`, `APP_VERSION 2.1.0-alpha.17`, both SW caches bumped.
 
 *Session 19b documented 21–24 September 2026 by Aurelius (Claude Code); figures transferred to
 soma-internal 24 September 2026.*

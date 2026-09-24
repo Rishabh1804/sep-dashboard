@@ -3,6 +3,7 @@ import { DEF_CFG, RATE_CFG_FIELDS } from '../../src/shared/config/wage.js';
 import { DEF_AREAS } from '../../src/shared/config/areas.js';
 import {
   reconcileSeed, reconcileWorkers, applyRosterImport, ROSTER_FORMAT, RATE_WORKER_FIELDS,
+  rosterStatus, rosterStatusNote, ROSTER_STAMP,
 } from '../../src/shared/storage/seed-sync.js';
 import { MAIN_ERA } from './fixtures/main-era-seed.js';
 import {
@@ -27,9 +28,9 @@ const strip = (list) => list.map((w) => {
 // A synthetic import file, in the format soma-internal emits.
 const IMPORT = {
   format: ROSTER_FORMAT, version: 1, asOf: '2026-09-24',
-  cfg: { hourRate: 50, permOtBaseRate: 484, snackRate: 25 },
+  cfg: { hourRate: 50, permOtBaseRate: 484, snackRate: 25 },  // none is a real card figure
   workers: [
-    { id: 'shambhu', dailyRate: 410 },
+    { id: 'shambhu', dailyRate: 412 },
     { id: 'shyam_bera', dailyRate: 600 },
     { id: 'uday', monthlyWage: 7200 },
   ],
@@ -103,7 +104,7 @@ describe('the roster import door', () => {
   test('applies the rate-card fields and each worker\'s rate, across both tiers', () => {
     const { perm, cfg, stats } = imported();
     expect(cfg).toMatchObject({ hourRate: 50, permOtBaseRate: 484, snackRate: 25 });
-    expect(byId(perm, 'shambhu').dailyRate).toBe(410);
+    expect(byId(perm, 'shambhu').dailyRate).toBe(412);
     expect(byId(perm, 'uday').monthlyWage).toBe(7200);
     expect(stats).toMatchObject({ workers: 3, cfg: 3, unknown: [], rejected: [] });
   });
@@ -111,7 +112,7 @@ describe('the roster import door', () => {
   test('the imported figures price through the rules', () => {
     const { perm, cfg } = imported();
     expect(cwHourRate(cfg, 'vijay')).toBe(50);
-    expect(permOtRate(cfg, byId(perm, 'shambhu'))).toBeCloseTo(56.375, 10);
+    expect(permOtRate(cfg, byId(perm, 'shambhu'))).toBeCloseTo(56.65, 10);
     expect(permOtRate(cfg, byId(perm, 'shyam_bera'))).toBeCloseTo(66.55, 10);
     expect(monthlyOtRate(cfg, byId(perm, 'uday'), '2026-09-07')).toBeCloseTo(20, 10);
     const date = '2026-09-07';
@@ -120,7 +121,7 @@ describe('the roster import door', () => {
       peAtt: { [getAttKey('perm', 'shambhu', date)]: { status: 'P', otHours: 4 } },
       activePermProd: perm.filter((w) => w.id === 'shambhu'), guards: [],
     });
-    expect(workers[0].otPay).toBe(225);   // floor(4 × 56.375)
+    expect(workers[0].otPay).toBe(226);   // floor(4 × 56.65)
   });
 
   test('an id this device does not hold is skipped and counted, never created', () => {
@@ -164,6 +165,69 @@ describe('the roster import door', () => {
     expect(again.perm).toEqual(once.perm);
     expect(again.cw).toEqual(once.cw);
     expect(again.cfg.hourRate).toBe(50);
+  });
+});
+
+describe('held rates are flagged, never wiped (Castor C-B1 / Janus J-B1)', () => {
+  test('a device carrying an older build\'s rates reads HELD after reconcile, and every pay document says so', () => {
+    const { perm, cw, cfg } = reconciled();
+    expect(rosterStatus(cfg, [...perm, ...cw])).toBe('held');
+    expect(rosterStatusNote(cfg, [...perm, ...cw])).toMatch(/never imported/);
+    // The rates themselves are still there: a copy, not a wipe.
+    expect(cfg.hourRate).toBe(MAIN_ERA.cfg.hourRate);
+  });
+
+  test('a fresh install reads NONE; an imported device reads IMPORTED and carries its asOf', () => {
+    const fresh = reconcileSeed({
+      savedPerm: null, savedCW: null, savedCfg: null,
+      defPerm: DEF_PERM, defCW: DEF_CW, defCfg: DEF_CFG, defAreas: DEF_AREAS,
+    });
+    expect(rosterStatus(fresh.cfg, [...fresh.perm, ...fresh.cw])).toBe('none');
+    const done = applyRosterImport(fresh, IMPORT);
+    expect(done.cfg[ROSTER_STAMP]).toBe('2026-09-24');
+    expect(rosterStatus(done.cfg, done.perm)).toBe('imported');
+    expect(rosterStatusNote(done.cfg, done.perm)).toBe('');
+  });
+
+  test('the stamp survives the next boot\'s reconcile', () => {
+    const done = applyRosterImport(reconciled(), IMPORT);
+    const again = reconcileSeed({
+      savedPerm: done.perm, savedCW: done.cw, savedCfg: done.cfg,
+      defPerm: DEF_PERM, defCW: DEF_CW, defCfg: DEF_CFG, defAreas: DEF_AREAS,
+    });
+    expect(again.cfg[ROSTER_STAMP]).toBe('2026-09-24');
+  });
+});
+
+describe('the import checks the pay model and the coverage (Janus J-M2)', () => {
+  test('a figure in the field a worker is not paid by is rejected and named', () => {
+    const r = reconciled();
+    const { perm, stats } = applyRosterImport(r, {
+      ...IMPORT,
+      workers: [
+        { id: 'lal', monthlyWage: 9999 },      // floor worker: paid by dailyRate
+        { id: 'uday', dailyRate: 999 },        // plain model: paid by monthlyWage
+        { id: 'vijay', dailyRate: 999 },       // contract hand: no per-worker figure
+      ],
+    });
+    expect([...stats.rejected].sort()).toEqual([
+      'lal.monthlyWage (not how this worker is paid)',
+      'uday.dailyRate (not how this worker is paid)',
+      'vijay.dailyRate (not how this worker is paid)',
+    ]);
+    expect(byId(perm, 'lal').monthlyWage).toBeUndefined();
+  });
+
+  test('active monthly-tier workers the file left unpriced are listed; off-roll ones are not', () => {
+    const fresh = reconcileSeed({
+      savedPerm: null, savedCW: null, savedCfg: null,
+      defPerm: DEF_PERM, defCW: DEF_CW, defCfg: DEF_CFG, defAreas: DEF_AREAS,
+    });
+    const { stats } = applyRosterImport(fresh, IMPORT);
+    expect(stats.unpriced).toContain('lal');
+    expect(stats.unpriced).not.toContain('shambhu');
+    expect(stats.unpriced).not.toContain('uday');
+    expect(stats.unpriced).not.toContain('rounak');
   });
 });
 

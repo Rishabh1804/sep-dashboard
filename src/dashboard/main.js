@@ -168,6 +168,8 @@ function exposeWindowSurface() {
     APP_VERSION,
     switchTab,
     renderTab,
+    // Re-render whatever tab is showing — used after a roster import changes rates.
+    renderActiveTab: () => renderTab(getState().currentTab || 'home'),
     // Save indicator + dark mode
     toggleDarkMode,
     // Storage helpers used by some inline handlers

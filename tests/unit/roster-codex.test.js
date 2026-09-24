@@ -2,6 +2,7 @@ import { DEF_PERM, DEF_CW } from '../../src/shared/config/workers.js';
 import { DEF_AREAS } from '../../src/shared/config/areas.js';
 import { DEF_CFG } from '../../src/shared/config/wage.js';
 import { getActivePermProd, getGuards } from '../../src/shared/storage/workers.js';
+import { usesPlainRate } from '../../src/shared/utils/payroll.js';
 
 // The roster STRUCTURE is pinned to the soma-internal codex, which owns the
 // roster: who is on it, which tier each worker sits in, canonical names, the
@@ -94,6 +95,14 @@ describe('worker ids are stable', () => {
   });
 });
 
+describe('per-worker rate overrides', () => {
+  test('none ship — the contract rate is one flat figure for every hand (the Champai F-1 closure)', () => {
+    // A second flat global is what produced the old flat contract-rate bug; the override
+    // map exists for a future ruled exception and must ship empty.
+    expect(DEF_CFG.hourRateOverrides).toEqual({});
+  });
+});
+
 describe('area rosters honour the tier rules', () => {
   test('the job-work tier never appears on a pickling area', () => {
     const offences = [];
@@ -112,6 +121,16 @@ describe('area rosters honour the tier rules', () => {
         if (!byId[id]) offences.push(`${a.id}: unknown ${id}`);
         else if (byId[id].inactive) offences.push(`${a.id}: inactive ${id}`);
       }
+    }
+    expect(offences).toEqual([]);
+  });
+
+  test('no rostered floor hand is on the plain model (Vulcanus V-M1)', () => {
+    // production.js marks present only workers who are NOT non-floor, so a
+    // rostered id on the plain model would silently never be crewed.
+    const offences = [];
+    for (const a of DEF_AREAS) {
+      for (const id of a.roster) if (byId[id] && usesPlainRate(DEF_CFG, byId[id])) offences.push(`${a.id}:${id}`);
     }
     expect(offences).toEqual([]);
   });

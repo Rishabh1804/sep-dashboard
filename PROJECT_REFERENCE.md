@@ -174,7 +174,7 @@
 ### Contract Workers (11)
 Kusu, Sripati, Naren, Champai, Budheswar, Sai, Shambhu, Mantu, Rocky, Birsa, Tuklu
 
-**CW rate:** `hourRate` per hour, no OT premium (1.0×), `snackRate` per day for evening OT
+**CW rate:** `hourRate` per hour, no OT premium (1.0×), `snackRate` per head per evening-OT day
 
 ---
 

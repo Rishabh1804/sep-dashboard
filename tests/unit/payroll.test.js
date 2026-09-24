@@ -10,10 +10,11 @@ import {
 // hold whatever the figures are.
 //   contract:  50/hr → 400 for an 8-hour day
 //   perm OT:   min(daily, 484) ÷ 8 × 1.1 → cap 66.55/hr
+// None of these is a figure on the real card.
 //   plain:     monthly 7,200, 12-hour shift → 240/day and 20/hr in a 30-day month
 const cfg = {
   hourRate: 50,
-  snackRate: 20,
+  snackRate: 25,
   permOtMultiplier: 1.1,
   permOtBaseRate: 484,
   standardShift: { hours: 8 },
@@ -105,9 +106,9 @@ describe('calcDayWages', () => {
     const total = calcDayWages({
       date: '2026-04-28', cfg, cwAtt: {}, peAtt,
       activeCW: [], activePermProd: [],
-      guards: [{ id: 'guard_a', name: 'G', dailyRate: 360 }],
+      guards: [{ id: 'guard_a', name: 'G', dailyRate: 348 }],
     });
-    expect(total).toBe(360);
+    expect(total).toBe(348);
   });
 });
 
@@ -169,7 +170,7 @@ describe('permOtRate', () => {
 
   test('below the cap: multiplier × his own hourly rate', () => {
     expect(permOtRate(cfg, { dailyRate: 400 })).toBeCloseTo(55, 10);
-    expect(permOtRate(cfg, { dailyRate: 410 })).toBeCloseTo(56.375, 10);
+    expect(permOtRate(cfg, { dailyRate: 412 })).toBeCloseTo(56.65, 10);
   });
 
   test('above the cap: the cap binds (600/day would be 82.50 uncapped)', () => {
@@ -184,7 +185,7 @@ describe('permOtRate', () => {
 
   test('the RATE is not floored to whole rupees', () => {
     expect(permOtRate(cfg, { dailyRate: 600 })).not.toBe(66);
-    expect(permOtRate(cfg, { dailyRate: 410 })).not.toBe(56);
+    expect(permOtRate(cfg, { dailyRate: 412 })).not.toBe(56);
   });
 
   test('a missing or junk daily rate gives 0 — a visible zero, never a silently capped payment', () => {
@@ -195,17 +196,17 @@ describe('permOtRate', () => {
 });
 
 describe('perm OT through the payroll functions — the paid AMOUNT is floored, the rate is not', () => {
-  const below = { id: 'pe_below', name: 'Below', dailyRate: 410 };
+  const below = { id: 'pe_below', name: 'Below', dailyRate: 412 };
   const above = { id: 'pe_above', name: 'Above', dailyRate: 600 };
   const date = '2026-09-07';
 
-  test('calcDayWages — below cap, 3 OT hr: 410 + floor(3 × 56.375 = 169.125) = 579', () => {
+  test('calcDayWages — below cap, 3 OT hr: 412 + floor(3 × 56.65 = 169.95) = 581', () => {
     const total = calcDayWages({
       date, cfg, cwAtt: {}, activeCW: [], guards: [],
       peAtt: { [getAttKey('perm', 'pe_below', date)]: { status: 'P', otHours: 3 } },
       activePermProd: [below],
     });
-    expect(total).toBe(579);
+    expect(total).toBe(581);
   });
 
   test('calcDayWages — capped, 5 OT hr: floor(5 × 66.55 = 332.75) = 332, where a floored 66 rate pays 330', () => {
@@ -217,14 +218,14 @@ describe('perm OT through the payroll functions — the paid AMOUNT is floored, 
     expect(total).toBe(600 + 332);
   });
 
-  test('calcPermMonthlyPay — below cap, 4 OT hr on one day: otPay = floor(4 × 56.375 = 225.5) = 225', () => {
+  test('calcPermMonthlyPay — below cap, 4 OT hr on one day: otPay = floor(4 × 56.65 = 226.6) = 226', () => {
     const rows = calcPermMonthlyPay({
       date, today: date, cfg, peAdv: {}, guards: [],
       peAtt: { [getAttKey('perm', 'pe_below', date)]: { status: 'P', otHours: 4 } },
       activePermProd: [below],
     });
     const r = rows.workers.find((x) => x.id === 'pe_below');
-    expect(r.otPay).toBe(225);
+    expect(r.otPay).toBe(226);
     expect(r.otH).toBe(4);
   });
 });
@@ -243,10 +244,10 @@ describe('perm OT is rounded once per month, not per day', () => {
     }).workers[0];
   };
 
-  test('below cap, 3 OT hr on 10 days: floor(30 × 56.375 = 1,691.25) = 1,691 — a per-day floor paid 1,690', () => {
-    const r = month('pe_below', 410, 10, 3);
+  test('below cap, 3 OT hr on 10 days: floor(30 × 56.65 = 1,699.5) = 1,699 — a per-day floor paid 1,690', () => {
+    const r = month('pe_below', 412, 10, 3);
     expect(r.otH).toBe(30);
-    expect(r.otPay).toBe(1691);
+    expect(r.otPay).toBe(1699);
   });
 
   test('capped, 3 OT hr on 10 days: floor(30 × 66.55 = 1,996.5) = 1,996 — a per-day floor paid 1,990', () => {
@@ -278,8 +279,8 @@ describe('guard rates', () => {
   });
 
   test('no monthlyWage → dailyRate; no shiftHours → 12', () => {
-    expect(guardDayRate({ dailyRate: 360 }, '2026-10-07')).toBe(360);
-    expect(guardHourRate({ dailyRate: 360 }, '2026-10-07')).toBe(30);
+    expect(guardDayRate({ dailyRate: 348 }, '2026-10-07')).toBe(348);
+    expect(guardHourRate({ dailyRate: 348 }, '2026-10-07')).toBe(29);
     expect(guardDayRate({ dailyRate: 'x' }, '2026-10-07')).toBe(0);
     expect(guardDayRate({}, '2026-10-07')).toBe(0);
     expect(guardHourRate({ monthlyWage: 7200, shiftHours: 0 }, '2026-09-07')).toBeCloseTo(20, 10);
@@ -308,6 +309,18 @@ describe('guard rates', () => {
     expect(r.days).toBe(28);
     expect(r.basePay).toBe(Math.floor(28 * 7200 / 31));   // 6,503 — not 28 × floor(232.26) = 6,496
   });
+
+  test('a full month pays the whole monthly wage — float residue never costs a rupee (Janus J-H3)', () => {
+    const c = { ...cfg, guardIds: ['guard_a'] };
+    for (const [ym, dim] of [['2026-10', 31], ['2028-02', 29], ['2026-09', 30]]) {
+      const peAtt = {};
+      for (let d = 1; d <= dim; d++) peAtt[getAttKey('perm', 'guard_a', `${ym}-${String(d).padStart(2, '0')}`)] = { status: 'P' };
+      const r = calcPermMonthlyPay({
+        date: `${ym}-15`, today: `${ym}-${dim}`, cfg: c, peAdv: {}, peAtt, activePermProd: [], guards: [g],
+      }).workers[0];
+      expect(`${ym}=${r.basePay}`).toBe(`${ym}=7200`);
+    }
+  });
 });
 
 // ── The plain monthly model as an option for non-floor staff — BM, 24 Sep ───
@@ -320,7 +333,7 @@ describe('payModel monthly-plain (non-floor option)', () => {
   test('usesPlainRate: guards by id, and anyone carrying the option', () => {
     expect(usesPlainRate(c, { id: 'guard_a' })).toBe(true);
     expect(usesPlainRate(c, office)).toBe(true);
-    expect(usesPlainRate(c, { id: 'pe_a', dailyRate: 360 })).toBe(false);
+    expect(usesPlainRate(c, { id: 'pe_a', dailyRate: 348 })).toBe(false);
   });
 
   test('permOtRate refuses it; monthlyOtRate gives the plain rate (12000 ÷ 30 ÷ 8 = 50.00)', () => {

@@ -13,6 +13,12 @@ import { K } from '../shared/storage/keys.js';
 import { DEF_CFG } from '../shared/config/wage.js';
 import { getActiveCW, getActivePermProd, getGuards, getPermWorkers } from '../shared/storage/workers.js';
 import { getCfg, getProdLogs } from '../shared/storage/production.js';
+import { rosterStatusNote } from '../shared/storage/seed-sync.js';
+
+function rateWarning() {
+  const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  return note ? `<p style="border:1px solid #000;padding:4pt;font-weight:bold">⚠ ${esc(note)}</p>` : '';
+}
 
 function cwWeekly(satDate) {
   return calcCWWeeklyPay({
@@ -47,7 +53,7 @@ export function printCWPay() {
   const cfg = getInvCfg();
 
   let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
-    <p>CW Weekly Pay — ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>`;
+    <p>CW Weekly Pay — ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>${rateWarning()}`;
   html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
   html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Days</th><th>OT Hrs</th><th>Gross</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
   data.workers.filter((w) => w.days > 0).forEach((w) => {
@@ -72,7 +78,7 @@ export function printPermPay() {
   const monthLabel = new Date(data.month + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
-    <p>Permanent Staff Monthly Pay — ${monthLabel}</p></div>`;
+    <p>Permanent Staff Monthly Pay — ${monthLabel}</p></div>${rateWarning()}`;
   html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
   html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Role</th><th>Days</th><th>OT Hrs</th><th>Base</th><th>OT Pay</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
   data.workers.filter((w) => w.days > 0).forEach((w) => {
