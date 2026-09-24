@@ -59,6 +59,18 @@ attendance and production data stay out of this repo's history. **Its destinatio
 
 ---
 
+## Settled — owner, 24 Sep 2026 (Session 20 open)
+
+| Fork | Ruling |
+|---|---|
+| ⚠ A | **Firestore free (Spark) for desktop↔Android sync; no Cloud Functions.** Aggregation moves client-side. |
+| ⚠ B | **Exported chat → PWA** (Android share sheet via Web Share Target; file upload on desktop). The official Groups API was verified unusable: OBA-only, 8-participant cap, API-created groups only, no coexistence. A bot number fed 1:1 is banked. |
+| ⚖ C | **Attendance + production + payroll view.** Stock, invoice and history are retired from the app (stock is owned by `soma-internal`). No data in this repo; the export is whole and copied at compile. |
+
+Rationale and rejected options: `docs/architecture/DECISION_LOG.md`, 2026-09-24 entry.
+
+---
+
 ## "Claude" in the stack: reuse the parsing rules, don't re-derive them
 
 Turning the daily relay into attendance and production, and flagging what can't be read, is the
