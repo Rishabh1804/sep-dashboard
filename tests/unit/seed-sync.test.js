@@ -186,7 +186,7 @@ describe('held rates are flagged, never wiped (Castor C-B1 / Janus J-B1)', () =>
     const done = applyRosterImport(fresh, IMPORT);
     expect(done.cfg[ROSTER_STAMP]).toBe('2026-09-24');
     expect(rosterStatus(done.cfg, done.perm)).toBe('imported');
-    expect(rosterStatusNote(done.cfg, done.perm)).toBe('');
+    expect(rosterStatusNote(done.cfg, done.perm)).toBe('Rates as of 2026-09-24 (imported roster).');
   });
 
   test('the stamp survives the next boot\'s reconcile', () => {

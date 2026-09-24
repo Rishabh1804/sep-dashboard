@@ -91,14 +91,23 @@ export function recalcExtra(prod, areas, cfg) {
 // touched — a day whose extra or snack already carries a cost keeps it, so priced
 // (and possibly paid) history is never rewritten — and nothing in a locked month
 // moves. `isLocked(month)` takes 'YYYY-MM'. Mutates the logs and snack entries it
-// is given; returns how many of each it repriced.
+// is given; returns how many of each it repriced, and how many priced days carry
+// an extra cost that the new rate would not give.
 export function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
   const rate = Number(cfg.hourRate) || 0;
   const snackRate = Number(cfg.snackRate) || 0;
-  let days = 0; let snackEntries = 0;
+  let days = 0; let snackEntries = 0; let otherRateDays = 0;
   for (const [date, prod] of Object.entries(logs || {})) {
     if (!prod || !prod.periods || isLocked(date.slice(0, 7))) continue;
     const t = prod.totals || {};
+    // A day already PRICED is kept as recorded — but if its extra cost does not
+    // match the new rate it was priced at an older one (a device upgraded from
+    // an older build). Counted and reported, never silently mixed (Cipher H-1).
+    if (t.extraCost && rate > 0) {
+      const probe = JSON.parse(JSON.stringify(prod));
+      recalcExtra(probe, areas, cfg);
+      if (probe.totals.extraCost !== t.extraCost) otherRateDays++;
+    }
     const extraUnpriced = (t.extraHours || 0) > 0 && !t.extraCost && rate > 0;
     const snackUnpriced = prod.periods.eveningOT?.active
       && (prod.periods.eveningOT.workers?.length || 0) > 0 && !t.snackCost && snackRate > 0;
@@ -114,5 +123,5 @@ export function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => fal
     s.snack = snackRate;
     snackEntries++;
   }
-  return { days, snackEntries };
+  return { days, snackEntries, otherRateDays };
 }

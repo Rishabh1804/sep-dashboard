@@ -95,14 +95,16 @@ export function rosterStatus(cfg, workers = []) {
   return anyCfg || anyWorker ? 'held' : 'none';
 }
 
-// One sentence for a pay document (print, CSV) whose figures rest on rates that
-// were not imported, or '' when they were. Pay documents are what gets handed
-// over, so they carry the warning themselves (Janus J-H1).
+// One sentence every pay document (print, payroll/costs CSV) carries about the
+// rates behind it. Pay documents are what gets handed over, so they say it
+// themselves (Janus J-H1). An imported card is named by its date, always: a stamp
+// never expires, and only the date shows whether the card is still the current
+// one (Cipher H-1).
 export function rosterStatusNote(cfg, workers = []) {
   const st = rosterStatus(cfg, workers);
   if (st === 'held') return 'Rates on this device were never imported and may be out of date (Settings > Import roster).';
   if (st === 'none') return 'No pay rates loaded: wages read 0 (Settings > Import roster).';
-  return '';
+  return `Rates as of ${cfg[ROSTER_STAMP]} (imported roster).`;
 }
 
 export function applyRosterImport({ perm, cw, cfg }, doc) {

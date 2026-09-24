@@ -17,7 +17,8 @@ import { rosterStatusNote } from '../shared/storage/seed-sync.js';
 
 function rateWarning() {
   const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
-  return note ? `<p style="border:1px solid #000;padding:4pt;font-weight:bold">⚠ ${esc(note)}</p>` : '';
+  if (note.startsWith('Rates as of')) return `<p style="font-size:9pt">${esc(note)}</p>`;
+  return `<p style="border:1px solid #000;padding:4pt;font-weight:bold">⚠ ${esc(note)}</p>`;
 }
 
 function cwWeekly(satDate) {

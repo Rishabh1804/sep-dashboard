@@ -2,6 +2,7 @@
 // when viewing dates inside a closed month.
 
 import { loadJSON } from '../../shared/storage/storage.js';
+import { getRosterStatusAlerts } from '../../components/alerts.js';
 import { K } from '../../shared/storage/keys.js';
 import { getState, setState } from '../../shared/storage/state.js';
 import { localDateStr, formatDate } from '../../shared/utils/date.js';
@@ -14,6 +15,8 @@ import { getAllProdWorkers, getActiveCW, getActivePermProd, getGuards } from '..
 import { getProdDay, getCfg } from '../../shared/storage/production.js';
 
 export function renderHistory() {
+  const rateNote = document.getElementById('histRateNote');
+  if (rateNote) rateNote.innerHTML = getRosterStatusAlerts().join('');
   const date = getState().histDate;
   const histMonth = monthOf(date);
   const histMonthLocked = isMonthLocked(histMonth);

@@ -93,12 +93,25 @@ describe('repriceUnpriced', () => {
     const logs = { '2026-08-10': day(0, 0, 0) };
     const snacks = [{ date: '2026-09-10', snack: 0 }, { date: '2026-09-11', snack: 20 }, { date: '2026-08-10', snack: 0 }];
     const r = repriceUnpriced({ logs, snacks, areas, cfg, isLocked: (m) => m === '2026-08' });
-    expect(r).toEqual({ days: 0, snackEntries: 1 });
+    expect(r).toEqual({ days: 0, snackEntries: 1, otherRateDays: 0 });
     expect(snacks.map((x) => x.snack)).toEqual([25, 20, 0]);
   });
 
   test('with no rate loaded there is nothing to price', () => {
     const logs = { '2026-09-10': day(0, 0, 0) };
-    expect(repriceUnpriced({ logs, snacks: [{ date: '2026-09-10', snack: 0 }], areas, cfg: {} })).toEqual({ days: 0, snackEntries: 0 });
+    expect(repriceUnpriced({ logs, snacks: [{ date: '2026-09-10', snack: 0 }], areas, cfg: {} })).toEqual({ days: 0, snackEntries: 0, otherRateDays: 0 });
+  });
+
+  test('a day priced at an older rate is counted, not repriced', () => {
+    const areasX = [{ id: 'a1', roster: [], caps: [] }];
+    const prod = {
+      periods: { standard: { active: true, hours: 8, areas: {} }, eveningOT: { active: false } },
+      totals: { extraHours: 8, extraCost: 88, snackCost: 0 },
+    };
+    // recalcExtra with no area shortfall yields 0 extra, which differs from the 88 recorded.
+    const logs = { '2026-09-12': prod };
+    const r = repriceUnpriced({ logs, snacks: [], areas: areasX, cfg });
+    expect(r.otherRateDays).toBe(1);
+    expect(logs['2026-09-12'].totals.extraCost).toBe(88);
   });
 });

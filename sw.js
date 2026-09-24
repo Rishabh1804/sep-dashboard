@@ -37,9 +37,13 @@
 //   Import roster (Director's sensitive-data rule, 24 Sep); seed-sync never
 //   overwrites them, so an updated device keeps the rates it holds.
 // alpha.17: Governor chain on the move — the import stamps the rate card, and
-//   rates a device holds but never imported are flagged on every pay surface;
-//   days recorded before the import are repriced; a full month pays in full.
-const CACHE_NAME = 'sep-v2.1.0-alpha.17';
+//   rates a device holds but never imported are flagged on Home, Finance,
+//   Settings, the pay prints and the pay CSVs; days recorded before the import
+//   are repriced; a full month pays in full.
+// alpha.18: Censor pass — Production and History carry the banner too; pay
+//   prints and CSVs always name the card's date; the import counts days priced
+//   at an older rate.
+const CACHE_NAME = 'sep-v2.1.0-alpha.18';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

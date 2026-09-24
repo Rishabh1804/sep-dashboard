@@ -13,8 +13,9 @@ import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production
 import { DEF_CFG } from '../../shared/config/wage.js';
 import { rosterStatusNote } from '../../shared/storage/seed-sync.js';
 
-// A pay export whose figures rest on rates that were never imported says so in
-// its last row, so the file carries the warning wherever it goes (Janus J-H1).
+// A pay export names the rates behind it in its last row — the imported card's
+// date, or a warning when none was imported — so the file carries it wherever it
+// goes (Janus J-H1, Cipher H-1).
 function withRateNote(rows) {
   const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
   return note ? [...rows, [`NOTE: ${note}`]] : rows;

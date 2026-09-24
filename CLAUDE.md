@@ -1399,11 +1399,16 @@ rules (`permOtMultiplier`, shifts, `guardIds`) and ships the three rate-card fie
   flat placeholder day rate, the guard on a flat day rate with no monthly wage, and Sambhu with no
   permanent rate. Kept silently, those would price as if current. So **`applyRosterImport` stamps
   `cfg.rosterAsOf`**, and `rosterStatus(cfg, workers)` reads **imported / held / none**. Until the
-  stamp exists, **Home and Finance carry a banner, Settings marks each figure "held, not imported",
-  and the pay prints and payroll/costs CSVs carry the warning themselves** (`rosterStatusNote`).
+  stamp exists, **Home, Finance, Production and History carry a banner, Settings marks each figure
+  "held, not imported", and both pay prints and the payroll and costs CSVs carry the warning
+  themselves** (`rosterStatusNote`). ⚠ **What this does not catch** *(Cipher H-1)*: a stamp does not
+  expire, so a device stamped with an older card reads "imported" — which is why every pay print and
+  pay CSV names the card's date (*Rates as of …*) even when imported; and production days confirmed
+  at a held rate keep that extra cost after the import (only ₹0 figures are repriced) — the import
+  alert counts them.
   **Importing the roster is a required step on each device's first boot of this build.**
-- **A fresh install prices at zero, and says so on every pay surface** — not only in Settings
-  *(Janus J-H1)*. `dayRateOf`, `cwHourRate` and `permOtRate` turn a missing rate into 0, never NaN.
+- **A fresh install prices at zero, and says so on every surface that shows pay** — Home, Finance, Production and History, Settings, both pay prints and the payroll and costs CSVs (instrument: every file under `src/dashboard/tabs` and `src/components` that reads a wage, rate, extra or snack cost) —
+  not only in Settings *(Janus J-H1; Production and History added at Cipher M-1)*. `dayRateOf`, `cwHourRate` and `permOtRate` turn a missing rate into 0, never NaN.
 - **Days recorded before the import are repriced at import** *(Janus J-H2)*: `repriceUnpriced`
   prices extra and snack costs that were saved at ₹0 — unlocked months only, unpriced figures only,
   so priced (and possibly paid) history is never rewritten.
@@ -1412,16 +1417,22 @@ rules (`permOtMultiplier`, shifts, `guardIds`) and ships the three rate-card fie
   hand) is rejected and named, and active monthly-tier workers the file left unpriced are listed.
   It cannot clear a field: a device upgraded from `main` keeps the guard's old `dailyRate` beside
   the imported `monthlyWage`, which is harmless because `monthlyWage` wins.
-- **Tests carry invented figures only** — off-card values throughout, after the chain found three
-  that coincided with real card figures *(Janus J-M3 / Castor L2)*. The rule tests
+- **Tests carry no per-worker card figure** — off-card values, after the chain found three that
+  coincided with real card figures *(Janus J-M3 / Castor L2)*. Two bare numbers still coincide with
+  card values and name nobody (a `sepRound(496)` case that predates this work, and an anonymous
+  `dailyRate: 500`) *(Cipher L-3)*. The rule tests
   (`payroll.test.js`, `seed-sync.test.js`) use a synthetic rate card; `tests/unit/fixtures/main-era-seed.js` keeps main's pre-alpha.9
   structure with invented rates. The per-worker rate pins moved to the generator's self-checks
   in soma-internal, beside the data they check.
 - **`handler-demo.html` was regenerated** from source (`pnpm build:demo`): the committed copy
-  embedded the old seed with real day rates *(Castor C-H3 / Janus J-H4)*. **`bm-role.html`** — a May mock carrying business figures (bank balance, receivables, a bonus
-  accrual) and named debtors — **was moved to soma-internal on the Director's word** (24 Sep:
-  "move bm-role as well"), byte-identical, as `analysis/sep-dashboard-bm-role-2026-05.html`. Nothing
-  here linked to it.
+  embedded the old seed with real day rates *(Castor C-H3 / Janus J-H4)*. **`bm-role.html`** — the BM role and KPI page uploaded in May, carrying business figures (bank
+  balance, receivables, the bonus trigger and accrual) and named debtors; soma-internal
+  `decisions/2026-05-11-bm-role-and-comp.md` records it as a live page, so whether its figures were
+  real is **not established** — **was moved to soma-internal on the Director's word** (24 Sep: "move
+  bm-role as well"), byte-identical, as `analysis/sep-dashboard-bm-role-2026-05.html`. Nothing in this
+  repo linked to it; the codex's May record links its Pages URL, which stops resolving once this
+  deploys. ⚠ It was **served publicly on Pages from May** until then, which is exposure beyond git
+  history *(Cipher M-2)*.
 - ⚠ **Public history is not rewritten.** Earlier commits on the PR branch, and main's own history
   before this merge, still contain the figures. A squash merge keeps the branch commits out of
   main; purging history needs a force-push and is the Director's call.
@@ -1453,7 +1464,9 @@ soma-internal; the import-door and copy-semantics tests added), **411** at alpha
 Governor chain (import stamp and status, pay-model and coverage checks, repricing, a full month
 paying the whole wage — Janus J-H3's float-residue rupee — the override map, rostered hands off
 the plain model) · E2E **43 → 46** (`roster_status.spec.ts`: none / held / imported) ·
-`BUILD 12 → 13 → 14`, `APP_VERSION 2.1.0-alpha.17`, both SW caches bumped.
+`BUILD 12 → 13 → 14`, `APP_VERSION 2.1.0-alpha.17`, both SW caches bumped. **alpha.18** (Censor
+pass): banners on Production and History, pay prints and pay CSVs always dated, older-rate days
+counted at import · unit **412** · e2e **46** · `BUILD 15`.
 
 *Session 19b documented 21–24 September 2026 by Aurelius (Claude Code); figures transferred to
 soma-internal 24 September 2026.*

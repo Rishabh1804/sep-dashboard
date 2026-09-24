@@ -27,8 +27,8 @@
 //     Confirm the split with Vulcanus/BM; the REMOVALS need no confirmation.
 //   · `rupa_bera` removed from pickle_barrel — she is VAT A2 Lead and appears
 //     on no pickling slot in the W33 record.
-//   · `tuklu` removed from barrel — off active pool, AWOL confirmed 18 May
-//     2026 (`staff-aliases.md`). He stays in DEF_CW as `inactive`.
+//   · `tuklu` removed from barrel — off the active pool. He stays in DEF_CW as
+//     `inactive`.
 
 export const DEF_AREAS = [
   {

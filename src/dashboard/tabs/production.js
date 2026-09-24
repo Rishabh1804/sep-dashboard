@@ -6,6 +6,7 @@
 // this module owns view rendering and storage writes.
 
 import { loadJSON, saveJSON } from '../../shared/storage/storage.js';
+import { getRosterStatusAlerts } from '../../components/alerts.js';
 import { K } from '../../shared/storage/keys.js';
 import { getState } from '../../shared/storage/state.js';
 import { getAttKey } from '../../shared/utils/payroll.js';
@@ -20,6 +21,8 @@ import { initProdDay, getReq, recalcExtra } from '../../shared/utils/calc-prod.j
 import { renderHome } from './home.js';
 
 export function renderProduction() {
+  const rateNote = document.getElementById('prodRateNote');
+  if (rateNote) rateNote.innerHTML = getRosterStatusAlerts().join('');
   const date = getState().today;
   const monthLocked = isMonthLocked(monthOf(date));
   let prod = getProdDay(date);

@@ -10,7 +10,7 @@ import {
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-3LGMOQZ4.js";
+} from "./chunks/chunk-YETNL5RW.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-VO32TSO4.js";
+} from "./chunks/chunk-URXBRKJD.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -133,7 +133,7 @@ function rosterStatusNote(cfg, workers = []) {
   const st = rosterStatus(cfg, workers);
   if (st === "held") return "Rates on this device were never imported and may be out of date (Settings > Import roster).";
   if (st === "none") return "No pay rates loaded: wages read 0 (Settings > Import roster).";
-  return "";
+  return `Rates as of ${cfg[ROSTER_STAMP]} (imported roster).`;
 }
 function applyRosterImport({ perm, cw, cfg }, doc) {
   if (!doc || doc.format !== ROSTER_FORMAT || doc.version !== 1) {
@@ -763,9 +763,15 @@ function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
   const snackRate = Number(cfg.snackRate) || 0;
   let days = 0;
   let snackEntries = 0;
+  let otherRateDays = 0;
   for (const [date, prod] of Object.entries(logs || {})) {
     if (!prod || !prod.periods || isLocked(date.slice(0, 7))) continue;
     const t = prod.totals || {};
+    if (t.extraCost && rate2 > 0) {
+      const probe = JSON.parse(JSON.stringify(prod));
+      recalcExtra(probe, areas, cfg);
+      if (probe.totals.extraCost !== t.extraCost) otherRateDays++;
+    }
     const extraUnpriced = (t.extraHours || 0) > 0 && !t.extraCost && rate2 > 0;
     const snackUnpriced = prod.periods.eveningOT?.active && (prod.periods.eveningOT.workers?.length || 0) > 0 && !t.snackCost && snackRate > 0;
     if (!extraUnpriced && !snackUnpriced) continue;
@@ -780,7 +786,7 @@ function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
     s.snack = snackRate;
     snackEntries++;
   }
-  return { days, snackEntries };
+  return { days, snackEntries, otherRateDays };
 }
 
 // src/components/worker-picker.js
@@ -963,7 +969,8 @@ function importRoster() {
 Skipped \u2014 not on this device: ${stats.unknown.join(", ")}` : "") + (stats.rejected.length ? `
 Rejected: ${stats.rejected.join(", ")}` : "") + (stats.unpriced.length ? `
 Still unpriced \u2014 not in the file: ${stats.unpriced.join(", ")}` : "") + (rp.days || rp.snackEntries ? `
-Repriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : ""));
+Repriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : "") + (rp.otherRateDays ? `
+${rp.otherRateDays} production day(s) in unlocked months carry extra costs priced at an older rate; kept as recorded.` : ""));
       closeSettings();
       if (typeof window.renderActiveTab === "function") window.renderActiveTab();
       openSettings();
@@ -1131,7 +1138,8 @@ function initSettingsBackHandler() {
 // src/components/print-pay.js
 function rateWarning() {
   const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
-  return note ? `<p style="border:1px solid #000;padding:4pt;font-weight:bold">\u26A0 ${esc(note)}</p>` : "";
+  if (note.startsWith("Rates as of")) return `<p style="font-size:9pt">${esc(note)}</p>`;
+  return `<p style="border:1px solid #000;padding:4pt;font-weight:bold">\u26A0 ${esc(note)}</p>`;
 }
 function cwWeekly(satDate) {
   return calcCWWeeklyPay({
@@ -1776,6 +1784,8 @@ function initAttendanceFilter() {
 
 // src/dashboard/tabs/production.js
 function renderProduction() {
+  const rateNote = document.getElementById("prodRateNote");
+  if (rateNote) rateNote.innerHTML = getRosterStatusAlerts().join("");
   const date = getState().today;
   const monthLocked = isMonthLocked(monthOf(date));
   let prod = getProdDay(date);
@@ -3037,6 +3047,8 @@ function editStockQty(itemId) {
 
 // src/dashboard/tabs/history.js
 function renderHistory() {
+  const rateNote = document.getElementById("histRateNote");
+  if (rateNote) rateNote.innerHTML = getRosterStatusAlerts().join("");
   const date = getState().histDate;
   const histMonth = monthOf(date);
   const histMonthLocked = isMonthLocked(histMonth);

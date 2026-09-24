@@ -105,7 +105,8 @@ export function importRoster() {
         + (stats.unknown.length ? `\nSkipped — not on this device: ${stats.unknown.join(', ')}` : '')
         + (stats.rejected.length ? `\nRejected: ${stats.rejected.join(', ')}` : '')
         + (stats.unpriced.length ? `\nStill unpriced — not in the file: ${stats.unpriced.join(', ')}` : '')
-        + (rp.days || rp.snackEntries ? `\nRepriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : ''));
+        + (rp.days || rp.snackEntries ? `\nRepriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : '')
+        + (rp.otherRateDays ? `\n${rp.otherRateDays} production day(s) in unlocked months carry extra costs priced at an older rate; kept as recorded.` : ''));
       closeSettings();
       if (typeof window.renderActiveTab === 'function') window.renderActiveTab();
       openSettings();

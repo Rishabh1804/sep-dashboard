@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // Pay rates ship with no figures (this repo is public); they arrive through
-// Settings → Import roster. Until they do, every pay surface says so rather than
+// Settings → Import roster. Until they do, every surface showing pay says so rather than
 // pricing silently (Castor C-B1 / Janus J-B1, J-H1). All figures here are invented.
 
 async function openSwReady(page: Page) {
@@ -31,6 +31,10 @@ test.describe('roster import status @smoke', () => {
     await expect(page.locator('#homeAlerts [data-roster-alert="none"]')).toHaveCount(1);
     await page.locator('.tab-btn[data-tab="finance"]').click();
     await expect(page.locator('#finRateNote [data-roster-alert="none"]')).toHaveCount(1);
+    await page.locator('.tab-btn[data-tab="production"]').click();
+    await expect(page.locator('#prodRateNote [data-roster-alert="none"]')).toHaveCount(1);
+    await page.locator('.tab-btn[data-tab="history"]').click();
+    await expect(page.locator('#histRateNote [data-roster-alert="none"]')).toHaveCount(1);
   });
 
   test('rates held from an older build, never imported, are flagged as possibly out of date', async ({ page }) => {
