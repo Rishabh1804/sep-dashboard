@@ -11,6 +11,13 @@ import { getInvCfg } from '../shared/storage/invoice.js';
 import { esc } from '../shared/utils/format.js';
 import { formatDateShort } from '../shared/utils/date.js';
 import { PLAIN_PAY_MODEL } from '../shared/utils/payroll.js';
+import { applyRosterImport } from '../shared/storage/seed-sync.js';
+
+// A rate that has not arrived through the roster import says so, rather than
+// rendering ₹null or a zero that reads like a real figure.
+function rateOrMissing(v, unit) {
+  return typeof v === 'number' && Number.isFinite(v) ? `₹${v}${unit}` : 'not imported — Import roster';
+}
 import { getState } from '../shared/storage/state.js';
 import { APP_VERSION } from '../shared/config/app.js';
 
@@ -58,6 +65,35 @@ export function importData() {
   input.click();
 }
 
+// The roster import door (Director's sensitive-data rule, 24 Sep 2026): pay
+// data never ships in this public repo, so each person's rate and the rate
+// card arrive here, from the file soma-internal generates. Matched by worker
+// id; rate fields only; unknown ids are skipped and reported, never created.
+export function importRoster() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = async (e) => {
+    try {
+      const doc = JSON.parse(await e.target.files[0].text());
+      const res = applyRosterImport({
+        perm: getPermWorkers(), cw: getCWWorkers(), cfg: loadJSON(K.prodCfg, {}),
+      }, doc);
+      saveJSON(K.peEmp, res.perm);
+      saveJSON(K.cwEmp, res.cw);
+      saveJSON(K.prodCfg, res.cfg);
+      const { stats } = res;
+      alert(`Roster imported${doc.asOf ? ` (as of ${doc.asOf})` : ''}: ${stats.workers} workers, ${stats.cfg} rate-card values.`
+        + (stats.unknown.length ? `\nSkipped — not on this device: ${stats.unknown.join(', ')}` : '')
+        + (stats.rejected.length ? `\nRejected — not a valid amount: ${stats.rejected.join(', ')}` : ''));
+      closeSettings();
+      openSettings();
+    } catch (err) {
+      alert('Roster import failed: ' + err.message);
+    }
+  };
+  input.click();
+}
+
 export function openSettings() {
   if (document.querySelector('.settings-overlay')) return;
   history.pushState({ popup: 'settings' }, '');
@@ -80,9 +116,9 @@ export function openSettings() {
           <div class="section-label-md">General</div>
           <div class="card-info">
             <div class="settings-row"><span class="card-label">Version</span><span class="card-meta">v${APP_VERSION}</span></div>
-            <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">₹${cfg.hourRate}/hr</span></div>
-            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">₹${cfg.snackRate}/day</span></div>
-            <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, ₹${cfg.permOtBaseRate}) ÷ 8 × ${cfg.permOtMultiplier} · cap ₹${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
+            <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">${rateOrMissing(cfg.hourRate, '/hr')}</span></div>
+            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">${rateOrMissing(cfg.snackRate, '/day')}</span></div>
+            <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, cap) ÷ 8 × ${cfg.permOtMultiplier} · cap ${rateOrMissing(cfg.permOtBaseRate, '/day')}</span></div>
             <div class="settings-row"><span class="card-label">Non-floor staff</span><span class="card-meta">(monthly ÷ days in month) ÷ shift hours (12, confirmed) · no multiplier · an option for any non-floor staff</span></div>
           </div>
         </div>
@@ -95,7 +131,7 @@ export function openSettings() {
                 <span class="card-label">${esc(w.name)}</span>
                 <span class="card-meta"> — ${w.role || 'Worker'}${w.inactive ? ' (inactive)' : ''}</span>
               </div>
-              <span class="card-meta">${w.monthlyWage ? `₹${w.monthlyWage}/mo` : `₹${w.dailyRate}/day`}</span>
+              <span class="card-meta">${w.monthlyWage ? `₹${w.monthlyWage}/mo` : rateOrMissing(w.dailyRate, '/day')}</span>
             </div>`).join('')}
           </div>
           <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>
@@ -138,6 +174,7 @@ export function openSettings() {
           <div class="flex-center gap-8 mt-8">
             <button class="btn btn-secondary btn-sm" onclick="exportData()">Export JSON</button>
             <button class="btn btn-secondary btn-sm" onclick="importData()">Import JSON</button>
+            <button class="btn btn-secondary btn-sm" onclick="importRoster()">Import roster</button>
           </div>
           <button class="btn btn-danger btn-sm mt-8 btn-full" onclick="if(confirm('Reset ALL data? This cannot be undone.')){localStorage.clear();location.reload();}">Reset All Data</button>
         </div>
@@ -167,16 +204,16 @@ export function addWorkerPrompt(type) {
     const role = prompt('Role:', nonFloor ? 'Non-floor' : 'Worker');
     const workers = getPermWorkers();
     if (nonFloor) {
-      const monthlyWage = parseInt(prompt('Monthly wage (₹):', '9000')) || 0;
+      const monthlyWage = parseInt(prompt('Monthly wage (₹):', '')) || 0;
       const shiftHours = parseInt(prompt('Standard shift (hours):', '12')) || 12;
       if (monthlyWage <= 0) return;
       workers.push({
         id, name: name.trim(), role: role || 'Non-floor',
-        dailyRate: Math.round(monthlyWage / 30), monthlyWage, shiftHours,
+        monthlyWage, shiftHours,
         payModel: PLAIN_PAY_MODEL, inactive: false,
       });
     } else {
-      const dailyRate = parseInt(prompt('Daily rate (₹):', '496')) || 496;
+      const dailyRate = parseInt(prompt('Daily rate (₹):', '')) || 0;
       workers.push({ id, name: name.trim(), role: role || 'Worker', dailyRate, inactive: false });
     }
     saveJSON(K.peEmp, workers);

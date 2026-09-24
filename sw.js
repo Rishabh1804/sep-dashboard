@@ -18,11 +18,10 @@
 //   bundles. dist/paper-forms.html is deliberately NOT cached — it is a
 //   print artifact opened once on a desktop, not a PWA asset.
 // alpha.9: worker/area/wage config reconciled against the soma-internal codex
-//   (roster 20, ratified rate card, hourRate 41.25→47.50) → app.js BUILD 6 and
+//   (roster, rate card) → app.js BUILD 6 and
 //   the shared config chunk both shift, so both bundles' bytes move.
-// alpha.10: two BM rulings (21 Sep) — Champai onto the contract rate, Sambhu
-//   to the permanent tier from September; config + app.js (BUILD 7) shift.
-// alpha.11: perm OT = min(daily, 496) ÷ 8 × 1.1, capped ₹68.20 (BM, 23 Sep),
+// alpha.10: two BM rulings (21 Sep) — one worker's rate, one tier move; config + app.js (BUILD 7) shift.
+// alpha.11: perm OT = min(daily, cap) ÷ 8 × 1.1 (BM, 23 Sep),
 //   and the rate is no longer floored to whole rupees before multiplying.
 // alpha.12: the seeded roster/config is now RECONCILED against the shipped
 //   config on every boot (seed-sync.js) — before this, alpha.9–11's rates only
@@ -30,11 +29,14 @@
 //   longer counts OT twice, History wage pill labelled as a recompute.
 // alpha.13: two BM rulings (23 Sep) — perm OT totalled per month and floored
 //   once; hours recorded as OT on a guard are paid directed work.
-// alpha.14: guard pay follows the month (BM, 23 Sep) — day rate ₹9,000 ÷ days
-//   in the month, hours beyond his 12-hour shift at day rate ÷ 12, no 1.1×.
+// alpha.14: guard pay follows the month (BM, 23 Sep) — day rate = monthly wage
+//   ÷ days in the month, hours beyond the shift at day rate ÷ shift hours.
 // alpha.15: ÷12 confirmed; the plain monthly model becomes an option for any
 //   non-floor staff (payModel 'monthly-plain'), selectable in Settings.
-const CACHE_NAME = 'sep-v2.1.0-alpha.15';
+// alpha.16: pay data leaves the public repo — rates arrive through Settings →
+//   Import roster (Director's sensitive-data rule, 24 Sep); seed-sync never
+//   overwrites them, so an updated device keeps the rates it holds.
+const CACHE_NAME = 'sep-v2.1.0-alpha.16';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

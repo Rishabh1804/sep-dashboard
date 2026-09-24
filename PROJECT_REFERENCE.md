@@ -3,22 +3,25 @@
 > # 🔴 SUPERSEDED — Phase 1 (v2.1) reference only
 >
 > **This file describes the v2.1 single-file build and its payroll model as they
-> stood in April 2026. Several figures in it are no longer correct and it must
-> not be used to compute a wage.** The live model is
-> `src/shared/config/{workers,wage,areas}.js`, pinned by
-> `tests/unit/roster-codex.test.js` and reconciled against the soma-internal
-> codex on 21 September 2026.
+> stood in April 2026. It must not be used to compute a wage.** The live model
+> is the rules in `src/shared/utils/payroll.js` and `src/shared/config/wage.js`,
+> with the roster structure in `src/shared/config/workers.js`, pinned by
+> `tests/unit/roster-codex.test.js`.
 >
-> What is stale here, specifically *(Janus J-1, 22 Sep 2026)*:
+> **No pay figure appears in this repo** (Director's sensitive-data rule,
+> 24 Sep 2026): the rupee figures this file once carried have been replaced by
+> the names of the fields that hold them. The rate card, its history and every
+> ruling behind it are in soma-internal, which generates the file a device loads
+> through **Settings → Import roster**.
 >
-> | This file says | Live value |
-> |---|---|
-> | CW rate **₹41.25/hr** (and three wage formulas built on it) | **₹47.50/hr** — ₹380/day ÷ 8 at 1.0×, ratified 4 May 2026 and in force from W20. ₹41.25 was the floor rate only **through W19** |
-> | `sep_cw_cfg_v2 → {hourRate: 41.25}` | `{hourRate: 47.50}` |
-> | Contract workers **(11)**: Kusu, Sripati, Naren, Champai, Budheswar, Sai, Shambhu, Mantu, Rocky, Birsa, Tuklu | **10 active**: Sripati, Budheswer, Birsa, Rocky, Champai, Sai, Naren, **Montu**, **Rakesh**, **Vijay**. Kusu and Tuklu are off-pool; **Sambhu** moved to the monthly tier in September 2026; *Shambhu*/*Mantu* were mis-transliterations |
-> | — | Roster is **20**: 10 monthly-tier + 10 daily hands |
-> | Perm daily rates flat **₹496** for six men; Uday ₹360 | Per-worker 1-Apr card: Shyam 576 · Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Sambhu 380 · Lal 360 · Uday 300 |
-> | **Perm OT rate** ₹496 ÷ 8 × 1.1 = **₹68/hr** for all eligible perm, and the `OT_hours × ₹68/hr` formula | **`min(dailyRate, ₹496) ÷ 8 × 1.1`**, capped at ₹68.20 — per-worker below ₹496 (Sambhu ₹52.25 … Lal ₹49.50). BM ruling 23 Sep 2026, from the September slip. **Guards get no OT.** *(Castor C-H4, 23 Sep)* |
+> What changed since v2.1, in outline *(Janus J-1, 22 Sep 2026)*: the contract
+> hourly rate; per-worker permanent day rates in place of one flat placeholder;
+> permanent OT as `min(dailyRate, permOtBaseRate) ÷ 8 × permOtMultiplier` rather
+> than one flat rate; guards and any non-floor worker on a plain monthly model
+> (monthly wage ÷ days in the month ÷ shift hours, no multiplier); and the roster
+> itself — **20 active, 10 monthly-tier + 10 daily hands**, with Rakesh and Vijay
+> added, Kusu and Tuklu off-pool, Sambhu on the monthly tier from September 2026,
+> and canonical spellings Lakhi / Sambhu / Montu / Budheswer.
 >
 > Everything architectural below (the localStorage key inventory, the tab
 > structure, the function census) remains an accurate record of v2.1 and is why
@@ -77,7 +80,7 @@
 |-----|--------|---------|
 | `sep_cw_emp_v2` | Array of `{id, name, inactive?, deactivatedOn?, deactivateReason?}` | CW worker roster |
 | `sep_cw_att_v2` | Object keyed by `{id}_{YYYY}_{MM}_{DD}` → `{status, otHours, time}` | CW attendance |
-| `sep_cw_cfg_v2` | `{hourRate: 41.25}` | CW config |
+| `sep_cw_cfg_v2` | `{hourRate}` | CW config |
 | `sep_cw_pay_v2` | Object keyed by Saturday date → `{paid, amount, date}` | CW weekly payments |
 | `sep_cw_adv_v1` | Object keyed by `{id}_{satDate}` → amount | CW weekly advances |
 
@@ -155,23 +158,23 @@
 ### Permanent (10)
 | ID | Name | Role | Daily Rate | OT Eligible |
 |----|------|------|:----------:|:-----------:|
-| shyam_bera | Shyam | Production Supervisor | ₹576 | Yes (at ₹496 base) |
-| sharat_mahato | Sharat | VAT A1 Lead | ₹496 | Yes |
-| sunil_mahato | Sunil | Barrel Lead | ₹496 | Yes |
-| rupa_bera | Rupa | VAT A2 Lead | ₹496 | Yes |
-| bp_sharma | Bhanu | Worker | ₹496 | Yes |
-| lk_das | Lucky | Worker | ₹496 | Yes |
-| lal | Lal | Worker | ₹496 | Yes |
-| suklal | Suklal | Pickling Lead | ₹440 | Yes |
-| uday | Uday | Guard | ₹360 | No |
-| rounak | Rounak | Data Admin | ₹0 | No (inactive) |
+| shyam_bera | Shyam | Production Supervisor | `dailyRate` | Yes |
+| sharat_mahato | Sharat | VAT A1 Lead | `dailyRate` | Yes |
+| sunil_mahato | Sunil | Barrel Lead | `dailyRate` | Yes |
+| rupa_bera | Rupa | VAT A2 Lead | `dailyRate` | Yes |
+| bp_sharma | Bhanu | Worker | `dailyRate` | Yes |
+| lk_das | Lucky | Worker | `dailyRate` | Yes |
+| lal | Lal | Worker | `dailyRate` | Yes |
+| suklal | Suklal | Pickling Lead | `dailyRate` | Yes |
+| uday | Uday | Guard | `dailyRate` | No |
+| rounak | Rounak | Data Admin | `dailyRate` | No (inactive) |
 
-**Perm OT rate:** ₹496/day ÷ 8h × 1.1 = ₹68/hr (all eligible perm, including Shyam at reduced rate)
+**Perm OT rate (v2.1):** one flat rate, `permOtBaseRate ÷ 8 × 1.1`, for all eligible perm.
 
 ### Contract Workers (11)
 Kusu, Sripati, Naren, Champai, Budheswar, Sai, Shambhu, Mantu, Rocky, Birsa, Tuklu
 
-**CW rate:** ₹41.25/hr, no OT premium (1.0×), ₹20/day snack for evening OT
+**CW rate:** `hourRate` per hour, no OT premium (1.0×), `snackRate` per day for evening OT
 
 ---
 
@@ -179,13 +182,13 @@ Kusu, Sripati, Naren, Champai, Budheswar, Sai, Shambhu, Mantu, Rocky, Birsa, Tuk
 
 | Component | Formula |
 |-----------|---------|
-| CW daily wage | `(standard_hours + OT_hours) × ₹41.25` |
+| CW daily wage | `(standard_hours + OT_hours) × hourRate` |
 | Perm daily wage | `dailyRate` (fixed per day if present) |
-| Perm OT | `OT_hours × ₹68/hr` |
+| Perm OT | `OT_hours × permOtBaseRate ÷ 8 × 1.1` |
 | CW advance | Weekly deduction from `sep_cw_adv_v1` keyed by `{id}_{satDate}` |
 | Perm advance | Monthly deduction from `sep_pe_adv_v1` keyed by `{id}_{year}_{month}` |
-| Extra cost | `shortfall_workers × period_hours × ₹41.25` per period |
-| Snack | `evening_OT_workers × ₹20` (CW + Perm) |
+| Extra cost | `shortfall_workers × period_hours × hourRate` per period |
+| Snack | `evening_OT_workers × snackRate` (CW + Perm) |
 | All currency | `sepRound()` = `Math.floor()` — never fractional paisa |
 
 ---
@@ -283,8 +286,8 @@ Key adjusted values:
 | Capacity segmented controls | ✅ | Per area per period |
 | Worker picker (bottom sheet) | ✅ | Perm/CW separated, conflict detection |
 | Auto-pickling | ✅ | Dependent on parent area capacity |
-| Extra cost calculation | ✅ | Shortfall × hours × ₹41.25 |
-| Snack calculation | ✅ | Evening OT workers × ₹20 |
+| Extra cost calculation | ✅ | Shortfall × hours × hourRate |
+| Snack calculation | ✅ | Evening OT workers × snackRate |
 | Confirm → write attendance | ✅ | P/OT + otHours to cwAtt/peAtt |
 | Perm snack audit log | ✅ | Appended on confirm |
 | Piece/weight entry | ✅ | Accumulating log with timeline |

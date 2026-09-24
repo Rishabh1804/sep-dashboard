@@ -1,78 +1,81 @@
 // What a device first booted on the pre-alpha.9 `main` build holds in
-// localStorage: that build's DEF_PERM / DEF_CW / DEF_CFG, extracted verbatim
-// from origin/main src/shared/config/*.js (this repo's own public config — no
-// business data). A .js module, not .json: this repo gitignores *.json so a
-// data export can never be committed.
+// localStorage: that build's DEF_PERM / DEF_CW / DEF_CFG. The STRUCTURE (ids,
+// names, roles, which tier each worker sat in) is verbatim from that build; every
+// RATE is replaced with an invented value (101, 102, … per worker; hourRate 11,
+// snackRate 7, OT cap 123), because this repo ships no pay data. What the tests
+// need from it is that the rates are present and are not the imported ones.
+// A .js module, not .json: this repo gitignores *.json so a data export can
+// never be committed.
 export const MAIN_ERA = {
   "perm": [
     {
       "id": "shyam_bera",
       "name": "Shyam",
       "role": "Production Supervisor",
-      "dailyRate": 576,
+      "dailyRate": 101,
       "inactive": false
     },
     {
       "id": "sharat_mahato",
       "name": "Sharat",
       "role": "VAT A1 Lead",
-      "dailyRate": 496,
+      "dailyRate": 102,
       "inactive": false
     },
     {
       "id": "sunil_mahato",
       "name": "Sunil",
       "role": "Barrel Lead",
-      "dailyRate": 496,
+      "dailyRate": 103,
       "inactive": false
     },
     {
       "id": "rupa_bera",
       "name": "Rupa",
       "role": "VAT A2 Lead",
-      "dailyRate": 496,
+      "dailyRate": 104,
       "inactive": false
     },
     {
       "id": "bp_sharma",
       "name": "Bhanu",
       "role": "Worker",
-      "dailyRate": 496,
+      "dailyRate": 105,
       "inactive": false
     },
     {
       "id": "lk_das",
       "name": "Lucky",
       "role": "Worker",
-      "dailyRate": 496,
+      "dailyRate": 106,
       "inactive": false
     },
     {
       "id": "lal",
       "name": "Lal",
       "role": "Worker",
-      "dailyRate": 496,
+      "dailyRate": 107,
       "inactive": false
     },
     {
       "id": "suklal",
       "name": "Suklal",
       "role": "Pickling Lead",
-      "dailyRate": 440,
+      "dailyRate": 108,
       "inactive": false
     },
     {
       "id": "uday",
       "name": "Uday",
       "role": "Guard",
-      "dailyRate": 360,
+      "dailyRate": 109,
       "inactive": false
     },
     {
       "id": "rounak",
       "name": "Rounak",
       "role": "Data Admin",
-      "dailyRate": 0,
+      "dailyRate": 110,
       "inactive": true
     }
   ],
@@ -134,10 +137,10 @@ export const MAIN_ERA = {
     }
   ],
   "cfg": {
-    "hourRate": 41.25,
-    "snackRate": 20,
+    "hourRate": 11,
+    "snackRate": 7,
     "permOtMultiplier": 1.1,
-    "permOtBaseRate": 496,
+    "permOtBaseRate": 123,
     "guardIds": [
       "uday"
     ],

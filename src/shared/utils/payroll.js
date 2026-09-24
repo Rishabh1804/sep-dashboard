@@ -7,44 +7,37 @@ import { sepRound } from './currency.js';
 import { localDateStr, getWeekEnd } from './date.js';
 
 // Hourly rate for one contract hand. Flat `cfg.hourRate` for everyone except
-// the ids in `cfg.hourRateOverrides`. The map is EMPTY since the 21 Sep BM
-// ruling put Champai on the contract rate; the mechanism stays so a future
-// exception never needs a second flat global (see config/wage.js). Tolerates a
-// cfg with no overrides key so an older persisted settings blob keeps working.
+// the ids in `cfg.hourRateOverrides`. The map ships empty; the mechanism stays
+// so a future exception never needs a second flat global (see config/wage.js).
+// Tolerates a cfg with no overrides key so an older persisted settings blob
+// keeps working. A rate not yet imported (null) is 0, never NaN.
 export function cwHourRate(cfg, workerId) {
   const o = cfg.hourRateOverrides;
   const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
-  return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
+  const n = Number(r);
+  return r != null && Number.isFinite(n) ? n : 0;
 }
 
-// Permanent-tier OT rate — BM ruling, 23 Sep 2026 (soma-internal
-// `decisions/2026-09-23.md` §4):
+// Permanent-tier OT rate (the rule; the figures arrive through the roster
+// import — this repo is public and ships no pay data):
 //
 //   OT/hr = min(dailyRate, permOtBaseRate) ÷ 8 × permOtMultiplier
 //
-// Below ₹496/day a man's OT is 1.1× his own hourly rate (Sambhu ₹380 → ₹52.25).
-// At or above ₹496 it is CAPPED at the P01 v3 contract term, ₹496 ÷ 8 × 1.1 =
-// ₹68.20 (Shyam, Sarat, Rupa). The two are continuous at exactly ₹496.
+// Below the cap a man's OT is the multiplier × his own hourly rate; at or above
+// it, the cap binds. The two are continuous at the cap.
 //
-// Deliberately NOT rounded. `sepRound` floors to whole RUPEES, and every caller
-// used to floor the RATE: the app paid ₹68/hr against a stated ₹68.20, and the
-// per-worker rule would have paid Sambhu ₹52 against a ruled ₹52.25.
+// The RATE is deliberately not rounded (`sepRound` floors to whole rupees, and
+// flooring a fractional rate underpays every hour). The paid AMOUNT is rounded
+// by the caller: calcPermMonthlyPay totals a month's hours × rate and floors
+// once; the daily cost views floor per day, as estimates rather than pay.
 //
-// Where the paid amount is rounded is a separate rule — BM, 23 Sep: OT is
-// computed PER MONTH. calcPermMonthlyPay totals the month's hours × rate and
-// floors ONCE (the app's locked currency rule); a per-day floor on these
-// fractional rates lost up to ₹1 per man per OT day. The daily cost views
-// (calcDayWages, the Finance tab, the Costs CSV) still floor per day: they are
-// cost estimates, not pay.
-//
-// Guards are NOT priced by this rule — see guardDayRate / guardHourRate below.
-// A guard id returns 0 here, so a caller that reaches for permOtRate on a guard
-// shows a visible zero rather than silently restoring the 1.1× the BM ruled out
-// (Janus M-1, 23 Sep). Callers that price the whole monthly tier go through
-// monthlyOtRate.
+// Non-floor staff on the plain model are NOT priced by this rule: it returns 0
+// for them, so a caller that reaches for it shows a visible zero instead of
+// restoring a multiplier the plain model does not carry. Callers pricing the
+// whole monthly tier go through monthlyOtRate.
 //
 // A missing or non-numeric dailyRate, cap or multiplier yields 0 — a visible
-// zero on the slip, not NaN pay or a silently capped payment.
+// zero, never NaN pay or a silently capped payment.
 export function permOtRate(cfg, worker) {
   if (usesPlainRate(cfg, worker)) return 0;
   const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
@@ -55,29 +48,23 @@ export function permOtRate(cfg, worker) {
 }
 
 
-// --- Guard pay (Uday). Three BM rulings:
-//   · 14 Sep 2026: ₹9,000/month; his day rate is ₹9,000 ÷ the days in THAT
-//     month (₹290.32 in a 31-day month, ₹300 in a 30-day one). August was
-//     ruled at ₹8,129.03 = 28 days × ₹9,000 ÷ 31.
-//   · 23 Sep: "7-7 is his shift" — the 12-hour gate shift is his standard day
-//     and is never recorded as OT.
-//   · 23 Sep: hours ABOVE his 12-hour day are paid at his PLAIN hourly rate —
-//     no 1.1×, no special OT rate — and that hourly rate follows the days in the
-//     month. otHours on a guard means hours above 12 and nothing else: directed
-//     non-gate work INSIDE the 12 is paid too, at a rate no ruling states.
-//
-//   · 24 Sep: the divisor is ÷ 12, confirmed — the hourly rate is day rate ÷
-//     shiftHours (12): ₹25.00 in a 30-day month, ₹24.19 in a 31-day one.
-//   · 24 Sep: "Have it as an option for non-floor staff." This pay model —
-//     monthly wage ÷ days ÷ shift hours, no multiplier, pricing directed work
-//     inside the shift as well as hours beyond it — is an OPTION any non-floor
-//     worker can carry (`payModel: 'monthly-plain'`), not a guard-only rule.
-//     Guards are on it by default. (This app's reading of a five-word ruling;
-//     soma-internal decisions/2026-09-24.md §8 (payroll).)
-//
-// A worker with no monthlyWage falls back to the fixed dailyRate, so an
-// operator-added guard still prices. Rates are exact; callers floor the paid
-// amount (per month on the pay path, per day on the cost views).
+// --- The plain monthly model: guards, and any non-floor worker carrying
+// payModel 'monthly-plain' (the rulings are in soma-internal).
+//   · Day rate  = monthlyWage ÷ the days in THAT month.
+//   · Hourly    = day rate ÷ shiftHours (the shift is the standard day, and none
+//     of it is overtime). No multiplier.
+//   · Hours above the shift, and directed work inside it, are paid at the
+//     hourly rate. otHours on such a worker means those hours.
+// A worker with no monthlyWage falls back to dailyRate. Rates are exact;
+// callers floor the paid amount (per month on the pay path, per day on the
+// cost views).
+// A worker's day rate, or 0 when none has been imported yet (pay data arrives
+// through the roster import and never ships). Never NaN.
+export function dayRateOf(worker) {
+  const n = Number(worker && worker.dailyRate);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export function daysInMonthOf(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
@@ -146,7 +133,7 @@ export function calcDayWages({
       if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
       continue;
     }
-    total += w.dailyRate;
+    total += dayRateOf(w);
     if (rec.otHours && rec.otHours > 0) {
       const otRate = permOtRate(cfg, w);
       total += sepRound(rec.otHours * otRate);
@@ -157,8 +144,8 @@ export function calcDayWages({
     const k = getAttKey('perm', w.id, date);
     const rec = peAtt[k];
     if (!rec || rec.status === 'A') continue;
-    // Day rate follows the month (₹9,000 ÷ days); hours beyond his 12-hour
-    // shift at his plain hourly rate. Floored per day: a cost view, not pay.
+    // Day rate follows the month (monthly wage ÷ days); hours beyond the shift
+    // at the plain hourly rate. Floored per day: a cost view, not pay.
     total += sepRound(guardDayRate(w, date));
     if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
   }
@@ -255,7 +242,7 @@ export function calcPermMonthlyPay({
       const rec = peAtt[k];
       if (!rec || rec.status === 'A') continue;
       days++;
-      baseExact += guard ? guardDayRate(w, ds) : w.dailyRate;
+      baseExact += guard ? guardDayRate(w, ds) : dayRateOf(w);
       if (rec.otHours && rec.otHours > 0) {
         otExact += rec.otHours * (guard ? guardHourRate(w, ds) : permOtRate(cfg, w));
         otH += rec.otHours;

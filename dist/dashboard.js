@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-ADDOPD4G.js";
+} from "./chunks/chunk-7IRYKRML.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-5Q5TT2D4.js";
+} from "./chunks/chunk-7CKROZQ7.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-Q5VVMZHR.js";
+} from "./chunks/chunk-ZJ2XKDFL.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -62,8 +62,31 @@ function saveJSON(key, data) {
   }
 }
 
+// src/shared/config/wage.js
+var RATE_CFG_FIELDS = ["hourRate", "permOtBaseRate", "snackRate"];
+var DEF_CFG = {
+  hourRate: null,
+  // ← roster import
+  // worker id → an hourly rate that is NOT the contract-hand rate. Empty.
+  hourRateOverrides: {},
+  snackRate: null,
+  // ← roster import
+  permOtMultiplier: 1.1,
+  permOtBaseRate: null,
+  // ← roster import (the OT cap)
+  // Guards: not on the production roster; their shift is their standard day.
+  guardIds: ["uday"],
+  excludedIds: ["rounak"],
+  standardShift: { start: "08:30", end: "17:00", hours: 8 },
+  sundayHolidayShift: { start: "06:00", end: "14:00", hours: 8 },
+  morningOT: { start: "06:00", end: "08:30", hours: 3 },
+  eveningOT: { start: "17:00", end: "20:00", hours: 3 }
+};
+
 // src/shared/storage/seed-sync.js
 var OPERATOR_STATUS = ["inactive", "deactivatedOn", "deactivateReason", "reactivatedOn"];
+var RATE_WORKER_FIELDS = ["dailyRate", "monthlyWage"];
+var isRate = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
 function reconcileWorkers(saved, shipped, otherTierShipped) {
   const list = (Array.isArray(saved) ? saved : []).filter((w) => w && w.id);
   const savedById = new Map(list.map((w) => [w.id, w]));
@@ -72,9 +95,10 @@ function reconcileWorkers(saved, shipped, otherTierShipped) {
   const known = shipped.map((w) => {
     const s = savedById.get(w.id);
     const next = { ...w };
-    if (s && (s.deactivatedOn || s.reactivatedOn)) {
-      for (const f of OPERATOR_STATUS) {
-        if (f in s) next[f] = s[f];
+    if (s) {
+      for (const f of RATE_WORKER_FIELDS) if (isRate(s[f])) next[f] = s[f];
+      if (s.deactivatedOn || s.reactivatedOn) {
+        for (const f of OPERATOR_STATUS) if (f in s) next[f] = s[f];
       }
     }
     return next;
@@ -84,7 +108,9 @@ function reconcileWorkers(saved, shipped, otherTierShipped) {
 }
 function reconcileCfg(saved, shipped) {
   const base = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
-  return { ...base, ...clone(shipped) };
+  const next = { ...base, ...clone(shipped) };
+  for (const f of RATE_CFG_FIELDS) next[f] = isRate(base[f]) ? base[f] : shipped[f];
+  return next;
 }
 function reconcileSeed({ savedPerm, savedCW, savedCfg, defPerm, defCW, defCfg, defAreas }) {
   return {
@@ -93,6 +119,44 @@ function reconcileSeed({ savedPerm, savedCW, savedCfg, defPerm, defCW, defCfg, d
     cfg: reconcileCfg(savedCfg, defCfg),
     areas: clone(defAreas)
   };
+}
+var ROSTER_FORMAT = "sep-dashboard-roster";
+function applyRosterImport({ perm, cw, cfg }, doc) {
+  if (!doc || doc.format !== ROSTER_FORMAT || doc.version !== 1) {
+    throw new Error(`Not a ${ROSTER_FORMAT} v1 file.`);
+  }
+  const stats = { workers: 0, cfg: 0, unknown: [], rejected: [] };
+  const nextCfg = { ...cfg || {} };
+  for (const f of RATE_CFG_FIELDS) {
+    if (doc.cfg && f in doc.cfg) {
+      if (isRate(doc.cfg[f])) {
+        nextCfg[f] = doc.cfg[f];
+        stats.cfg++;
+      } else stats.rejected.push(`cfg.${f}`);
+    }
+  }
+  const byId = new Map((Array.isArray(doc.workers) ? doc.workers : []).map((w) => [w && w.id, w]));
+  const apply = (list) => (Array.isArray(list) ? list : []).map((w) => {
+    const row = byId.get(w.id);
+    if (!row) return w;
+    byId.delete(w.id);
+    const next = { ...w };
+    let touched = false;
+    for (const f of RATE_WORKER_FIELDS) {
+      if (f in row) {
+        if (isRate(row[f])) {
+          next[f] = row[f];
+          touched = true;
+        } else stats.rejected.push(`${w.id}.${f}`);
+      }
+    }
+    if (touched) stats.workers++;
+    return next;
+  });
+  const nextPerm = apply(perm);
+  const nextCW = apply(cw);
+  stats.unknown = [...byId.keys()].filter(Boolean);
+  return { perm: nextPerm, cw: nextCW, cfg: nextCfg, stats };
 }
 function clone(v) {
   return JSON.parse(JSON.stringify(v));
@@ -193,31 +257,6 @@ function setState(patch) {
   Object.assign(_state, patch);
   return _state;
 }
-
-// src/shared/config/wage.js
-var DEF_CFG = {
-  hourRate: 47.5,
-  // worker id → an hourly rate that is NOT the contract-hand rate.
-  // EMPTY TODAY. Kept because the codex has a history of per-worker rate
-  // exceptions (Champai's own, ruled out on 21 Sep, was the last one) and
-  // because the alternative — a second flat global — is what produced the
-  // 41.25 bug in the first place.
-  hourRateOverrides: {},
-  snackRate: 20,
-  permOtMultiplier: 1.1,
-  permOtBaseRate: 496,
-  // Guards: not on the production roster. Their 7–7 shift is their standard
-  // day; otHours on a guard means hours ABOVE his 12-hour day only, paid at his
-  // plain hourly rate (day rate ÷ 12, confirmed 24 Sep; no multiplier) — see
-  // guardHourRate in utils/payroll.js, never permOtRate. Any other non-floor
-  // worker can opt into the same model with payModel 'monthly-plain'.
-  guardIds: ["uday"],
-  excludedIds: ["rounak"],
-  standardShift: { start: "08:30", end: "17:00", hours: 8 },
-  sundayHolidayShift: { start: "06:00", end: "14:00", hours: 8 },
-  morningOT: { start: "06:00", end: "08:30", hours: 3 },
-  eveningOT: { start: "17:00", end: "20:00", hours: 3 }
-};
 
 // src/shared/config/invoice.js
 var DEF_INV_CFG = {
@@ -332,7 +371,8 @@ function formatCurrency(n) {
 function cwHourRate(cfg, workerId) {
   const o = cfg.hourRateOverrides;
   const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
-  return Number.isFinite(Number(r)) ? Number(r) : cfg.hourRate;
+  const n = Number(r);
+  return r != null && Number.isFinite(n) ? n : 0;
 }
 function permOtRate(cfg, worker) {
   if (usesPlainRate(cfg, worker)) return 0;
@@ -341,6 +381,10 @@ function permOtRate(cfg, worker) {
   const mult = Number(cfg.permOtMultiplier);
   if (!Number.isFinite(cap) || !Number.isFinite(mult)) return 0;
   return Math.min(daily, cap) / 8 * mult;
+}
+function dayRateOf(worker) {
+  const n = Number(worker && worker.dailyRate);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 function daysInMonthOf(dateStr) {
   const d = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
@@ -395,7 +439,7 @@ function calcDayWages({
       if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
       continue;
     }
-    total += w.dailyRate;
+    total += dayRateOf(w);
     if (rec.otHours && rec.otHours > 0) {
       const otRate = permOtRate(cfg, w);
       total += sepRound(rec.otHours * otRate);
@@ -524,7 +568,7 @@ function calcPermMonthlyPay({
       const rec = peAtt[k];
       if (!rec || rec.status === "A") continue;
       days++;
-      baseExact += guard ? guardDayRate(w, ds) : w.dailyRate;
+      baseExact += guard ? guardDayRate(w, ds) : dayRateOf(w);
       if (rec.otHours && rec.otHours > 0) {
         otExact += rec.otHours * (guard ? guardHourRate(w, ds) : permOtRate(cfg, w));
         otH += rec.otHours;
@@ -674,7 +718,7 @@ function recalcExtra(prod, areas, cfg) {
       const assigned = pa.assigned?.length || 0;
       if (req > assigned) shortfall += req - assigned;
     });
-    const periodExtra = sepRound(shortfall * hours * cfg.hourRate);
+    const periodExtra = sepRound(shortfall * hours * (Number(cfg.hourRate) || 0));
     totalExtraH += shortfall * hours;
     totalExtraCost += periodExtra;
   });
@@ -682,7 +726,7 @@ function recalcExtra(prod, areas, cfg) {
   const eveningOT = prod.periods.eveningOT;
   if (eveningOT?.active) {
     const snackWorkers = eveningOT.workers?.length || 0;
-    snackCost = snackWorkers * cfg.snackRate;
+    snackCost = snackWorkers * (Number(cfg.snackRate) || 0);
   }
   prod.totals = prod.totals || {};
   prod.totals.extraHours = totalExtraH;
@@ -791,6 +835,9 @@ function genInvNumber() {
 }
 
 // src/components/settings-panel.js
+function rateOrMissing(v, unit) {
+  return typeof v === "number" && Number.isFinite(v) ? `\u20B9${v}${unit}` : "not imported \u2014 Import roster";
+}
 function getStorageUsed() {
   let total = 0;
   Object.values(K).forEach((key) => {
@@ -835,6 +882,33 @@ function importData() {
   };
   input.click();
 }
+function importRoster() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.onchange = async (e) => {
+    try {
+      const doc = JSON.parse(await e.target.files[0].text());
+      const res = applyRosterImport({
+        perm: getPermWorkers(),
+        cw: getCWWorkers(),
+        cfg: loadJSON(K.prodCfg, {})
+      }, doc);
+      saveJSON(K.peEmp, res.perm);
+      saveJSON(K.cwEmp, res.cw);
+      saveJSON(K.prodCfg, res.cfg);
+      const { stats } = res;
+      alert(`Roster imported${doc.asOf ? ` (as of ${doc.asOf})` : ""}: ${stats.workers} workers, ${stats.cfg} rate-card values.` + (stats.unknown.length ? `
+Skipped \u2014 not on this device: ${stats.unknown.join(", ")}` : "") + (stats.rejected.length ? `
+Rejected \u2014 not a valid amount: ${stats.rejected.join(", ")}` : ""));
+      closeSettings();
+      openSettings();
+    } catch (err) {
+      alert("Roster import failed: " + err.message);
+    }
+  };
+  input.click();
+}
 function openSettings() {
   if (document.querySelector(".settings-overlay")) return;
   history.pushState({ popup: "settings" }, "");
@@ -855,9 +929,9 @@ function openSettings() {
           <div class="section-label-md">General</div>
           <div class="card-info">
             <div class="settings-row"><span class="card-label">Version</span><span class="card-meta">v${APP_VERSION}</span></div>
-            <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">\u20B9${cfg.hourRate}/hr</span></div>
-            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">\u20B9${cfg.snackRate}/day</span></div>
-            <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, \u20B9${cfg.permOtBaseRate}) \xF7 8 \xD7 ${cfg.permOtMultiplier} \xB7 cap \u20B9${(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier).toFixed(2)}/hr</span></div>
+            <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">${rateOrMissing(cfg.hourRate, "/hr")}</span></div>
+            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">${rateOrMissing(cfg.snackRate, "/day")}</span></div>
+            <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, cap) \xF7 8 \xD7 ${cfg.permOtMultiplier} \xB7 cap ${rateOrMissing(cfg.permOtBaseRate, "/day")}</span></div>
             <div class="settings-row"><span class="card-label">Non-floor staff</span><span class="card-meta">(monthly \xF7 days in month) \xF7 shift hours (12, confirmed) \xB7 no multiplier \xB7 an option for any non-floor staff</span></div>
           </div>
         </div>
@@ -870,7 +944,7 @@ function openSettings() {
                 <span class="card-label">${esc(w.name)}</span>
                 <span class="card-meta"> \u2014 ${w.role || "Worker"}${w.inactive ? " (inactive)" : ""}</span>
               </div>
-              <span class="card-meta">${w.monthlyWage ? `\u20B9${w.monthlyWage}/mo` : `\u20B9${w.dailyRate}/day`}</span>
+              <span class="card-meta">${w.monthlyWage ? `\u20B9${w.monthlyWage}/mo` : rateOrMissing(w.dailyRate, "/day")}</span>
             </div>`).join("")}
           </div>
           <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>
@@ -913,6 +987,7 @@ function openSettings() {
           <div class="flex-center gap-8 mt-8">
             <button class="btn btn-secondary btn-sm" onclick="exportData()">Export JSON</button>
             <button class="btn btn-secondary btn-sm" onclick="importData()">Import JSON</button>
+            <button class="btn btn-secondary btn-sm" onclick="importRoster()">Import roster</button>
           </div>
           <button class="btn btn-danger btn-sm mt-8 btn-full" onclick="if(confirm('Reset ALL data? This cannot be undone.')){localStorage.clear();location.reload();}">Reset All Data</button>
         </div>
@@ -935,21 +1010,20 @@ function addWorkerPrompt(type) {
     const role = prompt("Role:", nonFloor ? "Non-floor" : "Worker");
     const workers = getPermWorkers();
     if (nonFloor) {
-      const monthlyWage = parseInt(prompt("Monthly wage (\u20B9):", "9000")) || 0;
+      const monthlyWage = parseInt(prompt("Monthly wage (\u20B9):", "")) || 0;
       const shiftHours = parseInt(prompt("Standard shift (hours):", "12")) || 12;
       if (monthlyWage <= 0) return;
       workers.push({
         id,
         name: name.trim(),
         role: role || "Non-floor",
-        dailyRate: Math.round(monthlyWage / 30),
         monthlyWage,
         shiftHours,
         payModel: PLAIN_PAY_MODEL,
         inactive: false
       });
     } else {
-      const dailyRate = parseInt(prompt("Daily rate (\u20B9):", "496")) || 496;
+      const dailyRate = parseInt(prompt("Daily rate (\u20B9):", "")) || 0;
       workers.push({ id, name: name.trim(), role: role || "Worker", dailyRate, inactive: false });
     }
     saveJSON(K.peEmp, workers);
@@ -1998,7 +2072,7 @@ function confirmProduction() {
           empId: id,
           date,
           otHours: prod.periods.eveningOT.hours,
-          snack: cfg.snackRate,
+          snack: Number(cfg.snackRate) || 0,
           week: getWeekEnd(date)
         });
       }
@@ -4370,6 +4444,7 @@ function exposeWindowSurface() {
     getStorageUsed,
     exportData,
     importData,
+    importRoster,
     // Print
     printCWPay,
     printPermPay,

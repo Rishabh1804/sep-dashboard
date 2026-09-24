@@ -428,7 +428,7 @@ export function confirmProduction() {
         snackLog.push({
           empId: id, date,
           otHours: prod.periods.eveningOT.hours,
-          snack: cfg.snackRate,
+          snack: Number(cfg.snackRate) || 0,
           week: getWeekEnd(date),
         });
       }

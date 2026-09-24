@@ -90,6 +90,31 @@ job `soma-internal` sessions already do by hand. The rules are written down. Sta
 
 ---
 
+## What PR #33 carries into this session (read on re-orient)
+
+PR #33 was opened before this kickoff and lands after it. Three things in it bear on the new
+direction.
+
+1. **The Week-0 pack is history for the route this kickoff sets aside.** The paper forms
+   (`pnpm paper:forms`), the Adoption view on the Edit tab, `WEEK_0_RUNBOOK.md` and
+   `PROD_STANDUP.md` were built to roll out the multi-device handler route. They are **set aside,
+   not deleted**, like the rest of that route in the table above. Nothing in the personal tracker
+   depends on them. The paper-form generator may still be useful for a manual backup sheet.
+2. **Pay rules are current; pay data is not in this repo.** The Finance tab prices wages from
+   attendance, and PR #33 brought its rules up to the owner's rulings to 24 Sep: per-worker
+   permanent OT with a cap, OT floored once per month, and a plain monthly model for guards and
+   any non-floor worker (`payModel: 'monthly-plain'`). **Every rupee figure left the repo** under
+   the sensitive-data rule. Rates now reach a device through **Settings → Import roster**, from a
+   file `soma-internal` generates (`scripts/build-dashboard-roster.py`). A fresh install prices at
+   zero and says so. **Whether the personal tracker keeps any pay views is this session's to
+   settle with the owner.** The new scope names attendance and production only; the rules and the
+   import door work either way.
+3. **Session numbering.** This branch's `CLAUDE.md` had written its last two entries as
+   "Session 20" (the Week-0 pack) and "Session 21" (payroll). They are renumbered **19a** and
+   **19b**, so **this kickoff is Session 20** and the next entry after it is Session 21.
+
+---
+
 ## This repo's side of each interface
 
 Session D checks these against the other repos' descriptions. **If one changes, say so in the PR.**
@@ -98,4 +123,5 @@ Session D checks these against the other repos' descriptions. **If one changes, 
 |---|---|
 | **Consumes** the WhatsApp group | **Planned.** Route to be settled (⚠ B). ⚖ **`soma-internal` owns the record** (owner's ruling, 24 Sep: it is the private repo, and all sensitive data is transferred there at every compile). **This backend captures and shows; what it captures is **copied** to `soma-internal`, which holds the record, and **stays readable here**.** Design the capture so it can be exported whole, including the flagged-unreadable lines and their reasons. |
 | **Consumes** the private seed ← `soma-internal` | Live for the old Firestore architecture through `soma-internal`'s `seed-staging` workflow. **Under review** with ⚠ A. |
+| **Consumes** the roster import ← `soma-internal` | **Live (alpha.16).** Settings → Import roster reads a `sep-dashboard-roster` v1 file: `{format, version, asOf, cfg: {hourRate, permOtBaseRate, snackRate}, workers: [{id, dailyRate} or {id, monthlyWage}]}`. Workers are matched **by id**; unknown ids are skipped and counted, never created; only rate fields apply. ⚖ **`soma-internal` owns the rate card** (the private repo). This repo ships structure only. |
 | **Stock** | **Owned by `soma-internal`.** v2.1 had a stock tab (`src/dashboard/tabs/stock.js`), and the new scope is attendance and production only. A PR that retires the tab should say so. |

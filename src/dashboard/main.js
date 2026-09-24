@@ -27,7 +27,7 @@ import { toggleFab, closeFab, initFab } from '../components/fab.js';
 import { openPicker, togglePickerWorker, closePicker } from '../components/worker-picker.js';
 import {
   openSettings, closeSettings, addWorkerPrompt, toggleWorkerActive,
-  getStorageUsed, exportData, importData, initSettingsBackHandler,
+  getStorageUsed, exportData, importData, importRoster, initSettingsBackHandler,
 } from '../components/settings-panel.js';
 import { printCWPay, printPermPay } from '../components/print-pay.js';
 import {
@@ -180,7 +180,7 @@ function exposeWindowSurface() {
     openPicker, togglePickerWorker, closePicker,
     // Settings + data
     openSettings, closeSettings, addWorkerPrompt, toggleWorkerActive,
-    getStorageUsed, exportData, importData,
+    getStorageUsed, exportData, importData, importRoster,
     // Print
     printCWPay, printPermPay,
     // Invoice form

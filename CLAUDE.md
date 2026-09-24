@@ -1223,7 +1223,7 @@ folded same day.*
 
 ---
 
-## Session 20: Week-0 Rollout Pack — Paper Forms, Adoption KPI, Prod Plumbing (24 August 2026)
+## Session 19a: Week-0 Rollout Pack — Paper Forms, Adoption KPI, Prod Plumbing (24 August 2026)
 
 ### What Shipped
 
@@ -1335,412 +1335,93 @@ Week 1 · then the standing queue: CF cross-doc validation, the Session-17
 audit-noise + `functions lint` fast-follows, shared `firestore-store`
 extraction.
 
-*Session 20 documented 24 August 2026 by Aurelius (Claude Code).*
+*Session 19a (written as "Session 20") documented 24 August 2026 by Aurelius (Claude Code).*
 
 ---
 
-## Session 21: Worker / Area / Wage Config Reconciled Against the Codex (21 September 2026)
+## Session 19b: Payroll Config Reconciled, Then Moved Out (21–24 September 2026)
 
-### What Changed
+> **Numbering.** This section and the one above were written as "Session 21" and "Session 20".
+> Main's `SESSION_20_KICKOFF.md` (the direction change, 24 Sep) claims Session 20 for the next
+> build, so these two are renumbered **19a** (Week-0 pack) and **19b** (this) to keep the
+> sequence the kickoff starts from. The work is unchanged; only the labels moved.
 
-`src/shared/config/{workers,areas,wage}.js` had drifted from the soma-internal
-codex, which owns the roster and the rate card. This session brings them into
-line and adds a coupling test so they cannot silently drift again.
+> **No pay figure appears here.** Under the Director's sensitive-data rule (24 Sep 2026;
+> soma-internal `docs/CROSS_REPO_SESSIONS.md` rule 3) this public repo carries no pay data. The
+> full record of this session and its six amendments — every rate, the per-worker tables, the
+> rulings and the Governor findings — was **copied** to soma-internal
+> `analysis/sep-dashboard-payroll-record-2026-09.md` before being summarised here.
 
-**The drift, and why each item mattered:**
+### What changed, in the order it happened
 
-| Was | Now | Why |
-|---|---|---|
-| `hourRate: 41.25` for all contract hands | **`47.50`** | ₹47.50 (= ₹380/day ÷ 8 at 1.0×) is the ratified contract rate and has been since **4 May 2026** (`tasks.md` T-F; `roles-responsibilities-v1.1.md` §"Four workers" — ⚠ **that heading now reads "THREE workers"**, amended 22 Sep when Sambhu left the daily tier; the rate it authorises is unchanged). **₹41.25 was the floor rate only THROUGH W19** — `attendance/2026-W19.md` records it applied flat to nine workers and `decisions/2026-05-16.md` ratified it as the base rate — **and it moved to ₹47.50 FROM W20**, surviving thereafter only on Champai's office line for a "special status — not factory worker for license purposes". 🔧 *An earlier version of this row said "never the floor rate", which is false pre-W20 (Iuno, cross-jurisdiction, 22 Sep). The conclusion is unchanged: a global ₹41.25 is wrong for every post-W20 week.* Seeding it globally applied one man's rate to eleven hands, so **every contract wage this app computed ran ~13% under the card.** |
-| Perm `dailyRate` flat 496 × 6 | Per-worker: Sarat 500 · Rupa 500 · Sunil 470 · Suklal 440 · Lakhi 420 · Bhanu 410 · Lal 360 · Uday 300 *(₹9,000/mo ÷ days in the month since alpha.14)* · Shyam 576 | The ratified 1 Apr 2026 card (`decisions/2026-06-10.md` §1). 496 was a placeholder. It remains correct as `permOtBaseRate` — 🔧 *since the 23 Sep ruling it is the OT **cap** (`min(daily, 496) ÷ 8 × 1.1`), not a flat rate and not "a standing convention".* |
-| "Lucky" · "Shambhu" · "Mantu" | **Lakhi · Sambhu · Montu** | Codex canon. "Lucky" was a mis-transliteration of Laxmi/Lakhi (= `lk_das`); the other two are Shyam's relay spellings. |
-| No Rakesh, no Vijay | Both added | Rakesh joined W22, Vijay 14 Jul 2026 (roster 19→20). Both evidenced contract-daily by presence on the weekly cash payout, which is itself the contract-tier instrument. **The handler PWA's check-in picker could not see either man.** |
-| Kusu, Tuklu active | `inactive: true` | Off active pool (Tuklu AWOL-confirmed 18 May). Marked, **never deleted** — deleting orphans their historical attendance. |
-| `lk_das` + `lal` on `pickle_vat`, `bp_sharma` on `pickle_barrel` | removed | The permanent contract tier is *"Job Work only, can flex VAT/Barrel areas, **NOT Pickling**"*. All three were seeded onto pickling rosters their tier is defined to exclude. |
-| `tuklu` on `barrel` | removed | Off pool. |
+1. **Roster reconciled against the codex (alpha.9–10).** `config/{workers,areas}.js` had drifted
+   from soma-internal, which owns the roster. Canonical names (Lakhi / Sambhu / Montu /
+   Budheswer), Rakesh and Vijay added, Kusu and Tuklu marked inactive (never deleted), the
+   job-work tier taken off the pickling rosters, and Sambhu moved to the monthly tier from
+   September 2026. **Roster: 20 active, 10 monthly-tier + 10 daily hands.** Worker **ids never
+   change** — an id is a Firestore path segment and the prefix of every attendance key — so where
+   canon differs, the display name moved. `tests/unit/roster-codex.test.js` pins all of this.
+2. **Permanent OT is a rule, not a flat rate (alpha.11, 13).** `permOtRate(cfg, worker)` =
+   `min(dailyRate, permOtBaseRate) ÷ 8 × permOtMultiplier`, the rate exact and unfloored; the
+   paid amount is floored **once per month** in `calcPermMonthlyPay` and per day in the cost views
+   (estimates, not pay). All four compute sites route through it.
+3. **Seed reconciliation (alpha.12, Janus B-1 / Castor C-H6).** `initData()` used to seed only
+   when absent, so every correction reached fresh installs only. `storage/seed-sync.js`
+   reconciles on every boot; operator-added workers and stamped deactivations survive; a worker
+   who changed tier is removed from the old one, so no one is paid twice.
+4. **The plain monthly model (alpha.13–15).** Guards — and, on the BM's 24 Sep answer, **any
+   non-floor worker carrying `payModel: 'monthly-plain'`** — are paid monthly wage ÷ days in the
+   month, with hours at that ÷ `shiftHours`, no multiplier. `usesPlainRate` is the one test;
+   `permOtRate` returns 0 for them and `monthlyOtRate` routes them. `isNonFloor` takes them off the
+   production roster and into `getGuards()`. The ÷ shift-hours divisor is **confirmed** (BM, 24 Sep).
+   ⚠ *"An option for non-floor staff" is a reading of a five-word answer.*
+5. **Pay data moved out (alpha.16).** See below.
 
-### Two things held deliberately
+### alpha.16 — the import door
 
-- **IDs are untouched.** A worker id is a Firestore doc path segment
-  (`workers/{id}/shifts/…`) and the prefix of every localStorage attendance key.
-  Renaming one orphans the staging subcollection *and* every device's history.
-  So where canon differs from an id, the **display name** moved and the id
-  stayed. A pinned id-set test makes an attempted rename fail CI loudly, because
-  that is a migration, not a config edit.
-- **Champai is held at ₹41.25 via a new `hourRateOverrides`.** Raising the global
-  must not resolve an open comp question as a side effect: T-CJ is live, and
-  `staff-aliases.md` still carries the F-1 divergence. The payout evidence
-  favours ₹47.50 (W33 slip line 9 foots 16 hr at 47.50 = ₹760; the **W25** slip
-  did the same at 40 hr = ₹1,900 — ⚠ an earlier version of this line cited a
-  "W24" payout, which does not exist; Iuno H-2),
-  **so this override is a placeholder for a BM ruling, not a finding.**
+**Structure ships; pay data is imported.** `config/workers.js` carries ids, names, roles, tier,
+pay model and shift length — and no `dailyRate` or `monthlyWage`. `config/wage.js` carries the
+rules (`permOtMultiplier`, shifts, `guardIds`) and ships the three rate-card fields
+(`RATE_CFG_FIELDS`: `hourRate`, `permOtBaseRate`, `snackRate`) as **null**.
 
-### Coupling test
+- **Settings → Import roster** loads a `sep-dashboard-roster` v1 file that soma-internal generates
+  (`scripts/build-dashboard-roster.py` → `analysis/sep-dashboard-roster-YYYY-MM-DD.json`).
+  `applyRosterImport` matches workers **by id** across both tiers, applies only rate fields,
+  **skips and counts** an unknown id (never creates a worker), and **rejects and names** a junk
+  figure. A name, role or tier in the file is ignored — structure stays the app's.
+- **A transfer is a COPY.** `seed-sync` never touches a rate: a device keeps the rates it holds
+  until an import replaces them. A device updated from alpha.15 therefore keeps the figures it
+  already had and loses nothing.
+- **A fresh install prices at zero, visibly.** `dayRateOf`, `cwHourRate` and `permOtRate` turn a
+  missing rate into 0, never NaN, and Settings shows *not imported — Import roster* in place of
+  each missing rate.
+- **Tests carry invented figures only.** The rule tests (`payroll.test.js`, `seed-sync.test.js`)
+  use a synthetic rate card; `tests/unit/fixtures/main-era-seed.js` keeps main's pre-alpha.9
+  structure with invented rates. The per-worker rate pins moved to the generator's self-checks
+  in soma-internal, beside the data they check.
+- ⚠ **Public history is not rewritten.** Earlier commits on the PR branch, and main's own history
+  before this merge, still contain the figures. A squash merge keeps the branch commits out of
+  main; purging history needs a force-push and is the Director's call.
 
-`tests/unit/roster-codex.test.js` (17 cases) pins the config to the codex:
-20 active · the rate card per worker · canonical names · the exact id set · no
-496 left on an individual rate · `hourRate × 8 = 380` · the job-work tier absent
-from every pickling roster · every area roster id known and active · no area left
-uncrewable (`production.js` assigns every *present* roster member, so an empty
-roster means that area can never be crewed) · inactive men filtered out of the 20.
+### Known limits (stated, not hidden)
 
-Figures are restated with citations rather than imported — soma-internal is
-private and may not be checked out beside this repo — so the test's job is to
-fail when someone edits the config without going back to the source.
-
-### Correction to Session 11
-
-Session 11's domain model records the workforce as *"12 part-time contractors
-(11 floor + 1 notebook handler) + 7 full-time + 1 guard"*. That totals 20 by
-coincidence: it counted Kusu/Tuklu/Ramo as active and pre-dated both Rakesh's
-roster row and Vijay. The codex decomposition is **9 monthly-tier (6 permanent +
-3 permanent-contract) + 11 contract daily-hands = 20**, verified against
-`attendance/2026-W33.md` day 1, whose own arithmetic is 15 on site + 5
-weekly-absent. *(Raised as L-4 by Castor at the 21 Sep audit.)*
-
-### Also settled
-
-**"Budheswer" is the floor spelling and the alias file is the one that is wrong.**
-A census across soma-internal `attendance/` returns **Budheswer 131 ·
-Buddheswar 0 · Budheshwar 2**, and `attendance-register-data.json` keys
-`Budheswer`; `staff-aliases.md` lists "Buddheswar" in its *Floor / attendance
-name* column. Castor is taking the alias-file drift at next touch.
+- **No effective-dated rates.** Any month is computed with the rules held now, so a recompute of a
+  pre-September month does not reproduce what was paid. Past months come from the codex's payout
+  files. The History wage pill says it is a recompute.
+- **No screen records a guard's extra hours.** `otHours` is written only for the production
+  roster; the plain-model rates price imported or hand-entered data correctly, but the hours
+  cannot be captured here.
+- **This app is not the permanent slip instrument.** It has no rest-day credit, no attendance
+  gate, no EXTRA-day exclusion and no worked-Sunday rule.
+- **A recompute of a pre-September week reads zero for a worker who changed tier**, because his
+  earlier attendance is keyed under the other tier's map.
 
 ### Test Results
 
-- **Unit:** 341 → **358** (roster-codex 17; payroll fixture re-based on the
-  ratified rate, +1 override case)
-- **E2E:** 43 · **Build:** clean · `BUILD 5→6`, `APP_VERSION 2.1.0-alpha.9`,
-  both SW caches bumped
-
-*Session 21 documented 21 September 2026 by Aurelius (Claude Code).*
-
-### Amendment — same day, two BM rulings (21 September 2026)
-
-Both of Session 21's open comp items were ruled within the session, so the
-entry above is superseded on two points.
-
-**1. Champai is on ₹47.50, like everyone else.** The `hourRateOverrides` entry
-holding him at ₹41.25 is **deleted, not updated** — he is simply on the contract
-rate. This closes the F-1 divergence open since 13 June. The framework line
-(*"Office (Champai) | Weekly hourly ₹41.25/hr"*) was the stale artifact; the
-**W25** payout (40 hr = ₹1,900 = ₹380×5) and **W33** (16 hr = ₹760.00) were
-right. 🔧 **There is no W24 weekly payout** — an earlier version of this entry
-cited one twice (Iuno H-2, 22 Sep).
-
-> 🔴 **RETRACTED (Cipher B-1, 22 Sep).** An earlier version of this entry drew
-> the lesson **"the instrument that moves money beats the document that
-> describes it"**. That principle is real and it is **not this case's**.
->
-> This was a **regression, not a fresh ruling**: T-CJ's Champai row was closed
-> on **22 June 2026** on the W25 payout instrument (`tasks.md`,
-> `decisions/2026-06-22.md`) and simply never folded into
-> `operations/staff-aliases.md`, so it sat live on that one stale surface for
-> three months and was re-discovered there. What disagreed was not a framework
-> page against a payout slip — it was **two mandatory-read files that had the
-> answer, against one that did not.**
->
-> ⭐ **So the lesson is the FOLD RULE**: name every surface that carries a claim
-> before amending any one of them, and state the count. Same shape as this
-> codex's own `R.K Enterprises` case.
-
-The override *mechanism* stays (empty), because the alternative — a second flat
-global — is precisely what produced the 41.25 bug.
-
-**2. Sambhu moves to the permanent tier, effective September 2026**, at
-**₹380/day** — his existing contract day rate, exactly `hourRate × 8`. So the
-~~**tier changed and the pay did not**~~ — **his ₹380/day is unchanged, but the
-PAY CHANGED by ≈₹2,300–2,500/month** *(Castor C-H1, 22 Sep: the original sentence
-was false as written — true of the ₹/day, and it then listed three ways the pay
-moves)*: rest credit ≈4.33 Sundays × ₹380 ≈ **+₹1,645/mo at full attendance**, gate-dependent (`S × g`, g = 100/50/0% at the ≥90 / 80–90 / <80% gate). ⭐ **The gate scales the GAIN, never the floor**: g multiplies only the rest credit, and days worked are ungated on both tiers. His old daily basis paid **no** rest Sundays (*"no Sunday pay unless Sunday work assigned"*), so at g = 0 the rest credit is zero — exactly what the daily tier paid. **The attendance gate cannot cut his floor** — ✅ *and with both conditions below settled in his favour the same day (a Sunday's excess over 8 hours is OT; the shop credits 6 AM → 5 PM as 3 OT hours), he cannot earn less in any month.* ⚠ *Scoped 23 Sep (Castor C-H3): an earlier version said "he cannot earn less … in any month", which is broader than this argument. Two conditions are unruled and each can make a month come out lower: a Sunday worked beyond 8 hours (the daily tier paid it at ₹47.50 × actual hours; the monthly tier pays one day at ₹380), and how monthly OT hours are counted from the clock span (a 6 AM–5 PM day is ₹522.50 daily-tier, ₹536.75 monthly at 3 OT hours, ₹510.63 at 2.5).* 🔧 *An earlier version said a bad month could fall below the daily tier; that was wrong, and the BM caught it (23 Sep). It transplanted HIGH-5's logic — which is about men whose old basis INCLUDED paid Sundays — onto a man whose old basis had none.* · OT premium ₹4.75/hr on ~152 OT hr/mo
-≈ **+₹720/mo** · a worked Sunday as an uncapped extra day at ₹380. **His OT rate is ₹52.25/hr** (= ₹380 ÷ 8 × 1.1). **OT rate RULED 23 Sep (BM): `min(daily, ₹496) ÷ 8 × 1.1`** — 1.1× the man's own rate below ₹496/day, capped at ₹68.20 at or above it. → `decisions/2026-09-23.md` §4. So the monthly uplift at full attendance is ≈**₹2,400** (≈₹720 at g = 0), and the ≈₹4,800 contract-term alternative quoted on 22–23 Sep no longer applies. 🔧 *Those quotes also said the app paid ₹68.20; it paid **₹68** — it floored the rate to whole rupees. Fixed in alpha.11.* He is the plant's
-heaviest-worked hand (80-hour weeks; the T-DV fatigue anchor), so the move also
-puts his hours on an instrument the weekly cash payout does not govern — which
-is the exact gap Castor's C-1 keeps raising.
-
-The roster stays **20**; the split becomes **10 monthly-tier + 10 daily hands**
-(was 9 + 11), and the coupling test pins the new split.
-
-> ⚠ **Recomputing a pre-September week for Sambhu will read zero.** His
-> historical attendance is keyed `shambhu_YYYY_MM_DD` under the CW map
-> (`cwAtt`); the permanent path uses the same key string under `peAtt`. Since he
-> is no longer in `activeCW`, a re-run of an August weekly payout totals him at
-> nothing. August and earlier come from the codex's own payout files, not from
-> recomputing here. Flagged in `workers.js` at his row.
-
-Unlike the job-work trio, a permanent **monthly** man may work pickling —
-Suklal is Pickling Lead and permanent — so his area rosters are unaffected.
-
-**Tests:** 358 → **360** · `BUILD 6→7`, `APP_VERSION 2.1.0-alpha.10`, both SW
+Unit **341 → 420** across alpha.9–15, then **400** at alpha.16 (the per-worker rate pins left for
+soma-internal; the import-door and copy-semantics tests added) · E2E **43** (the specs that price
+wages now seed an invented rate card) · `BUILD 12 → 13`, `APP_VERSION 2.1.0-alpha.16`, both SW
 caches bumped.
 
-*Amendment documented 21 September 2026 by Aurelius (Claude Code).*
-
-### Amendment — perm OT rate ruled (23 September 2026, alpha.11)
-
-**BM ruling:** permanent-tier OT = **`min(dailyRate, ₹496) ÷ 8 × 1.1`**. Below
-₹496/day it is 1.1× the man's own hourly rate (Sambhu ₹52.25, Suklal ₹60.50,
-Lal ₹49.50…); at or above it, capped at **₹68.20** (Shyam, Sarat, Rupa). The
-`permOtBaseRate` of 496 survives as the **cap**, not as a flat rate.
-
-**What was wrong before, and it was two things, not one.** The app paid every
-permanent man one flat rate regardless of daily rate — and that rate was **₹68,
-not the ₹68.20** the codex kept quoting, because all four compute sites did
-`sepRound((496 / 8) × 1.1)` and `sepRound` floors to whole **rupees**. Applying
-the new rule on that pattern would have paid Sambhu ₹52 against a ruled ₹52.25.
-
-**Now:** one function, `permOtRate(cfg, worker)` in `utils/payroll.js`, used by
-`calcDayWages`, `calcPermMonthlyPay`, the Finance tab and the Finance export. The
-rate is exact; only the paid amount is floored, as before. The CW-OT lines beside
-them had the same shape — `cfg.hourRate` direct, bypassing the Session-21
-`cwHourRate` override helper — and now route through it too (no effect today;
-the override map is empty). The Settings panel, which displayed one flat rate,
-now shows the rule.
-
-**Coverage that did not exist.** The perm OT path had **no assertion anywhere** —
-`payroll.test.js` set `permOtBaseRate` and never checked an OT figure, so any
-change to it was invisible. Now: the rule and its boundary at exactly ₹496, the
-unfloored rate, a junk-rate guard, the paid amount through both payroll
-functions, and every live permanent man's rate pinned **by name from the shipped
-config** in `roster-codex.test.js`, so a daily-rate change that moves someone's OT
-fails CI rather than surfacing on a slip.
-
-**Guards get no OT — ruled, not just inherited (BM, 23 Sep):** *"Uday gets no
-OT. 7-7 is his shift."* His 12-hour span is his standard day. The app already
-excluded guards from OT in three places (production roster, `calcDayWages`,
-`calcPermMonthlyPay`); that is now pinned against the shipped config in
-`roster-codex.test.js`, and Uday is out of the per-man OT-rate map. 🔧 *(Later
-the same day: the 7–7 shift carries no OT, but hours above his 12-hour day ARE
-paid at his plain hourly rate — see the alpha.14 amendment.)*
-
-**The cap applies from the September slip (BM, 23 Sep).** ⚠ The app has **no
-effective-dated rates** — it computes any month with the rules it holds now, so
-recomputing July or August here caps Shyam's OT at ₹68.20 against the ₹79.20
-rate the pre-September slips used. Pre-September months come from the codex's payout files, not a
-recompute — the same limit already recorded for Sambhu's pre-September weeks.
-
-**Tests:** unit 360 → **381**, e2e **43**, build clean. `BUILD 7 → 8`,
-`APP_VERSION 2.1.0-alpha.11`, both SW caches bumped.
-
-*Amendment documented 23 September 2026 by Aurelius (Claude Code).*
-
-### Amendment — Castor + Janus review of the OT change (23 September 2026, alpha.12)
-
-Both Governors reviewed alpha.11 and the guard ruling. Janus returned **HOLD**,
-on one blocker that Castor raised independently.
-
-**The blocker: the rulings reached fresh installs only (Janus B-1 / Castor
-C-H6).** `initData()` seeded the roster, area rosters and wage config into
-localStorage *only when absent*, and every reader preferred the saved copy. A
-device first booted before alpha.9 therefore still held `hourRate 41.25`, four
-men at the ₹496 placeholder — which `permOtRate` turns into ₹68.20 OT, the
-superseded flat rate reproduced — and Sambhu on the contract list at the
-contract rate. So every rate claim made since Session 21 was true of the shipped
-config and false of the one device actually running the app. **Fixed:**
-`src/shared/storage/seed-sync.js` reconciles on every boot. Shipped values win
-for the wage config, the area rosters and every known worker id; a known id is
-removed from the tier it has left, so Sambhu can't be paid twice; workers added
-by an operator are kept; and so is an operator's deactivate/reactivate, which
-the app stamps. Attendance, advances, logs and locks are never touched. Tested
-against the verbatim main-era seed: a stale device reconciles to exactly a fresh
-install, by name.
-
-**Also fixed:** `permOtRate` returns 0 for a guard id and for a non-numeric cap
-or multiplier (Janus M-4, L-4). The Costs CSV no longer adds OT to a Total that
-already contains it (Janus H-2; this predated alpha.11). The History wage pill
-now says it is a recompute at today's rates (Janus M-3); it is the only
-past-date recompute a user can reach, and it applies the cap to July and August.
-And `dist/` now holds exactly one clean build — 11 chunks, all reachable, none
-missing, rebuild byte-identical. It had accumulated 25 orphans. ⚠ It had also
-been **missing** `chunk-SLYXW4KS.js` from alpha.8 to alpha.10, which would have
-broken the Live, Edit and Adoption boot on Pages. alpha.11 restored it without
-saying so (Janus M-1).
-
-**Corrections to the alpha.11 amendment above:**
-- "Guards … excluded in three places": there are **five** (production roster,
-  `calcDayWages`, `calcPermMonthlyPay`, the finance-tab and export OT loops, and
-  print-pay), and now `permOtRate` itself as well.
-- The ₹79.20 citation: no pre-September **monthly** slip paid Shyam OT at ₹79.20
-  (0 OT hours in June and July). The rate was applied in the April–May arrears,
-  soma-internal `operations/payouts/2026-04-05-backlog-new-rates.md` (Castor C-M8).
-- ~~"Pre-September months come from the payout files": **there is no August
-  permanent salary file** in the codex (Castor C-H2).~~ 🔴 **Withdrawn (alpha.13
-  amendment below):** the file exists on soma-internal `main` and August was paid
-  on 14 Sep. The null was measured on a branch 207 commits behind `main`.
-- Test counts: 381 at alpha.11 and 383 after the guard pin. Now **407** unit
-  (383 → 407: seed-sync, the permOtRate guard/NaN cases, the roster guard
-  cases) and **43** e2e; the
-  Costs e2e now seeds OT hours and asserts OT is counted once.
-
-**Not changed, and stated so it isn't read as done:**
-- ~~**OT is floored per day** (Janus H-1 / Castor C-M1). The granularity is a BM
-  ruling and is open.~~ ✅ **Ruled per month, 23 Sep; implemented in alpha.13.**
-- **This app is not the permanent slip instrument** (Janus H-3). It computes
-  days × `dailyRate` + OT only. It has no `S × g` rest credit, no attendance
-  gate, no EXTRA-day exclusion and no worked-Sunday rule, so the Sambhu figures
-  above are the codex's, not this app's.
-
-`BUILD 8 → 9`, `APP_VERSION 2.1.0-alpha.12`, both SW caches bumped.
-
-*Amendment documented 23 September 2026 by Aurelius (Claude Code).*
-
-### Amendment — the BM's four answers (23 September 2026, alpha.13)
-
-The BM answered the four questions the review raised. Two change this app.
-
-**1. OT is computed per month.** `calcPermMonthlyPay` now totals the month's
-OT hours × each man's rate **unrounded** and floors **once**. The per-day floor
-lost up to ₹1 per man per OT day. Sambhu at 3 hours on 10 days is now ₹1,567
-(it was ₹1,560); Sarat capped is ₹2,046, which is the payout file's own figure.
-The floor stays at the whole rupee (Build Rule 5), so a month can still sit up to
-₹0.99 under the soma-internal payout files, which keep paisa. The daily cost
-views (`calcDayWages`, the Finance tab, the Costs CSV) still floor each day:
-they are cost estimates, not pay.
-
-**2. Directed work by the guard is paid.** The 7 AM–7 PM gate shift is his
-standard day and is never recorded as OT. BM-directed non-gate work beyond it
-**is** paid, on the W24 precedent (2 hr at ₹41.25). 🔧 *(Mis-scoped, per the codex's
-Governor chain: W24 was an 8:30 AM start, so those 2 hours were inside twelve and
-are not the hours the later ruling prices. See alpha.14's Scope paragraph.)* ~~So hours recorded as OT on a
-guard now price at `permOtRate` like any other monthly man.~~ 🔴 **Superseded
-in alpha.14 (below): no 1.1× and not `permOtRate`. The hours are paid at his
-plain hourly rate, which follows the month.** That reverses
-~~alpha.12's guard-zero in `permOtRate` and~~ 🔧 *(the guard-zero was restored in
-`c628466`, Janus M-1: `permOtRate` returns 0 for a guard again)* the guard skip in
-`calcPermMonthlyPay`, and adds guard OT to the daily and cost views. The
-production roster still excludes guards. ⚠ The BM ruled on soma-internal `main`
-(14 Sep) that Uday is paid ₹9,000/month with the day rate = ₹9,000 ÷ days in the
-month. ~~This app holds one fixed `dailyRate`, so its ₹300 is the 30-day figure,
-and his pay and directed-work rate are approximations in 31-day months.~~ ✅
-**Implemented in alpha.14: both now follow the month.** The
-app is not the slip instrument (alpha.12 amendment).
-
-**3. August's permanent salary was paid.** It is on soma-internal `main`
-(`operations/payouts/2026-08-permanent-salary.md`, paid 14 Sep, OT at the
-uncapped per-worker rates). The alpha.12 claim that no file existed was measured
-on a branch cut 22 Aug and 207 commits behind `main`. ⚠ *Paid is a confirmation,
-not a reconciliation: it went out on the superseded Rev 5 face with no recorded
-authorisation, and Uday was paid ₹7,650.00 against the ruled ₹8,129.03, so
-₹479.03 is owed (soma-internal T-GS).*
-
-**4. A Sunday worked past 8 hours pays the excess as OT.** This app has no
-worked-Sunday rule (alpha.12 amendment). A Sunday recorded as present with its
-excess hours as `otHours` already prices by this ruling. Sambhu's floor claim
-is settled in his favour; see the Session 21 amendment above.
-
-**Tests:** unit 407 → **410** (per-month rounding ×2; the guard block rewritten
-for the ruling). `BUILD 9 → 10`, `APP_VERSION 2.1.0-alpha.13`, both SW caches
-bumped.
-
-*Amendment documented 23 September 2026 by Aurelius (Claude Code).*
-
-### Amendment — the guard's rate follows the month (23 September 2026, alpha.14)
-
-**BM ruling:** *"Uday gets no special OT rate, no 1.1x multiplier. Hourly rate
-above the 12 hrs is decided based on the days in that specific month."* This
-supersedes alpha.13, which priced his extra hours at `permOtRate` (₹300 ÷ 8 × 1.1
-= ₹41.25).
-
-**Now:** Uday's row carries `monthlyWage: 9000` and `shiftHours: 12`. Both of
-his rates come from the month being paid, in `utils/payroll.js`:
-
-| | Formula | 30-day month | 31-day month |
-|---|---|---:|---:|
-| Day rate (`guardDayRate`) | ₹9,000 ÷ days in the month | ₹300.00 | ₹290.32 |
-| Hourly beyond 12 h (`guardHourRate`) | day rate ÷ 12 | ₹25.00 | ₹24.19 |
-
-✅ **Confirmed by the BM, 24 Sep: "Divisor is ÷12."** ~~⚠ **The ÷ 12 divisor is this app's reading, not the ruling's words.** The
-ruling says the rate is set by the days in the month but does not say what the
-day is divided by. His standard day is 12 hours, so ÷ 12 is the natural reading.
-÷ 8 would give ₹37.50 and ₹36.29; ÷ 11, if the unpaid 12:30–1:30 hour reaches
-the gate, ₹27.27 and ₹26.39 (Castor C-H2). The divisor is an open BM question on
-soma-internal T-HU. It is the `shiftHours` field on his row, so a different
-ruling is a one-field change.~~
-
-⚠ **Scope** (Castor C-H1): the ruling prices hours **above his 12-hour day**,
-which is after 7 PM only on a 7 AM start. `otHours` on a guard means that and
-nothing else. Directed non-gate work inside the 12 (the W24 class) is paid, but
-no ruling states its rate, so the app has no rule for it.
-
-**This also closes alpha.13's approximation.** The day rate follows the month
-too, not a fixed ₹300. August now reproduces the codex's ruled ₹8,129.03
-(28 days × ₹9,000 ÷ 31) — the ruled figure, not what was paid: the bank paid
-₹7,650.00 and ₹479.03 is owed (soma-internal T-GS). The app shows ₹8,129 because it floors the month
-total once, the same as OT. `calcPermMonthlyPay` accumulates day pay unrounded
-for that reason. The daily cost views floor the guard's day at ₹290 in a 31-day
-month, because they are cost estimates.
-
-**Routing:** `monthlyOtRate(cfg, worker, date)` sends a guard to
-`guardHourRate` and everyone else to `permOtRate`. The Finance tab and the Costs
-CSV both use it. `permOtRate` returns 0 for a guard, so a caller that reaches
-for it cannot bring back the 1.1× (Janus M-1). Settings shows Uday as ₹9,000/mo
-and states the guard rule, with the ÷ 12 marked as the app's reading. A guard
-added to `guardIds` without `monthlyWage` falls back to `dailyRate`. Settings
-cannot add a guard; `guardIds` is shipped config (Janus L-2). `seed-sync` propagates the two new fields to existing devices, because
-the shipped entry replaces a known id's saved one.
-
-⚠ **No screen records a guard's extra hours** (Janus M-3). `otHours` is written
-only for the production roster (`production.js`), and guards are not on it; the
-attendance and mark-all paths write `otHours: 0`. So the rates above price
-imported or hand-entered data correctly, but the ruling's hours cannot be
-captured here. His extra hours are paid off the codex slip until a capture path
-exists.
-
-⚠ **Two figures for one guard, and no effective dating** (Janus L-4). The daily
-cost views floor his day at ₹290 in a 31-day month; the pay card floors the month
-once (₹290.32 × days), so the two can differ by up to about ₹10. And a recompute
-of a past month applies today's rules: June's history would read a 12-hour day
-and reprice the W24 ₹82.50, which soma-internal says not to back-apply.
-
-**Tests:** unit 410 → **414**. The guard blocks were rewritten:
-- September and October rates, and February at 28 days.
-- No multiplier.
-- August at ₹8,129.
-- A 10-day October month with 3 extra hours a day, paying ₹725.
-- `daysInMonthOf` including a leap year, and the fallbacks.
-
-E2E **43**; the Costs CSV test now seeds 2 hours beyond the guard's shift and
-pins the OT column exactly, and fails if either Finance OT loop reverts to
-`permOtRate` (verified by reverting one: expected 145, received 95; Janus M-2).
-`BUILD 10 → 11`, `APP_VERSION 2.1.0-alpha.14`, both SW caches
-bumped, and `dist/` is one clean build (13 reachable, 0 missing, 0 orphans).
-
-*Amendment documented 23 September 2026 by Aurelius (Claude Code).*
-
-### Amendment — ÷ 12 confirmed; the plain model is an option for non-floor staff (24 September 2026, alpha.15)
-
-The BM answered the four items left open on 23 Sep (soma-internal
-`decisions/2026-09-24.md` §8 (payroll)).
-
-1. **The divisor is ÷ 12, confirmed.** The caveats above are struck; `shiftHours: 12`
-   stands.
-2. **"Have it as an option for non-floor staff."** Read as: the plain monthly
-   model (monthly wage ÷ days in the month ÷ shift hours, no 1.1×, pricing
-   directed work inside the shift as well as hours beyond it) is an **option any
-   non-floor worker can carry**, not a guard-only rule. ⚠ *A reading of a
-   five-word answer; if it meant something narrower, this is the paragraph to
-   correct.*
-   - `payModel: 'monthly-plain'` on a worker selects it. `usesPlainRate(cfg, w)`
-     is the one test: every guard, plus anyone carrying the option.
-   - `isNonFloor` in `storage/workers.js` uses it, so option-carriers leave the
-     production roster and join `getGuards()` — the same path the guard takes
-     through every pay view. The attendance, finance and export tabs, which each
-     filtered on `guardIds` themselves, now read `getGuards()`.
-   - `permOtRate` returns 0 for them and `monthlyOtRate` gives the plain rate;
-     `calcDayWages` prices one correctly even if passed in the production list.
-   - **Settings → + Add Perm Worker** asks whether the worker is non-floor staff
-     on a monthly wage; if so it takes the monthly wage and shift hours and sets
-     the option. Uday carries `payModel: 'monthly-plain'` explicitly.
-3. **August's ₹479.03 is paid with next month's salary** (soma-internal T-GS).
-4. The duplicated counter text is a soma-internal matter; fixed there.
-
-⚠ **Unchanged, and still blocking merge:** this repo is public, and the
-24-Sep sensitive-data rule says business data never enters a public repo. The
-shipped roster carries named workers' real rates (see the PR).
-
-**Tests:** unit 414 → **420** (the option: routing, permOtRate refusal, both pay
-paths, the storage lists, Uday's explicit flag). `BUILD 11 → 12`,
-`APP_VERSION 2.1.0-alpha.15`, both SW caches bumped.
-
-*Amendment documented 24 September 2026 by Aurelius (Claude Code).*
-
+*Session 19b documented 21–24 September 2026 by Aurelius (Claude Code); figures transferred to
+soma-internal 24 September 2026.*

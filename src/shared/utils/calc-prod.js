@@ -67,7 +67,7 @@ export function recalcExtra(prod, areas, cfg) {
       const assigned = pa.assigned?.length || 0;
       if (req > assigned) shortfall += (req - assigned);
     });
-    const periodExtra = sepRound(shortfall * hours * cfg.hourRate);
+    const periodExtra = sepRound(shortfall * hours * (Number(cfg.hourRate) || 0));
     totalExtraH += shortfall * hours;
     totalExtraCost += periodExtra;
   });
@@ -76,7 +76,7 @@ export function recalcExtra(prod, areas, cfg) {
   const eveningOT = prod.periods.eveningOT;
   if (eveningOT?.active) {
     const snackWorkers = eveningOT.workers?.length || 0;
-    snackCost = snackWorkers * cfg.snackRate;
+    snackCost = snackWorkers * (Number(cfg.snackRate) || 0);
   }
 
   prod.totals = prod.totals || {};

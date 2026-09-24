@@ -1,35 +1,31 @@
-// Seed reconciliation — makes the SHIPPED config the authority on every
-// device, not only on a fresh install.
+// Seed reconciliation and the roster import door.
 //
-// Why this exists (Janus B-1 / Castor C-H6, 23 Sep 2026): `initData()` seeds
-// the roster, area rosters and wage config into localStorage only when the key
-// is absent, and every reader prefers the saved copy (`getCfg()` spreads
-// `...saved` over DEF_CFG; `getPermWorkers()` loads the saved list). So a
-// device first booted before alpha.9 kept `hourRate 41.25`, four men at the
-// placeholder ₹496/day (so ₹68.20 OT through permOtRate), and Sambhu on the
-// contract list — every rate ruling since 21 Sep reached fresh installs only.
+// Two authorities, split by kind of data (Director's sensitive-data rule,
+// 24 Sep 2026 — business data never enters this public repo):
 //
-// What is authoritative, and why it is safe to overwrite:
-//   · prodCfg and prodAreas — written ONLY by initData's seed; no screen edits
-//     them. The saved copy is a stale snapshot of old defaults, never an
-//     operator's choice. Shipped values win; unknown legacy cfg keys are kept.
-//   · Known worker ids (any id in DEF_PERM or DEF_CW) — Settings can ADD a
-//     worker but cannot edit an existing one's rate, name or role, so those
-//     fields on a saved known-id entry are a stale seed and the shipped entry
-//     replaces them. A known id is also removed from the list whose tier it
-//     has left (Sambhu, CW → perm, September 2026), or he would be paid twice.
-//   · The one operator edit Settings DOES allow on a known worker is
-//     deactivate / reactivate (`toggleWorkerActive`), which stamps
-//     `deactivatedOn` or `reactivatedOn`. Where the saved entry carries either
-//     stamp, its `inactive` flag and stamp fields are the operator's decision
-//     and are kept over the shipped value.
-//   · Operator-added workers (ids in neither list) are kept untouched, after
-//     the shipped ones, in their saved order.
+//   · STRUCTURE ships with the app and wins on every boot: which ids exist,
+//     their display names, roles, tier, pay model and shift length, the area
+//     rosters, and the pay rules in DEF_CFG. `initData()` used to seed these
+//     only when absent, so an existing device never saw a correction; they are
+//     reconciled on every boot instead.
+//   · PAY DATA — each worker's dailyRate / monthlyWage and the rate-card fields
+//     in DEF_CFG (RATE_CFG_FIELDS) — never ships. It arrives through Settings →
+//     Import roster, from a file soma-internal generates. Reconciliation never
+//     touches it: a device keeps the rates it holds (a transfer is a COPY), and
+//     only an import replaces them.
 //
+// Also preserved: operator-added workers (ids in neither shipped list), and an
+// operator's deactivate/reactivate, which the app stamps. A known id is removed
+// from the tier it has left, so a worker who changed tier is never paid twice.
 // Attendance, advances, production logs and month locks are never touched.
-// Pure and idempotent: running it on its own output changes nothing.
+// Every function here is pure; running one on its own output changes nothing.
+
+import { RATE_CFG_FIELDS } from '../config/wage.js';
 
 const OPERATOR_STATUS = ['inactive', 'deactivatedOn', 'deactivateReason', 'reactivatedOn'];
+export const RATE_WORKER_FIELDS = ['dailyRate', 'monthlyWage'];
+
+const isRate = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 
 export function reconcileWorkers(saved, shipped, otherTierShipped) {
   const list = (Array.isArray(saved) ? saved : []).filter((w) => w && w.id);
@@ -39,9 +35,10 @@ export function reconcileWorkers(saved, shipped, otherTierShipped) {
   const known = shipped.map((w) => {
     const s = savedById.get(w.id);
     const next = { ...w };
-    if (s && (s.deactivatedOn || s.reactivatedOn)) {
-      for (const f of OPERATOR_STATUS) {
-        if (f in s) next[f] = s[f];
+    if (s) {
+      for (const f of RATE_WORKER_FIELDS) if (isRate(s[f])) next[f] = s[f];
+      if (s.deactivatedOn || s.reactivatedOn) {
+        for (const f of OPERATOR_STATUS) if (f in s) next[f] = s[f];
       }
     }
     return next;
@@ -52,7 +49,9 @@ export function reconcileWorkers(saved, shipped, otherTierShipped) {
 
 export function reconcileCfg(saved, shipped) {
   const base = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
-  return { ...base, ...clone(shipped) };
+  const next = { ...base, ...clone(shipped) };
+  for (const f of RATE_CFG_FIELDS) next[f] = isRate(base[f]) ? base[f] : shipped[f];
+  return next;
 }
 
 export function reconcileSeed({ savedPerm, savedCW, savedCfg, defPerm, defCW, defCfg, defAreas }) {
@@ -62,6 +61,49 @@ export function reconcileSeed({ savedPerm, savedCW, savedCfg, defPerm, defCW, de
     cfg: reconcileCfg(savedCfg, defCfg),
     areas: clone(defAreas),
   };
+}
+
+// ── The roster import door ──────────────────────────────────────────────────
+// File format, produced by soma-internal `scripts/build-dashboard-roster.py`:
+//   { "format": "sep-dashboard-roster", "version": 1, "asOf": "YYYY-MM-DD",
+//     "cfg": { "hourRate": n, "permOtBaseRate": n, "snackRate": n },
+//     "workers": [ { "id": "...", "dailyRate": n } | { "id": "...", "monthlyWage": n } ] }
+// Workers are matched by id — never by name — across both tiers. An id this
+// device does not hold is SKIPPED and COUNTED, never created: inventing a
+// worker would put a row with no tier on the roster. Only rate fields are
+// applied; structure stays the app's.
+export const ROSTER_FORMAT = 'sep-dashboard-roster';
+
+export function applyRosterImport({ perm, cw, cfg }, doc) {
+  if (!doc || doc.format !== ROSTER_FORMAT || doc.version !== 1) {
+    throw new Error(`Not a ${ROSTER_FORMAT} v1 file.`);
+  }
+  const stats = { workers: 0, cfg: 0, unknown: [], rejected: [] };
+  const nextCfg = { ...(cfg || {}) };
+  for (const f of RATE_CFG_FIELDS) {
+    if (doc.cfg && f in doc.cfg) {
+      if (isRate(doc.cfg[f])) { nextCfg[f] = doc.cfg[f]; stats.cfg++; } else stats.rejected.push(`cfg.${f}`);
+    }
+  }
+  const byId = new Map((Array.isArray(doc.workers) ? doc.workers : []).map((w) => [w && w.id, w]));
+  const apply = (list) => (Array.isArray(list) ? list : []).map((w) => {
+    const row = byId.get(w.id);
+    if (!row) return w;
+    byId.delete(w.id);
+    const next = { ...w };
+    let touched = false;
+    for (const f of RATE_WORKER_FIELDS) {
+      if (f in row) {
+        if (isRate(row[f])) { next[f] = row[f]; touched = true; } else stats.rejected.push(`${w.id}.${f}`);
+      }
+    }
+    if (touched) stats.workers++;
+    return next;
+  });
+  const nextPerm = apply(perm);
+  const nextCW = apply(cw);
+  stats.unknown = [...byId.keys()].filter(Boolean);
+  return { perm: nextPerm, cw: nextCW, cfg: nextCfg, stats };
 }
 
 function clone(v) {
