@@ -42,7 +42,7 @@ var DEF_AREAS = [
       { l: 75, lb: "75%", r: 3 },
       { l: 100, lb: "100%", r: 3 }
     ],
-    roster: ["sunil_mahato", "birsa", "tuklu"]
+    roster: ["sunil_mahato", "birsa"]
   },
   {
     id: "pickle_vat",
@@ -51,7 +51,7 @@ var DEF_AREAS = [
     dep: true,
     depOn: ["vat_a1", "vat_a2"],
     caps: [],
-    roster: ["lk_das", "lal", "suklal"]
+    roster: ["suklal", "sripati", "budheswar"]
   },
   {
     id: "pickle_barrel",
@@ -60,7 +60,7 @@ var DEF_AREAS = [
     dep: true,
     depOn: ["barrel"],
     caps: [],
-    roster: ["rupa_bera", "bp_sharma"]
+    roster: ["shambhu", "birsa"]
   }
 ];
 
@@ -75,8 +75,8 @@ var DEF_STOCK = [
 ];
 
 // src/shared/config/app.js
-var APP_VERSION = "2.1.0-alpha.7";
-var BUILD = 4;
+var APP_VERSION = "2.1.0-alpha.19";
+var BUILD = 16;
 
 // src/shared/types/rule-bounds.js
 var QTY_MAX = 1e5;
@@ -120,4 +120,4 @@ export {
   CHECK_SLOTS,
   deriveTotalQty
 };
-//# sourceMappingURL=chunk-274TEG2F.js.map
+//# sourceMappingURL=chunk-HEIKWH22.js.map

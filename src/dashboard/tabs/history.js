@@ -2,6 +2,7 @@
 // when viewing dates inside a closed month.
 
 import { loadJSON } from '../../shared/storage/storage.js';
+import { getRosterStatusAlerts } from '../../components/alerts.js';
 import { K } from '../../shared/storage/keys.js';
 import { getState, setState } from '../../shared/storage/state.js';
 import { localDateStr, formatDate } from '../../shared/utils/date.js';
@@ -14,6 +15,8 @@ import { getAllProdWorkers, getActiveCW, getActivePermProd, getGuards } from '..
 import { getProdDay, getCfg } from '../../shared/storage/production.js';
 
 export function renderHistory() {
+  const rateNote = document.getElementById('histRateNote');
+  if (rateNote) rateNote.innerHTML = getRosterStatusAlerts().join('');
   const date = getState().histDate;
   const histMonth = monthOf(date);
   const histMonthLocked = isMonthLocked(histMonth);
@@ -75,7 +78,7 @@ export function renderHistory() {
     <div class="card-title">Attendance</div>
     <div class="mt-8 stat-grid">
       <div class="stat-pill"><span class="stat-pill-value text-attend">${present}</span><span class="stat-pill-label">Present</span></div>
-      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost</span></div>
+      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost (at today's rates)</span></div>
     </div>
   </div>`;
 

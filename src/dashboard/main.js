@@ -9,7 +9,8 @@
 // violation. Future cleanup: replace template onclicks with delegated
 // data-action handlers.
 
-import { saveJSON } from '../shared/storage/storage.js';
+import { loadJSON, saveJSON } from '../shared/storage/storage.js';
+import { reconcileSeed } from '../shared/storage/seed-sync.js';
 import { K } from '../shared/storage/keys.js';
 import { getState, setState } from '../shared/storage/state.js';
 import { formatDate } from '../shared/utils/date.js';
@@ -26,7 +27,7 @@ import { toggleFab, closeFab, initFab } from '../components/fab.js';
 import { openPicker, togglePickerWorker, closePicker } from '../components/worker-picker.js';
 import {
   openSettings, closeSettings, addWorkerPrompt, toggleWorkerActive,
-  getStorageUsed, exportData, importData, initSettingsBackHandler,
+  getStorageUsed, exportData, importData, importRoster, initSettingsBackHandler,
 } from '../components/settings-panel.js';
 import { printCWPay, printPermPay } from '../components/print-pay.js';
 import {
@@ -57,6 +58,7 @@ import {
   renderEdit, edSetView, edSelectCat, edOpenEdit, edOpenHistory,
   edCloseModal, edReasonChange, edSaveEdit,
 } from './tabs/edit.js';
+import { adShiftWeek, adThisWeek, adRefresh, adSetPaper } from './adoption-view.js';
 import { exportAttendanceCSV, exportPayrollCSV, exportCostsCSV } from './tabs/finance-export.js';
 
 // Storage hooks invoked from finance.js record-advance flow (avoids cycle).
@@ -116,12 +118,26 @@ function initTabRouting() {
   }, { passive: true });
 }
 
-// --- Default-data seed (idempotent; only writes if key absent). ---
+// --- Default-data seed (idempotent). ---
+// Roster, area rosters and wage config are RECONCILED against the shipped
+// config on every boot, not only seeded when absent — see seed-sync.js for
+// why a seed-once policy left every existing device on the old rates.
 function initData() {
-  if (!localStorage.getItem(K.peEmp))     saveJSON(K.peEmp, DEF_PERM);
-  if (!localStorage.getItem(K.cwEmp))     saveJSON(K.cwEmp, DEF_CW);
-  if (!localStorage.getItem(K.prodAreas)) saveJSON(K.prodAreas, DEF_AREAS);
-  if (!localStorage.getItem(K.prodCfg))   saveJSON(K.prodCfg, DEF_CFG);
+  const next = reconcileSeed({
+    savedPerm: loadJSON(K.peEmp, []),
+    savedCW: loadJSON(K.cwEmp, []),
+    savedCfg: loadJSON(K.prodCfg, {}),
+    defPerm: DEF_PERM, defCW: DEF_CW, defCfg: DEF_CFG, defAreas: DEF_AREAS,
+  });
+  // Write only what actually changed, so a steady-state boot neither touches
+  // storage nor fires the save-dot.
+  const writeIfChanged = (key, val) => {
+    if (localStorage.getItem(key) !== JSON.stringify(val)) saveJSON(key, val);
+  };
+  writeIfChanged(K.peEmp, next.perm);
+  writeIfChanged(K.cwEmp, next.cw);
+  writeIfChanged(K.prodAreas, next.areas);
+  writeIfChanged(K.prodCfg, next.cfg);
   if (!localStorage.getItem(K.stock))     saveJSON(K.stock, DEF_STOCK);
   if (!localStorage.getItem(K.invCfg))    saveJSON(K.invCfg, DEF_INV_CFG);
 }
@@ -152,6 +168,8 @@ function exposeWindowSurface() {
     APP_VERSION,
     switchTab,
     renderTab,
+    // Re-render whatever tab is showing — used after a roster import changes rates.
+    renderActiveTab: () => renderTab(getState().currentTab || 'home'),
     // Save indicator + dark mode
     toggleDarkMode,
     // Storage helpers used by some inline handlers
@@ -164,7 +182,7 @@ function exposeWindowSurface() {
     openPicker, togglePickerWorker, closePicker,
     // Settings + data
     openSettings, closeSettings, addWorkerPrompt, toggleWorkerActive,
-    getStorageUsed, exportData, importData,
+    getStorageUsed, exportData, importData, importRoster,
     // Print
     printCWPay, printPermPay,
     // Invoice form
@@ -193,6 +211,8 @@ function exposeWindowSurface() {
     // Edit tab (records + edit-with-reason + inboxes)
     edSetView, edSelectCat, edOpenEdit, edOpenHistory,
     edCloseModal, edReasonChange, edSaveEdit,
+    // Adoption view (rollout KPI, steward-exclusive)
+    adShiftWeek, adThisWeek, adRefresh, adSetPaper,
   });
 }
 

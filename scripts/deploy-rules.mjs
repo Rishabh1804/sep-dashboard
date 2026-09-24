@@ -8,19 +8,21 @@
 // deploy and removed after. Pinned to the same firebase-tools version as the
 // rules CI workflow (.github/workflows/firestore-rules.yml).
 //
-// Usage: node scripts/deploy-rules.mjs [--project sep-dashboard-staging]
+// Usage: node scripts/deploy-rules.mjs [--env staging|prod] [--project <id>]
+//   --env picks the credential secret AND the default project id; --project
+//   still overrides the id explicitly. Defaults to staging.
 
 import { spawnSync } from 'node:child_process';
-import { argv, env, exit } from 'node:process';
-import { withCredentialFile } from './lib/admin.mjs';
+import { env, exit } from 'node:process';
+import { withCredentialFile, resolveEnv, projectFor } from './lib/admin.mjs';
 
 const FIREBASE_TOOLS = 'firebase-tools@15.19.1'; // keep in lockstep with CI
-const i = argv.indexOf('--project');
-const project = i > -1 ? argv[i + 1] : 'sep-dashboard-staging';
+const fbEnv = resolveEnv();
+const project = projectFor(fbEnv);
 
 const status = withCredentialFile((credPath) => {
   const r = spawnSync('npx', ['-y', FIREBASE_TOOLS, 'deploy', '--only', 'firestore:rules', '--project', project],
     { stdio: 'inherit', env: { ...env, GOOGLE_APPLICATION_CREDENTIALS: credPath } });
   return r.status ?? 1;
-});
+}, fbEnv);
 exit(status);

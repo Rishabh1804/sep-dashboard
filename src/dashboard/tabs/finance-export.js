@@ -7,10 +7,20 @@ import { sepRound } from '../../shared/utils/currency.js';
 import { getWeekEnd } from '../../shared/utils/date.js';
 import { monthOf, monthDates } from '../../shared/utils/month.js';
 import { csvDownload } from '../../shared/utils/csv.js';
-import { getAttKey, calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay } from '../../shared/utils/payroll.js';
+import { getAttKey, calcDayWages, calcCWWeeklyPay, calcPermMonthlyPay, monthlyOtRate, cwHourRate } from '../../shared/utils/payroll.js';
 import { getActiveCW, getActivePermProd, getGuards, getPermWorkers } from '../../shared/storage/workers.js';
 import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production.js';
 import { DEF_CFG } from '../../shared/config/wage.js';
+import { rosterStatusNote } from '../../shared/storage/seed-sync.js';
+import { getPrePricedNote } from '../../components/alerts.js';
+
+// A pay export names the rates behind it in its last row — the imported card's
+// date, or a warning when none was imported — so the file carries it wherever it
+// goes (Janus J-H1, Cipher H-1).
+function withRateNote(rows) {
+  const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  return note ? [...rows, [`NOTE: ${note}`]] : rows;
+}
 
 export function exportAttendanceCSV() {
   const month = monthOf(getState().today);
@@ -19,7 +29,7 @@ export function exportAttendanceCSV() {
   const peAtt = loadJSON(K.peAtt, {});
   const cw = getActiveCW();
   const perm = getActivePermProd();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const all = [
     ...perm.map((w) => ({ ...w, type: 'perm' })),
     ...guard.map((w) => ({ ...w, type: 'perm' })),
@@ -95,14 +105,17 @@ export function exportPayrollCSV() {
   }
 
   if (rows.length === 1) { alert(`No payroll data for ${month}.`); return; }
-  csvDownload(`SEP_payroll_${month}.csv`, rows);
+  csvDownload(`SEP_payroll_${month}.csv`, withRateNote(rows));
 }
 
 export function exportCostsCSV() {
   const month = monthOf(getState().today);
   const dates = monthDates(month);
 
-  const rows = [['Date', 'Day Wages', 'Extra Cost', 'Snack Cost', 'OT Cost', 'Total']];
+  // Day Wages already INCLUDES OT (calcDayWages adds CW and perm OT hours), so
+  // the OT column is a breakdown of it, not an addend — adding it to Total
+  // counted OT twice (Janus H-2, 23 Sep). Matches the on-screen finCost.
+  const rows = [['Date', 'Day Wages (incl. OT)', 'Extra Cost', 'Snack Cost', 'of which OT', 'Total']];
   let nonzeroCount = 0;
   for (const ds of dates) {
     const dayWage = calcDayWages({
@@ -124,19 +137,20 @@ export function exportCostsCSV() {
     for (const w of getActiveCW()) {
       const k = getAttKey('cw', w.id, ds);
       const rec = cwAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+      if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
     }
-    for (const w of getActivePermProd()) {
+    for (const w of [...getActivePermProd(), ...getGuards()]) {
       const k = getAttKey('perm', w.id, ds);
       const rec = peAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier));
+      if (rec?.otHours) otCost += sepRound(rec.otHours * monthlyOtRate(cfg, w, ds));
     }
-    const total = dayWage + extra + snack + otCost;
+    const total = dayWage + extra + snack;
     if (total === 0) continue;
     rows.push([ds, dayWage, extra, snack, otCost, total]);
     nonzeroCount++;
   }
 
   if (nonzeroCount === 0) { alert(`No cost data for ${month}.`); return; }
-  csvDownload(`SEP_costs_${month}.csv`, rows);
+  const prePriced = getPrePricedNote(dates[0], dates[dates.length - 1]);
+  csvDownload(`SEP_costs_${month}.csv`, withRateNote(prePriced ? [...rows, [`NOTE: ${prePriced}`]] : rows));
 }

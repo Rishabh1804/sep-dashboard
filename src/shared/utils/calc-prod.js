@@ -67,7 +67,7 @@ export function recalcExtra(prod, areas, cfg) {
       const assigned = pa.assigned?.length || 0;
       if (req > assigned) shortfall += (req - assigned);
     });
-    const periodExtra = sepRound(shortfall * hours * cfg.hourRate);
+    const periodExtra = sepRound(shortfall * hours * (Number(cfg.hourRate) || 0));
     totalExtraH += shortfall * hours;
     totalExtraCost += periodExtra;
   });
@@ -76,11 +76,72 @@ export function recalcExtra(prod, areas, cfg) {
   const eveningOT = prod.periods.eveningOT;
   if (eveningOT?.active) {
     const snackWorkers = eveningOT.workers?.length || 0;
-    snackCost = snackWorkers * cfg.snackRate;
+    snackCost = snackWorkers * (Number(cfg.snackRate) || 0);
   }
 
   prod.totals = prod.totals || {};
   prod.totals.extraHours = totalExtraH;
   prod.totals.extraCost = totalExtraCost;
   prod.totals.snackCost = snackCost;
+}
+
+// After a roster import: reprice the production days and perm snack entries that
+// were recorded while no rate was loaded, so a fresh install's first days do not
+// keep a ₹0 extra or snack cost for good (Janus J-H2). Only UNPRICED figures are
+// touched — a day whose extra or snack already carries a cost keeps it, so priced
+// (and possibly paid) history is never rewritten — and nothing in a locked month
+// moves. `isLocked(month)` takes 'YYYY-MM'. Mutates the logs and snack entries it
+// is given; returns how many of each it repriced, and the dates of priced days
+// whose extra cost today's card would not give.
+export function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
+  const rate = Number(cfg.hourRate) || 0;
+  const snackRate = Number(cfg.snackRate) || 0;
+  let days = 0; let snackEntries = 0;
+  const olderRateDates = []; const otherMismatchDates = [];
+  for (const [date, prod] of Object.entries(logs || {})) {
+    if (!prod || !prod.periods || isLocked(date.slice(0, 7))) continue;
+    const t = prod.totals || {};
+    // A day already PRICED is kept as recorded. If its cost differs from what
+    // today's card gives for the SAME extra hours, it was priced at an older
+    // rate; if the hours differ too, something else changed (area settings, a
+    // legacy or hand-edited log) and it is reported separately, not blamed on
+    // the rate (Janus J-M1 / Cipher L-A). Dates are returned so the pay
+    // documents covering them can say so (Janus J-H1).
+    if (t.extraCost && rate > 0) {
+      const probe = JSON.parse(JSON.stringify(prod));
+      recalcExtra(probe, areas, cfg);
+      if (probe.totals.extraCost !== t.extraCost) {
+        (probe.totals.extraHours === t.extraHours ? olderRateDates : otherMismatchDates).push(date);
+      }
+    }
+    const extraUnpriced = (t.extraHours || 0) > 0 && !t.extraCost && rate > 0;
+    const snackUnpriced = prod.periods.eveningOT?.active
+      && (prod.periods.eveningOT.workers?.length || 0) > 0 && !t.snackCost && snackRate > 0;
+    if (!extraUnpriced && !snackUnpriced) continue;
+    const keep = { extraCost: t.extraCost, snackCost: t.snackCost };
+    recalcExtra(prod, areas, cfg);
+    if (!extraUnpriced) prod.totals.extraCost = keep.extraCost;
+    if (!snackUnpriced) prod.totals.snackCost = keep.snackCost;
+    days++;
+  }
+  for (const s of snacks || []) {
+    if (!s || s.snack || snackRate <= 0 || isLocked(String(s.date || '').slice(0, 7))) continue;
+    s.snack = snackRate;
+    snackEntries++;
+  }
+  return { days, snackEntries, olderRateDates, otherMismatchDates };
+}
+
+// Of `dates`, those in [from, to] whose stored extra cost STILL differs from what
+// the current card and areas give — so a day re-touched after the import (which
+// reprices it) drops out on its own.
+export function stillPrePriced({ logs, areas, cfg, dates, from, to }) {
+  return (dates || []).filter((d) => {
+    if (d < from || d > to) return false;
+    const prod = logs && logs[d];
+    if (!prod || !prod.periods || !prod.totals?.extraCost) return false;
+    const probe = JSON.parse(JSON.stringify(prod));
+    recalcExtra(probe, areas, cfg);
+    return probe.totals.extraCost !== prod.totals.extraCost;
+  });
 }

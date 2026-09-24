@@ -30,7 +30,17 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Some sandboxes ship a Chromium build this Playwright version does not
+        // expect and block downloading the matching one. PW_CHROMIUM_PATH points
+        // at the one that IS present; unset everywhere else, so CI and local
+        // runs keep using Playwright's own managed browser. Same escape hatch
+        // sep-invoicing carries, for the same reason.
+        ...(process.env.PW_CHROMIUM_PATH
+          ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } }
+          : {}),
+      },
     },
   ],
 });

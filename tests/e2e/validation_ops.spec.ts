@@ -25,8 +25,8 @@ test.beforeEach(async ({ context, page }) => {
 test.describe('dash-3-2b ops-layer validation guards @smoke', () => {
   test('A2 #2: over-advance badge surfaces when CW advance > wage', async ({ page }) => {
     // Seed one CW worker present 1 day this week, with an advance that
-    // exceeds the calculated wage. CW hourRate * 8h = ₹330/day; advance ₹500
-    // beats that.
+    // exceeds the calculated wage. Invented hourRate 50 × 8h = 400/day; advance
+    // 500 beats that. (No rates ship; a fresh install prices at zero.)
     await page.evaluate(() => {
       const today = new Date();
       const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -40,7 +40,8 @@ test.describe('dash-3-2b ops-layer validation guards @smoke', () => {
 
       localStorage.setItem('sep_cw_emp_v2', JSON.stringify([{ id: 'cw_test', name: 'Over-Adv Test', inactive: false }]));
       localStorage.setItem('sep_cw_att_v2', JSON.stringify({ [attKey]: { status: 'P', time: '10:00:00', otHours: 0 } }));
-      // ₹500 advance for this week vs. ~₹330 wage for one day present.
+      localStorage.setItem('sep_prod_cfg_v1', JSON.stringify({ hourRate: 50 }));
+      // 500 advance for this week vs. 400 wage for one day present.
       localStorage.setItem('sep_cw_adv_v1', JSON.stringify({ [advKey]: 500 }));
     });
     await page.reload({ waitUntil: 'load' });
@@ -70,7 +71,8 @@ test.describe('dash-3-2b ops-layer validation guards @smoke', () => {
 
       localStorage.setItem('sep_cw_emp_v2', JSON.stringify([{ id: 'cw_test', name: 'Normal Adv Test', inactive: false }]));
       localStorage.setItem('sep_cw_att_v2', JSON.stringify({ [attKey]: { status: 'P', time: '10:00:00', otHours: 0 } }));
-      // ₹100 advance vs. ~₹330 wage — well under, no warning.
+      localStorage.setItem('sep_prod_cfg_v1', JSON.stringify({ hourRate: 50 }));
+      // 100 advance vs. 400 wage — well under, no warning.
       localStorage.setItem('sep_cw_adv_v1', JSON.stringify({ [advKey]: 100 }));
     });
     await page.reload({ waitUntil: 'load' });

@@ -1,6 +1,14 @@
-# Manually-triggered Firebase admin operations against staging.
+# Manually-triggered Firebase admin operations against a Firebase project.
 #
-# Consumes the FIREBASE_SERVICE_ACCOUNT_STAGING repository secret
+# Target project is chosen by the `env` input (staging | prod) and resolved to
+# the matching repository secret — FIREBASE_SERVICE_ACCOUNT_STAGING or
+# FIREBASE_SERVICE_ACCOUNT_PROD. `staging` is the default, so every existing
+# use of this workflow is unchanged. `prod` does nothing until the prod project
+# exists and its secret is set (see docs/architecture/PROD_STANDUP.md); until
+# then the run fails at the credential check rather than touching staging —
+# a silent fallback to the wrong project is the one outcome worth designing out.
+#
+# Consumes the FIREBASE_SERVICE_ACCOUNT_<ENV> repository secret
 # (Settings → Secrets and variables → Actions). The key never appears in
 # the repo, in cloud-session env vars, or in logs — scripts/deploy-rules.mjs
 # materializes it to a 0600 temp file only for the duration of the command.
@@ -22,6 +30,12 @@ name: firebase-admin
 on:
   workflow_dispatch:
     inputs:
+      env:
+        description: 'Target project'
+        required: true
+        default: 'staging'
+        type: choice
+        options: [staging, prod]
       action:
         description: 'Operation'
         required: true
@@ -51,7 +65,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      # Both are exported; scripts/lib/admin.mjs picks the one SEP_FB_ENV names.
+      # An unset secret is an empty string, so a prod run before the secret
+      # exists fails the credential check instead of falling through.
       FIREBASE_SERVICE_ACCOUNT_STAGING: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+      FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROD }}
+      SEP_FB_ENV: ${{ inputs.env }}
     steps:
       # PUBLIC-REPO GUARD for mint-token, FIRST — before checkout/install:
       # it needs no dependencies, and failing here keeps a refused run at
@@ -81,13 +100,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Deploy Firestore rules (staging)
+      - name: Deploy Firestore rules
         if: inputs.action == 'deploy-rules'
-        run: pnpm deploy:rules:staging
+        run: node scripts/deploy-rules.mjs
 
-      - name: Deploy Cloud Functions (staging)
+      - name: Deploy Cloud Functions
         if: inputs.action == 'deploy-functions'
-        run: pnpm deploy:functions:staging
+        run: node scripts/deploy-functions.mjs
 
       - name: Mint provisioning token
         if: inputs.action == 'mint-token'
@@ -110,7 +129,7 @@ jobs:
         if: inputs.action == 'seed-dry-run'
         run: node scripts/seed-staging.mjs --export tests/fixtures/invoicing-sample.json --dry-run
 
-      - name: Seed fixture (full write to staging)
+      - name: Seed fixture (full write)
         if: inputs.action == 'seed-fixture'
         run: node scripts/seed-staging.mjs --export tests/fixtures/invoicing-sample.json
 

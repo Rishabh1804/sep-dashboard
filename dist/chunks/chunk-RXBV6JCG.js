@@ -1,7 +1,7 @@
-// node_modules/@firebase/util/dist/postinstall.mjs
+// node_modules/.pnpm/@firebase+util@1.15.1/node_modules/@firebase/util/dist/postinstall.mjs
 var getDefaultsFromPostinstall = () => void 0;
 
-// node_modules/@firebase/util/dist/index.esm.js
+// node_modules/.pnpm/@firebase+util@1.15.1/node_modules/@firebase/util/dist/index.esm.js
 var stringToByteArray$1 = function(str) {
   const out = [];
   let p = 0;
@@ -748,7 +748,7 @@ async function pingServer(endpoint) {
   return result.ok;
 }
 
-// node_modules/@firebase/component/dist/esm/index.esm.js
+// node_modules/.pnpm/@firebase+component@0.7.3/node_modules/@firebase/component/dist/esm/index.esm.js
 var Component = class {
   /**
    *
@@ -1035,7 +1035,7 @@ var ComponentContainer = class {
   }
 };
 
-// node_modules/@firebase/logger/dist/esm/index.esm.js
+// node_modules/.pnpm/@firebase+logger@0.5.1/node_modules/@firebase/logger/dist/esm/index.esm.js
 var instances = [];
 var LogLevel;
 (function(LogLevel2) {
@@ -1185,7 +1185,7 @@ function setUserLogHandler(logCallback, options) {
   }
 }
 
-// node_modules/idb/build/wrap-idb-value.js
+// node_modules/.pnpm/idb@7.1.1/node_modules/idb/build/wrap-idb-value.js
 var instanceOfAny = (object, constructors) => constructors.some((c) => object instanceof c);
 var idbProxyableTypes;
 var cursorAdvanceMethods;
@@ -1328,7 +1328,7 @@ function wrap(value) {
 }
 var unwrap = (value) => reverseTransformCache.get(value);
 
-// node_modules/idb/build/index.js
+// node_modules/.pnpm/idb@7.1.1/node_modules/idb/build/index.js
 function openDB(name2, version2, { blocked, upgrade, blocking, terminated } = {}) {
   const request = indexedDB.open(name2, version2);
   const openPromise = wrap(request);
@@ -1392,7 +1392,7 @@ replaceTraps((oldTraps) => ({
   has: (target, prop) => !!getMethod(target, prop) || oldTraps.has(target, prop)
 }));
 
-// node_modules/@firebase/app/dist/esm/index.esm.js
+// node_modules/.pnpm/@firebase+app@0.14.13/node_modules/@firebase/app/dist/esm/index.esm.js
 var PlatformLoggerServiceImpl = class {
   constructor(container) {
     this.container = container;
@@ -1416,7 +1416,7 @@ function isVersionServiceProvider(provider) {
   return component?.type === "VERSION";
 }
 var name$q = "@firebase/app";
-var version$1 = "0.15.1";
+var version$1 = "0.14.13";
 var logger = new Logger("@firebase/app");
 var name$p = "@firebase/app-compat";
 var name$o = "@firebase/analytics-compat";
@@ -1444,7 +1444,7 @@ var name$3 = "@firebase/firestore";
 var name$2 = "@firebase/ai";
 var name$1 = "@firebase/firestore-compat";
 var name = "firebase";
-var version = "12.16.0";
+var version = "12.14.0";
 var DEFAULT_ENTRY_NAME2 = "[DEFAULT]";
 var PLATFORM_LOG_STRING = {
   [name$q]: "fire-core",
@@ -2194,7 +2194,6 @@ export {
   getDefaultEmulatorHost,
   getDefaultEmulatorHostnameAndPort,
   getExperimentalSetting,
-  Deferred,
   createMockUserToken,
   getUA,
   isMobileCordova,
@@ -2243,6 +2242,24 @@ export {
   setLogLevel2 as setLogLevel
 };
 /*! Bundled license information:
+
+@firebase/util/dist/postinstall.mjs:
+  (**
+   * @license
+   * Copyright 2025 Google LLC
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   *   http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   *)
 
 @firebase/util/dist/index.esm.js:
 @firebase/util/dist/index.esm.js:
@@ -2460,4 +2477,4 @@ export {
    * limitations under the License.
    *)
 */
-//# sourceMappingURL=chunk-K47QRFWO.js.map
+//# sourceMappingURL=chunk-RXBV6JCG.js.map

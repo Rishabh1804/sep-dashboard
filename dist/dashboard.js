@@ -3,14 +3,14 @@ import {
   DEF_PERM,
   esc,
   escAttr
-} from "./chunks/chunk-IIQMR7WS.js";
+} from "./chunks/chunk-7IRYKRML.js";
 import {
   JOB_STATUSES,
   OPEN_JOB_STATUSES,
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-R4IRYVMN.js";
+} from "./chunks/chunk-L4IIXOVF.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,8 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-274TEG2F.js";
-import "./chunks/chunk-IFG75HHC.js";
+} from "./chunks/chunk-HEIKWH22.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -61,6 +60,130 @@ function saveJSON(key, data) {
   } catch (e) {
     console.error("Save error:", e);
   }
+}
+
+// src/shared/config/wage.js
+var RATE_CFG_FIELDS = ["hourRate", "permOtBaseRate", "snackRate"];
+var DEF_CFG = {
+  hourRate: null,
+  // ← roster import
+  // worker id → an hourly rate that is NOT the contract-hand rate. Empty.
+  hourRateOverrides: {},
+  snackRate: null,
+  // ← roster import
+  permOtMultiplier: 1.1,
+  permOtBaseRate: null,
+  // ← roster import (the OT cap)
+  // Guards: not on the production roster; their shift is their standard day.
+  guardIds: ["uday"],
+  excludedIds: ["rounak"],
+  standardShift: { start: "08:30", end: "17:00", hours: 8 },
+  sundayHolidayShift: { start: "06:00", end: "14:00", hours: 8 },
+  morningOT: { start: "06:00", end: "08:30", hours: 3 },
+  eveningOT: { start: "17:00", end: "20:00", hours: 3 }
+};
+
+// src/shared/storage/seed-sync.js
+var PLAIN_MODEL = "monthly-plain";
+var OPERATOR_STATUS = ["inactive", "deactivatedOn", "deactivateReason", "reactivatedOn"];
+var RATE_WORKER_FIELDS = ["dailyRate", "monthlyWage"];
+var isRate = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
+function reconcileWorkers(saved, shipped, otherTierShipped) {
+  const list = (Array.isArray(saved) ? saved : []).filter((w) => w && w.id);
+  const savedById = new Map(list.map((w) => [w.id, w]));
+  const shippedIds = new Set(shipped.map((w) => w.id));
+  const otherIds = new Set(otherTierShipped.map((w) => w.id));
+  const known = shipped.map((w) => {
+    const s = savedById.get(w.id);
+    const next = { ...w };
+    if (s) {
+      for (const f of RATE_WORKER_FIELDS) if (isRate(s[f])) next[f] = s[f];
+      if (s.deactivatedOn || s.reactivatedOn) {
+        for (const f of OPERATOR_STATUS) if (f in s) next[f] = s[f];
+      }
+    }
+    return next;
+  });
+  const added = list.filter((w) => !shippedIds.has(w.id) && !otherIds.has(w.id));
+  return [...known, ...added];
+}
+function reconcileCfg(saved, shipped) {
+  const base = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  const next = { ...base, ...clone(shipped) };
+  for (const f of RATE_CFG_FIELDS) next[f] = isRate(base[f]) ? base[f] : shipped[f];
+  return next;
+}
+function reconcileSeed({ savedPerm, savedCW, savedCfg, defPerm, defCW, defCfg, defAreas }) {
+  return {
+    perm: reconcileWorkers(savedPerm, defPerm, defCW),
+    cw: reconcileWorkers(savedCW, defCW, defPerm),
+    cfg: reconcileCfg(savedCfg, defCfg),
+    areas: clone(defAreas)
+  };
+}
+var ROSTER_FORMAT = "sep-dashboard-roster";
+var ROSTER_STAMP = "rosterAsOf";
+function rosterStatus(cfg, workers = []) {
+  if (cfg && typeof cfg[ROSTER_STAMP] === "string" && cfg[ROSTER_STAMP]) return "imported";
+  const anyCfg = RATE_CFG_FIELDS.some((f) => cfg && isRate(cfg[f]) && cfg[f] > 0);
+  const anyWorker = (workers || []).some((w) => w && RATE_WORKER_FIELDS.some((f) => isRate(w[f]) && w[f] > 0));
+  return anyCfg || anyWorker ? "held" : "none";
+}
+function rosterStatusNote(cfg, workers = []) {
+  const st = rosterStatus(cfg, workers);
+  if (st === "held") return "Rates on this device were never imported and may be out of date (Settings > Import roster).";
+  if (st === "none") return "No pay rates loaded: wages read 0 (Settings > Import roster).";
+  return `Rates as of ${cfg[ROSTER_STAMP]} (imported roster).`;
+}
+function applyRosterImport({ perm, cw, cfg }, doc) {
+  if (!doc || doc.format !== ROSTER_FORMAT || doc.version !== 1) {
+    throw new Error(`Not a ${ROSTER_FORMAT} v1 file.`);
+  }
+  const stats = { workers: 0, cfg: 0, unknown: [], rejected: [], unpriced: [] };
+  const nextCfg = { ...cfg || {} };
+  for (const f of RATE_CFG_FIELDS) {
+    if (doc.cfg && f in doc.cfg) {
+      if (isRate(doc.cfg[f])) {
+        nextCfg[f] = doc.cfg[f];
+        stats.cfg++;
+      } else stats.rejected.push(`cfg.${f}`);
+    }
+  }
+  const byId = new Map((Array.isArray(doc.workers) ? doc.workers : []).map((w) => [w && w.id, w]));
+  const guardIds = Array.isArray(nextCfg.guardIds) ? nextCfg.guardIds : [];
+  const plain = (w) => guardIds.includes(w.id) || w.payModel === PLAIN_MODEL;
+  const fieldFor = (w, tier) => tier === "cw" ? null : plain(w) ? "monthlyWage" : "dailyRate";
+  const apply = (list, tier) => (Array.isArray(list) ? list : []).map((w) => {
+    const row = byId.get(w.id);
+    if (!row) return w;
+    byId.delete(w.id);
+    const next = { ...w };
+    let touched = false;
+    for (const f of RATE_WORKER_FIELDS) {
+      if (!(f in row)) continue;
+      if (f !== fieldFor(w, tier)) stats.rejected.push(`${w.id}.${f} (not how this worker is paid)`);
+      else if (isRate(row[f])) {
+        next[f] = row[f];
+        touched = true;
+      } else stats.rejected.push(`${w.id}.${f}`);
+    }
+    if (touched) stats.workers++;
+    return next;
+  });
+  nextCfg[ROSTER_STAMP] = typeof doc.asOf === "string" && doc.asOf ? doc.asOf : "undated file";
+  const nextPerm = apply(perm, "perm");
+  const nextCW = apply(cw, "cw");
+  stats.unknown = [...byId.keys()].filter(Boolean);
+  const excluded = Array.isArray(nextCfg.excludedIds) ? nextCfg.excludedIds : [];
+  const priced = (w) => {
+    const f = fieldFor(w, "perm");
+    return isRate(w[f]) && w[f] > 0;
+  };
+  stats.unpriced = nextPerm.filter((w) => !w.inactive && !excluded.includes(w.id) && !priced(w)).map((w) => w.id);
+  return { perm: nextPerm, cw: nextCW, cfg: nextCfg, stats };
+}
+function clone(v) {
+  return JSON.parse(JSON.stringify(v));
 }
 
 // src/shared/storage/keys.js
@@ -158,20 +281,6 @@ function setState(patch) {
   Object.assign(_state, patch);
   return _state;
 }
-
-// src/shared/config/wage.js
-var DEF_CFG = {
-  hourRate: 41.25,
-  snackRate: 20,
-  permOtMultiplier: 1.1,
-  permOtBaseRate: 496,
-  guardIds: ["uday"],
-  excludedIds: ["rounak"],
-  standardShift: { start: "08:30", end: "17:00", hours: 8 },
-  sundayHolidayShift: { start: "06:00", end: "14:00", hours: 8 },
-  morningOT: { start: "06:00", end: "08:30", hours: 3 },
-  eveningOT: { start: "17:00", end: "20:00", hours: 3 }
-};
 
 // src/shared/config/invoice.js
 var DEF_INV_CFG = {
@@ -274,7 +383,251 @@ function saveProdDay(date, dayData) {
   saveJSON(K.prodLog, logs);
 }
 
+// src/shared/utils/currency.js
+function sepRound(n) {
+  return Math.floor(Number(n) || 0);
+}
+function formatCurrency(n) {
+  return "\u20B9" + sepRound(n).toLocaleString("en-IN");
+}
+
+// src/shared/utils/payroll.js
+function cwHourRate(cfg, workerId) {
+  const o = cfg.hourRateOverrides;
+  const r = o && Object.prototype.hasOwnProperty.call(o, workerId) ? o[workerId] : cfg.hourRate;
+  const n = Number(r);
+  return r != null && Number.isFinite(n) ? n : 0;
+}
+function permOtRate(cfg, worker) {
+  if (usesPlainRate(cfg, worker)) return 0;
+  const daily = Math.max(Number(worker && worker.dailyRate) || 0, 0);
+  const cap = Number(cfg.permOtBaseRate);
+  const mult = Number(cfg.permOtMultiplier);
+  if (!Number.isFinite(cap) || !Number.isFinite(mult)) return 0;
+  return Math.min(daily, cap) / 8 * mult;
+}
+var toPaisa = (x) => Math.round(x * 100) / 100;
+function dayRateOf(worker) {
+  const n = Number(worker && worker.dailyRate);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+function daysInMonthOf(dateStr) {
+  const d = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+function guardDayRate(worker, dateStr) {
+  const monthly = Number(worker && worker.monthlyWage);
+  if (Number.isFinite(monthly) && monthly > 0) return monthly / daysInMonthOf(dateStr);
+  return Math.max(Number(worker && worker.dailyRate) || 0, 0);
+}
+function guardHourRate(worker, dateStr) {
+  const h = Number(worker && worker.shiftHours);
+  return guardDayRate(worker, dateStr) / (Number.isFinite(h) && h > 0 ? h : 12);
+}
+function isGuard(cfg, worker) {
+  return !!worker && Array.isArray(cfg.guardIds) && cfg.guardIds.includes(worker.id);
+}
+var PLAIN_PAY_MODEL = "monthly-plain";
+function usesPlainRate(cfg, worker) {
+  return isGuard(cfg, worker) || !!worker && worker.payModel === PLAIN_PAY_MODEL;
+}
+function monthlyOtRate(cfg, worker, dateStr) {
+  return usesPlainRate(cfg, worker) ? guardHourRate(worker, dateStr) : permOtRate(cfg, worker);
+}
+function getAttKey(type, id, date) {
+  return `${id}_${date.replace(/-/g, "_")}`;
+}
+function calcDayWages({
+  date,
+  cfg,
+  cwAtt,
+  peAtt,
+  activeCW,
+  activePermProd,
+  guards
+}) {
+  let total = 0;
+  for (const w of activeCW) {
+    const k = getAttKey("cw", w.id, date);
+    const rec = cwAtt[k];
+    if (!rec || rec.status === "A") continue;
+    let hours = cfg.standardShift.hours;
+    if (rec.otHours) hours += rec.otHours;
+    total += sepRound(hours * cwHourRate(cfg, w.id));
+  }
+  for (const w of activePermProd) {
+    const k = getAttKey("perm", w.id, date);
+    const rec = peAtt[k];
+    if (!rec || rec.status === "A") continue;
+    if (usesPlainRate(cfg, w)) {
+      total += sepRound(guardDayRate(w, date));
+      if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
+      continue;
+    }
+    total += dayRateOf(w);
+    if (rec.otHours && rec.otHours > 0) {
+      const otRate = permOtRate(cfg, w);
+      total += sepRound(rec.otHours * otRate);
+    }
+  }
+  for (const w of guards) {
+    const k = getAttKey("perm", w.id, date);
+    const rec = peAtt[k];
+    if (!rec || rec.status === "A") continue;
+    total += sepRound(guardDayRate(w, date));
+    if (rec.otHours && rec.otHours > 0) total += sepRound(rec.otHours * guardHourRate(w, date));
+  }
+  return total;
+}
+function calcMonthWages({
+  date,
+  today,
+  cfg,
+  cwAtt,
+  peAtt,
+  activeCW,
+  activePermProd,
+  guards
+}) {
+  const d = /* @__PURE__ */ new Date(date + "T00:00:00");
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
+  let total = 0;
+  for (let i = 1; i <= todayDay; i++) {
+    const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
+    total += calcDayWages({
+      date: ds,
+      cfg,
+      cwAtt,
+      peAtt,
+      activeCW,
+      activePermProd,
+      guards
+    });
+  }
+  return total;
+}
+function calcCWWeeklyPay({
+  satDate,
+  cfg,
+  cwAtt,
+  cwAdv,
+  prodLogs,
+  permSnacks,
+  activeCW
+}) {
+  const sat = /* @__PURE__ */ new Date(satDate + "T00:00:00");
+  const mon = new Date(sat);
+  mon.setDate(mon.getDate() - 5);
+  const workers = activeCW.map((w) => {
+    let days = 0;
+    let hours = 0;
+    let otH = 0;
+    let wage = 0;
+    for (let d = new Date(mon); d <= sat; d.setDate(d.getDate() + 1)) {
+      const ds = localDateStr(d);
+      const k = getAttKey("cw", w.id, ds);
+      const rec = cwAtt[k];
+      if (!rec || rec.status === "A") continue;
+      days++;
+      const dayH = cfg.standardShift.hours + (rec.otHours || 0);
+      hours += dayH;
+      otH += rec.otHours || 0;
+      wage += sepRound(dayH * cwHourRate(cfg, w.id));
+    }
+    const advKey = `${w.id}_${satDate}`;
+    const advance = cwAdv[advKey] || 0;
+    return { id: w.id, name: w.name, days, hours, otH, wage, advance, net: wage - advance };
+  });
+  let extraTotal = 0;
+  let snackTotal = 0;
+  for (let d = new Date(mon); d <= sat; d.setDate(d.getDate() + 1)) {
+    const ds = localDateStr(d);
+    const prod = prodLogs[ds];
+    extraTotal += prod?.totals?.extraCost || 0;
+    snackTotal += prod?.totals?.snackCost || 0;
+  }
+  const weekSnacks = (permSnacks || []).filter((s) => s.week === satDate);
+  const permSnackTotal = weekSnacks.reduce((sum2, s) => sum2 + (s.snack || 0), 0);
+  const cwWageTotal = workers.reduce((s, w) => s + w.wage, 0);
+  const cwAdvTotal = workers.reduce((s, w) => s + w.advance, 0);
+  const grandTotal = cwWageTotal - cwAdvTotal + extraTotal + snackTotal + permSnackTotal;
+  return {
+    workers,
+    cwWageTotal,
+    cwAdvTotal,
+    extraTotal,
+    snackTotal,
+    permSnackTotal,
+    grandTotal,
+    satDate,
+    monDate: localDateStr(mon)
+  };
+}
+function calcPermMonthlyPay({
+  date,
+  today,
+  cfg,
+  peAtt,
+  peAdv,
+  activePermProd,
+  guards
+}) {
+  const d = /* @__PURE__ */ new Date(date + "T00:00:00");
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const all = [...activePermProd, ...guards];
+  const guardSet = new Set(guards.map((g) => g.id));
+  const workers = all.map((w) => {
+    const guard = guardSet.has(w.id) || usesPlainRate(cfg, w);
+    let days = 0;
+    let otH = 0;
+    let baseExact = 0;
+    let otExact = 0;
+    for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
+      const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
+      const k = getAttKey("perm", w.id, ds);
+      const rec = peAtt[k];
+      if (!rec || rec.status === "A") continue;
+      days++;
+      baseExact += guard ? guardDayRate(w, ds) : dayRateOf(w);
+      if (rec.otHours && rec.otHours > 0) {
+        otExact += rec.otHours * (guard ? guardHourRate(w, ds) : permOtRate(cfg, w));
+        otH += rec.otHours;
+      }
+    }
+    const basePay = sepRound(toPaisa(baseExact));
+    const otPay = sepRound(toPaisa(otExact));
+    const advKey = `${w.id}_${y}_${m + 1}`;
+    const advance = peAdv[advKey] || 0;
+    return {
+      id: w.id,
+      name: w.name,
+      role: w.role,
+      days,
+      otH,
+      basePay,
+      otPay,
+      advance,
+      total: basePay + otPay - advance
+    };
+  });
+  const grandTotal = workers.reduce((s, w) => s + w.total, 0);
+  return {
+    workers,
+    grandTotal,
+    month: `${y}-${String(m + 1).padStart(2, "0")}`,
+    daysInMonth
+  };
+}
+
 // src/shared/storage/workers.js
+function isNonFloor(w) {
+  return usesPlainRate(DEF_CFG, w);
+}
 function getPermWorkers() {
   return loadJSON(K.peEmp, DEF_PERM);
 }
@@ -283,7 +636,7 @@ function getCWWorkers() {
 }
 function getActivePermProd() {
   return getPermWorkers().filter(
-    (w) => !w.inactive && !DEF_CFG.guardIds.includes(w.id) && !DEF_CFG.excludedIds.includes(w.id)
+    (w) => !w.inactive && !isNonFloor(w) && !DEF_CFG.excludedIds.includes(w.id)
   );
 }
 function getActiveCW() {
@@ -291,7 +644,7 @@ function getActiveCW() {
 }
 function getGuards() {
   return getPermWorkers().filter(
-    (w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive
+    (w) => isNonFloor(w) && !w.inactive
   );
 }
 function getAllProdWorkers() {
@@ -335,14 +688,6 @@ function monthDates(monthStr) {
     out.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
   return out;
-}
-
-// src/shared/utils/currency.js
-function sepRound(n) {
-  return Math.floor(Number(n) || 0);
-}
-function formatCurrency(n) {
-  return "\u20B9" + sepRound(n).toLocaleString("en-IN");
 }
 
 // src/shared/utils/calc-prod.js
@@ -398,7 +743,7 @@ function recalcExtra(prod, areas, cfg) {
       const assigned = pa.assigned?.length || 0;
       if (req > assigned) shortfall += req - assigned;
     });
-    const periodExtra = sepRound(shortfall * hours * cfg.hourRate);
+    const periodExtra = sepRound(shortfall * hours * (Number(cfg.hourRate) || 0));
     totalExtraH += shortfall * hours;
     totalExtraCost += periodExtra;
   });
@@ -406,12 +751,55 @@ function recalcExtra(prod, areas, cfg) {
   const eveningOT = prod.periods.eveningOT;
   if (eveningOT?.active) {
     const snackWorkers = eveningOT.workers?.length || 0;
-    snackCost = snackWorkers * cfg.snackRate;
+    snackCost = snackWorkers * (Number(cfg.snackRate) || 0);
   }
   prod.totals = prod.totals || {};
   prod.totals.extraHours = totalExtraH;
   prod.totals.extraCost = totalExtraCost;
   prod.totals.snackCost = snackCost;
+}
+function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
+  const rate2 = Number(cfg.hourRate) || 0;
+  const snackRate = Number(cfg.snackRate) || 0;
+  let days = 0;
+  let snackEntries = 0;
+  const olderRateDates = [];
+  const otherMismatchDates = [];
+  for (const [date, prod] of Object.entries(logs || {})) {
+    if (!prod || !prod.periods || isLocked(date.slice(0, 7))) continue;
+    const t = prod.totals || {};
+    if (t.extraCost && rate2 > 0) {
+      const probe = JSON.parse(JSON.stringify(prod));
+      recalcExtra(probe, areas, cfg);
+      if (probe.totals.extraCost !== t.extraCost) {
+        (probe.totals.extraHours === t.extraHours ? olderRateDates : otherMismatchDates).push(date);
+      }
+    }
+    const extraUnpriced = (t.extraHours || 0) > 0 && !t.extraCost && rate2 > 0;
+    const snackUnpriced = prod.periods.eveningOT?.active && (prod.periods.eveningOT.workers?.length || 0) > 0 && !t.snackCost && snackRate > 0;
+    if (!extraUnpriced && !snackUnpriced) continue;
+    const keep = { extraCost: t.extraCost, snackCost: t.snackCost };
+    recalcExtra(prod, areas, cfg);
+    if (!extraUnpriced) prod.totals.extraCost = keep.extraCost;
+    if (!snackUnpriced) prod.totals.snackCost = keep.snackCost;
+    days++;
+  }
+  for (const s of snacks || []) {
+    if (!s || s.snack || snackRate <= 0 || isLocked(String(s.date || "").slice(0, 7))) continue;
+    s.snack = snackRate;
+    snackEntries++;
+  }
+  return { days, snackEntries, olderRateDates, otherMismatchDates };
+}
+function stillPrePriced({ logs, areas, cfg, dates, from, to }) {
+  return (dates || []).filter((d) => {
+    if (d < from || d > to) return false;
+    const prod = logs && logs[d];
+    if (!prod || !prod.periods || !prod.totals?.extraCost) return false;
+    const probe = JSON.parse(JSON.stringify(prod));
+    recalcExtra(probe, areas, cfg);
+    return probe.totals.extraCost !== prod.totals.extraCost;
+  });
 }
 
 // src/components/worker-picker.js
@@ -515,6 +903,16 @@ function genInvNumber() {
 }
 
 // src/components/settings-panel.js
+var RATE_STATUS = "none";
+function rateOrMissing(v, unit) {
+  if (!(typeof v === "number" && Number.isFinite(v))) return "not imported \u2014 Import roster";
+  return RATE_STATUS === "held" ? `\u20B9${v}${unit} \xB7 held, not imported` : `\u20B9${v}${unit}`;
+}
+function rateStatusLine(status, cfg) {
+  if (status === "imported") return `Rate card imported (as of ${esc(String(cfg[ROSTER_STAMP]))})`;
+  if (status === "held") return "Rates on this device were never imported and may be superseded \u2014 Import roster";
+  return "No rates loaded: pay reads \u20B90 \u2014 Import roster";
+}
 function getStorageUsed() {
   let total = 0;
   Object.values(K).forEach((key) => {
@@ -559,6 +957,44 @@ function importData() {
   };
   input.click();
 }
+function importRoster() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.onchange = async (e) => {
+    try {
+      const doc = JSON.parse(await e.target.files[0].text());
+      const res = applyRosterImport({
+        perm: getPermWorkers(),
+        cw: getCWWorkers(),
+        cfg: loadJSON(K.prodCfg, {})
+      }, doc);
+      saveJSON(K.peEmp, res.perm);
+      saveJSON(K.cwEmp, res.cw);
+      saveJSON(K.prodCfg, res.cfg);
+      const logs = getProdLogs();
+      const snacks = loadJSON(K.permSnack, []);
+      const rp = repriceUnpriced({ logs, snacks, areas: getAreas(), cfg: getCfg(), isLocked: isMonthLocked });
+      if (rp.days) saveJSON(K.prodLog, logs);
+      saveJSON(K.prodCfg, { ...loadJSON(K.prodCfg, {}), rosterPrePricedDates: [...rp.olderRateDates, ...rp.otherMismatchDates].sort() });
+      if (rp.snackEntries) saveJSON(K.permSnack, snacks);
+      const { stats } = res;
+      alert(`Roster imported${doc.asOf ? ` (as of ${doc.asOf})` : ""}: ${stats.workers} workers, ${stats.cfg} rate-card values.` + (stats.unknown.length ? `
+Skipped \u2014 not on this device: ${stats.unknown.join(", ")}` : "") + (stats.rejected.length ? `
+Rejected: ${stats.rejected.join(", ")}` : "") + (stats.unpriced.length ? `
+Still unpriced \u2014 not in the file: ${stats.unpriced.join(", ")}` : "") + (rp.days || rp.snackEntries ? `
+Repriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : "") + (rp.olderRateDates.length ? `
+Extra cost priced at an older rate, kept as recorded: ${rp.olderRateDates.join(", ")}. Re-open and save a day to reprice it.` : "") + (rp.otherMismatchDates.length ? `
+Extra cost differs from today's card and areas (area settings or a hand edit): ${rp.otherMismatchDates.join(", ")}.` : ""));
+      closeSettings();
+      if (typeof window.renderActiveTab === "function") window.renderActiveTab();
+      openSettings();
+    } catch (err) {
+      alert("Roster import failed: " + err.message);
+    }
+  };
+  input.click();
+}
 function openSettings() {
   if (document.querySelector(".settings-overlay")) return;
   history.pushState({ popup: "settings" }, "");
@@ -567,6 +1003,7 @@ function openSettings() {
   const _settings = getSettings();
   const cfg = getCfg();
   const invCfg = getInvCfg();
+  RATE_STATUS = rosterStatus(cfg, [...perm, ...cw]);
   const html = `<div class="settings-overlay" onclick="closeSettings()">
     <div class="settings-panel" onclick="event.stopPropagation()">
       <div class="flex-between" style="padding:var(--sp-12) var(--sp-16);border-bottom:1px solid var(--border)">
@@ -579,9 +1016,11 @@ function openSettings() {
           <div class="section-label-md">General</div>
           <div class="card-info">
             <div class="settings-row"><span class="card-label">Version</span><span class="card-meta">v${APP_VERSION}</span></div>
-            <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">\u20B9${cfg.hourRate}/hr</span></div>
-            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">\u20B9${cfg.snackRate}/day</span></div>
-            <div class="settings-row"><span class="card-label">Perm OT Base</span><span class="card-meta">\u20B9${cfg.permOtBaseRate}/day \u2192 \u20B9${sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier)}/hr</span></div>
+            <div class="settings-row"><span class="card-label">Rate card</span><span class="card-meta" data-roster-status="${RATE_STATUS}">${rateStatusLine(RATE_STATUS, cfg)}</span></div>
+            <div class="settings-row"><span class="card-label">CW Hour Rate</span><span class="card-meta">${rateOrMissing(cfg.hourRate, "/hr")}</span></div>
+            <div class="settings-row"><span class="card-label">Snack Rate</span><span class="card-meta">${rateOrMissing(cfg.snackRate, " per head per OT day")}</span></div>
+            <div class="settings-row"><span class="card-label">Perm OT</span><span class="card-meta">min(daily, cap) \xF7 8 \xD7 ${cfg.permOtMultiplier} \xB7 cap ${rateOrMissing(cfg.permOtBaseRate, "/day")}</span></div>
+            <div class="settings-row"><span class="card-label">Non-floor staff</span><span class="card-meta">(monthly \xF7 days in month) \xF7 shift hours (12, confirmed) \xB7 no multiplier \xB7 an option for any non-floor staff</span></div>
           </div>
         </div>
 
@@ -593,7 +1032,7 @@ function openSettings() {
                 <span class="card-label">${esc(w.name)}</span>
                 <span class="card-meta"> \u2014 ${w.role || "Worker"}${w.inactive ? " (inactive)" : ""}</span>
               </div>
-              <span class="card-meta">\u20B9${w.dailyRate}/day</span>
+              <span class="card-meta">${w.monthlyWage ? rateOrMissing(w.monthlyWage, "/mo") : rateOrMissing(w.dailyRate, "/day")}</span>
             </div>`).join("")}
           </div>
           <button class="btn btn-secondary btn-sm mt-8" onclick="addWorkerPrompt('perm')">+ Add Perm Worker</button>
@@ -636,6 +1075,7 @@ function openSettings() {
           <div class="flex-center gap-8 mt-8">
             <button class="btn btn-secondary btn-sm" onclick="exportData()">Export JSON</button>
             <button class="btn btn-secondary btn-sm" onclick="importData()">Import JSON</button>
+            <button class="btn btn-secondary btn-sm" onclick="importRoster()">Import roster</button>
           </div>
           <button class="btn btn-danger btn-sm mt-8 btn-full" onclick="if(confirm('Reset ALL data? This cannot be undone.')){localStorage.clear();location.reload();}">Reset All Data</button>
         </div>
@@ -654,11 +1094,27 @@ function addWorkerPrompt(type) {
   if (!name || !name.trim()) return;
   const id = name.trim().toLowerCase().replace(/[^a-z0-9]/g, "_") + "_" + Date.now().toString(36).slice(-4);
   if (type === "perm") {
-    const rate = prompt("Daily rate (\u20B9):", "496");
-    const dailyRate = parseInt(rate) || 496;
-    const role = prompt("Role:", "Worker");
+    const nonFloor = confirm("Non-floor staff on a monthly wage (guard, office)?\n\nOK = monthly wage: hourly = wage \xF7 days in the month \xF7 shift hours, no 1.1\xD7.\nCancel = floor worker on a daily rate.\n\nNote: the CA-approved hours exemption covers the gate only, not other staff (soma-internal T-HU).");
+    const role = prompt("Role:", nonFloor ? "Non-floor" : "Worker");
     const workers = getPermWorkers();
-    workers.push({ id, name: name.trim(), role: role || "Worker", dailyRate, inactive: false });
+    const amount = (label) => {
+      const v = Number(prompt(label, ""));
+      return Number.isFinite(v) && v > 0 ? v : void 0;
+    };
+    const row = { id, name: name.trim(), role: role || (nonFloor ? "Non-floor" : "Worker"), inactive: false };
+    if (nonFloor) {
+      const shiftHours = parseInt(prompt("Standard shift (hours):", "12")) || 12;
+      Object.assign(row, { shiftHours, payModel: PLAIN_PAY_MODEL });
+      const monthlyWage = amount("Monthly wage (\u20B9) \u2014 leave blank to import it:");
+      if (monthlyWage) row.monthlyWage = monthlyWage;
+    } else {
+      const dailyRate = amount("Daily rate (\u20B9) \u2014 leave blank to import it:");
+      if (dailyRate) row.dailyRate = dailyRate;
+    }
+    workers.push(row);
+    if (!row.monthlyWage && !row.dailyRate) {
+      alert(`${row.name} added with no rate. Pay reads \u20B90 until a rate is set or imported.`);
+    }
     saveJSON(K.peEmp, workers);
   } else {
     const workers = getCWWorkers();
@@ -694,189 +1150,86 @@ function initSettingsBackHandler() {
   });
 }
 
-// src/shared/utils/payroll.js
-function getAttKey(type, id, date) {
-  return `${id}_${date.replace(/-/g, "_")}`;
-}
-function calcDayWages({
-  date,
-  cfg,
-  cwAtt,
-  peAtt,
-  activeCW,
-  activePermProd,
-  guards
-}) {
-  let total = 0;
-  for (const w of activeCW) {
-    const k = getAttKey("cw", w.id, date);
-    const rec = cwAtt[k];
-    if (!rec || rec.status === "A") continue;
-    let hours = cfg.standardShift.hours;
-    if (rec.otHours) hours += rec.otHours;
-    total += sepRound(hours * cfg.hourRate);
-  }
-  for (const w of activePermProd) {
-    const k = getAttKey("perm", w.id, date);
-    const rec = peAtt[k];
-    if (!rec || rec.status === "A") continue;
-    total += w.dailyRate;
-    if (rec.otHours && rec.otHours > 0) {
-      const otRate = sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier);
-      total += sepRound(rec.otHours * otRate);
-    }
-  }
-  for (const w of guards) {
-    const k = getAttKey("perm", w.id, date);
-    const rec = peAtt[k];
-    if (rec && rec.status !== "A") total += w.dailyRate;
-  }
-  return total;
-}
-function calcMonthWages({
-  date,
-  today,
-  cfg,
-  cwAtt,
-  peAtt,
-  activeCW,
-  activePermProd,
-  guards
-}) {
-  const d = /* @__PURE__ */ new Date(date + "T00:00:00");
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
-  let total = 0;
-  for (let i = 1; i <= todayDay; i++) {
-    const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
-    total += calcDayWages({
-      date: ds,
-      cfg,
-      cwAtt,
-      peAtt,
-      activeCW,
-      activePermProd,
-      guards
-    });
-  }
-  return total;
-}
-function calcCWWeeklyPay({
-  satDate,
-  cfg,
-  cwAtt,
-  cwAdv,
-  prodLogs,
-  permSnacks,
-  activeCW
-}) {
-  const sat = /* @__PURE__ */ new Date(satDate + "T00:00:00");
-  const mon = new Date(sat);
-  mon.setDate(mon.getDate() - 5);
-  const workers = activeCW.map((w) => {
-    let days = 0;
-    let hours = 0;
-    let otH = 0;
-    let wage = 0;
-    for (let d = new Date(mon); d <= sat; d.setDate(d.getDate() + 1)) {
-      const ds = localDateStr(d);
-      const k = getAttKey("cw", w.id, ds);
-      const rec = cwAtt[k];
-      if (!rec || rec.status === "A") continue;
-      days++;
-      const dayH = cfg.standardShift.hours + (rec.otHours || 0);
-      hours += dayH;
-      otH += rec.otHours || 0;
-      wage += sepRound(dayH * cfg.hourRate);
-    }
-    const advKey = `${w.id}_${satDate}`;
-    const advance = cwAdv[advKey] || 0;
-    return { id: w.id, name: w.name, days, hours, otH, wage, advance, net: wage - advance };
+// src/components/alerts.js
+function getPrePricedNote(from, to) {
+  const cfg = getCfg();
+  const dates = stillPrePriced({
+    logs: getProdLogs(),
+    areas: getAreas(),
+    cfg,
+    dates: cfg.rosterPrePricedDates,
+    from,
+    to
   });
-  let extraTotal = 0;
-  let snackTotal = 0;
-  for (let d = new Date(mon); d <= sat; d.setDate(d.getDate() + 1)) {
-    const ds = localDateStr(d);
-    const prod = prodLogs[ds];
-    extraTotal += prod?.totals?.extraCost || 0;
-    snackTotal += prod?.totals?.snackCost || 0;
-  }
-  const weekSnacks = (permSnacks || []).filter((s) => s.week === satDate);
-  const permSnackTotal = weekSnacks.reduce((sum, s) => sum + (s.snack || 0), 0);
-  const cwWageTotal = workers.reduce((s, w) => s + w.wage, 0);
-  const cwAdvTotal = workers.reduce((s, w) => s + w.advance, 0);
-  const grandTotal = cwWageTotal - cwAdvTotal + extraTotal + snackTotal + permSnackTotal;
-  return {
-    workers,
-    cwWageTotal,
-    cwAdvTotal,
-    extraTotal,
-    snackTotal,
-    permSnackTotal,
-    grandTotal,
-    satDate,
-    monDate: localDateStr(mon)
-  };
+  return dates.length ? `Extra cost on ${dates.join(", ")} was priced before the rate card was imported and is kept as recorded.` : "";
 }
-function calcPermMonthlyPay({
-  date,
-  today,
-  cfg,
-  peAtt,
-  peAdv,
-  activePermProd,
-  guards,
-  guardIds
-}) {
-  const d = /* @__PURE__ */ new Date(date + "T00:00:00");
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const todayDay = (/* @__PURE__ */ new Date(today + "T00:00:00")).getDate();
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const all = [...activePermProd, ...guards];
-  const workers = all.map((w) => {
-    let days = 0;
-    let otH = 0;
-    let basePay = 0;
-    let otPay = 0;
-    for (let i = 1; i <= Math.min(todayDay, daysInMonth); i++) {
-      const ds = `${y}-${String(m + 1).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
-      const k = getAttKey("perm", w.id, ds);
-      const rec = peAtt[k];
-      if (!rec || rec.status === "A") continue;
-      days++;
-      basePay += w.dailyRate;
-      if (rec.otHours && rec.otHours > 0 && !guardIds.includes(w.id)) {
-        const rate = sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier);
-        otPay += sepRound(rec.otHours * rate);
-        otH += rec.otHours;
+function getRosterStatusAlerts() {
+  const status = rosterStatus(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  if (status === "held") return ['<div class="alert-banner alert-warning" data-roster-alert="held">\u26A0 Pay rates on this device were never imported and may be out of date. Settings \u2192 Import roster.</div>'];
+  if (status === "none") return ['<div class="alert-banner alert-warning" data-roster-alert="none">\u26A0 No pay rates loaded \u2014 wages read \u20B90. Settings \u2192 Import roster.</div>'];
+  return [];
+}
+function getCWPayDueAlerts() {
+  const alerts = [];
+  const today = getState().today;
+  const d = /* @__PURE__ */ new Date(today + "T00:00:00");
+  const dow = d.getDay();
+  const satDate = getWeekEnd(today);
+  const paid = loadJSON(K.cwPay, {});
+  const isPaid = paid[satDate]?.paid || false;
+  if (!isPaid) {
+    if (dow === 4 || dow === 5) {
+      alerts.push(`<div class="alert-banner alert-warning">\u{1F4B0} CW pay due Saturday (${formatDateShort(satDate)})</div>`);
+    } else if (dow === 6) {
+      alerts.push(`<div class="alert-banner alert-danger">\u26A0 CW pay overdue \u2014 not yet marked paid for week ending ${formatDateShort(satDate)}</div>`);
+    }
+  }
+  return alerts;
+}
+function getAttendancePatternAlerts() {
+  const alerts = [];
+  const allWorkers = getAllProdWorkers();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+  const today = /* @__PURE__ */ new Date(getState().today + "T00:00:00");
+  const permIds = new Set(getPermWorkers().map((p) => p.id));
+  allWorkers.forEach((w) => {
+    const isPerm = permIds.has(w.id);
+    const store2 = isPerm ? peAtt : cwAtt;
+    const type = isPerm ? "perm" : "cw";
+    let absentLast7 = 0;
+    let consecutiveAbsent = 0;
+    let maxConsecutive = 0;
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const ds = localDateStr(d);
+      const k = getAttKey(type, w.id, ds);
+      const rec = store2[k];
+      const isAbsent = !rec || rec.status === "A";
+      if (isAbsent) {
+        absentLast7++;
+        consecutiveAbsent++;
+        if (consecutiveAbsent > maxConsecutive) maxConsecutive = consecutiveAbsent;
+      } else {
+        consecutiveAbsent = 0;
       }
     }
-    const advKey = `${w.id}_${y}_${m + 1}`;
-    const advance = peAdv[advKey] || 0;
-    return {
-      id: w.id,
-      name: w.name,
-      role: w.role,
-      days,
-      otH,
-      basePay,
-      otPay,
-      advance,
-      total: basePay + otPay - advance
-    };
+    if (maxConsecutive >= 3) {
+      alerts.push(`<div class="alert-banner alert-danger">\u{1F6A8} ${esc(w.name)} absent ${maxConsecutive} consecutive days</div>`);
+    } else if (absentLast7 >= 3) {
+      alerts.push(`<div class="alert-banner alert-warning">\u26A0 ${esc(w.name)} absent ${absentLast7} of last 7 days</div>`);
+    }
   });
-  const grandTotal = workers.reduce((s, w) => s + w.total, 0);
-  return {
-    workers,
-    grandTotal,
-    month: `${y}-${String(m + 1).padStart(2, "0")}`,
-    daysInMonth
-  };
+  return alerts;
 }
 
 // src/components/print-pay.js
+function rateWarning() {
+  const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  if (note.startsWith("Rates as of")) return `<p style="font-size:9pt">${esc(note)}</p>`;
+  return `<p style="border:1px solid #000;padding:4pt;font-weight:bold">\u26A0 ${esc(note)}</p>`;
+}
 function cwWeekly(satDate) {
   return calcCWWeeklyPay({
     satDate,
@@ -906,7 +1259,7 @@ function printCWPay() {
   const data = cwWeekly(satDate);
   const cfg = getInvCfg();
   let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
-    <p>CW Weekly Pay \u2014 ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>`;
+    <p>CW Weekly Pay \u2014 ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>${rateWarning()}`;
   html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
   html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Days</th><th>OT Hrs</th><th>Gross</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
   data.workers.filter((w2) => w2.days > 0).forEach((w2) => {
@@ -916,6 +1269,8 @@ function printCWPay() {
   html += `<tr style="border-top:2px solid #000;font-weight:700"><td colspan="3" style="padding:4pt">Total</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.cwWageTotal)}</td><td style="text-align:right;font-family:monospace">${formatCurrency(advTotal)}</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.grandTotal)}</td></tr>`;
   html += "</table>";
   if (data.extraTotal) html += `<p style="font-size:9pt;margin-top:8pt">Extra (shortfall): ${formatCurrency(data.extraTotal)} | Snack: ${formatCurrency(data.snackTotal + data.permSnackTotal)}</p>`;
+  const prePriced = getPrePricedNote(data.monDate, data.satDate);
+  if (prePriced) html += `<p style="border:1px solid #000;padding:4pt;font-size:9pt">\u26A0 ${esc(prePriced)}</p>`;
   html += `<div class="print-footer"><div class="print-sig"><div>Prepared By</div><div>Verified By</div><div>Approved By</div></div></div>`;
   const w = window.open("", "_blank", "width=800,height=600");
   if (!w) {
@@ -931,7 +1286,7 @@ function printPermPay() {
   const cfg = getInvCfg();
   const monthLabel = (/* @__PURE__ */ new Date(data.month + "-01T00:00:00")).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
   let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
-    <p>Permanent Staff Monthly Pay \u2014 ${monthLabel}</p></div>`;
+    <p>Permanent Staff Monthly Pay \u2014 ${monthLabel}</p></div>${rateWarning()}`;
   html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
   html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Role</th><th>Days</th><th>OT Hrs</th><th>Base</th><th>OT Pay</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
   data.workers.filter((w2) => w2.days > 0).forEach((w2) => {
@@ -1076,8 +1431,8 @@ function recalcInvPreview() {
   let taxable = 0;
   document.querySelectorAll(".inv-line-item").forEach((line) => {
     const qty = parseFloat(line.querySelector(".inv-qty").value) || 0;
-    const rate = parseFloat(line.querySelector(".inv-rate").value) || 0;
-    taxable += sepRound(qty * rate);
+    const rate2 = parseFloat(line.querySelector(".inv-rate").value) || 0;
+    taxable += sepRound(qty * rate2);
   });
   let cgst = 0;
   let sgst = 0;
@@ -1115,10 +1470,10 @@ function submitInvoiceForm() {
   document.querySelectorAll(".inv-line-item").forEach((line) => {
     const desc = line.querySelector(".inv-desc").value.trim();
     const qty = parseFloat(line.querySelector(".inv-qty").value) || 0;
-    const rate = parseFloat(line.querySelector(".inv-rate").value) || 0;
+    const rate2 = parseFloat(line.querySelector(".inv-rate").value) || 0;
     const unit = line.querySelector(".inv-unit").value;
-    if (desc && qty > 0 && rate > 0) {
-      lineItems.push({ desc, unit, rate, qty, amount: sepRound(qty * rate) });
+    if (desc && qty > 0 && rate2 > 0) {
+      lineItems.push({ desc, unit, rate: rate2, qty, amount: sepRound(qty * rate2) });
     }
   });
   if (lineItems.length === 0) {
@@ -1287,62 +1642,6 @@ function getStockLog() {
   return loadJSON(K.stockLog, []);
 }
 
-// src/components/alerts.js
-function getCWPayDueAlerts() {
-  const alerts = [];
-  const today = getState().today;
-  const d = /* @__PURE__ */ new Date(today + "T00:00:00");
-  const dow = d.getDay();
-  const satDate = getWeekEnd(today);
-  const paid = loadJSON(K.cwPay, {});
-  const isPaid = paid[satDate]?.paid || false;
-  if (!isPaid) {
-    if (dow === 4 || dow === 5) {
-      alerts.push(`<div class="alert-banner alert-warning">\u{1F4B0} CW pay due Saturday (${formatDateShort(satDate)})</div>`);
-    } else if (dow === 6) {
-      alerts.push(`<div class="alert-banner alert-danger">\u26A0 CW pay overdue \u2014 not yet marked paid for week ending ${formatDateShort(satDate)}</div>`);
-    }
-  }
-  return alerts;
-}
-function getAttendancePatternAlerts() {
-  const alerts = [];
-  const allWorkers = getAllProdWorkers();
-  const cwAtt = loadJSON(K.cwAtt, {});
-  const peAtt = loadJSON(K.peAtt, {});
-  const today = /* @__PURE__ */ new Date(getState().today + "T00:00:00");
-  const permIds = new Set(getPermWorkers().map((p) => p.id));
-  allWorkers.forEach((w) => {
-    const isPerm = permIds.has(w.id);
-    const store = isPerm ? peAtt : cwAtt;
-    const type = isPerm ? "perm" : "cw";
-    let absentLast7 = 0;
-    let consecutiveAbsent = 0;
-    let maxConsecutive = 0;
-    for (let i = 1; i <= 7; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const ds = localDateStr(d);
-      const k = getAttKey(type, w.id, ds);
-      const rec = store[k];
-      const isAbsent = !rec || rec.status === "A";
-      if (isAbsent) {
-        absentLast7++;
-        consecutiveAbsent++;
-        if (consecutiveAbsent > maxConsecutive) maxConsecutive = consecutiveAbsent;
-      } else {
-        consecutiveAbsent = 0;
-      }
-    }
-    if (maxConsecutive >= 3) {
-      alerts.push(`<div class="alert-banner alert-danger">\u{1F6A8} ${esc(w.name)} absent ${maxConsecutive} consecutive days</div>`);
-    } else if (absentLast7 >= 3) {
-      alerts.push(`<div class="alert-banner alert-warning">\u26A0 ${esc(w.name)} absent ${absentLast7} of last 7 days</div>`);
-    }
-  });
-  return alerts;
-}
-
 // src/dashboard/tabs/home.js
 function renderHome() {
   const date = getState().today;
@@ -1387,6 +1686,7 @@ function renderHomeAlerts(date, present, total) {
   if (present > 0 && present < total * 0.7) {
     alerts.push(`<div class="alert-banner alert-warning">\u26A0 Low attendance: ${present}/${total} workers present</div>`);
   }
+  alerts.push(...getRosterStatusAlerts());
   alerts.push(...getCWPayDueAlerts());
   alerts.push(...getAttendancePatternAlerts());
   const stock = getStock();
@@ -1418,7 +1718,7 @@ function renderAttendance() {
   const monthLocked = isMonthLocked(monthOf(date));
   const perm = getActivePermProd();
   const cw = getActiveCW();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const cwAtt = loadJSON(K.cwAtt, {});
   const peAtt = loadJSON(K.peAtt, {});
   const list = document.getElementById("workerList");
@@ -1513,6 +1813,8 @@ function initAttendanceFilter() {
 
 // src/dashboard/tabs/production.js
 function renderProduction() {
+  const rateNote = document.getElementById("prodRateNote");
+  if (rateNote) rateNote.innerHTML = getRosterStatusAlerts().join("");
   const date = getState().today;
   const monthLocked = isMonthLocked(monthOf(date));
   let prod = getProdDay(date);
@@ -1887,7 +2189,7 @@ function confirmProduction() {
           empId: id,
           date,
           otHours: prod.periods.eveningOT.hours,
-          snack: cfg.snackRate,
+          snack: Number(cfg.snackRate) || 0,
           week: getWeekEnd(date)
         });
       }
@@ -2070,6 +2372,12 @@ function monthWages(date) {
   });
 }
 function renderFinance() {
+  const note = document.getElementById("finRateNote");
+  if (note) {
+    const t = getState().today;
+    const pre = getPrePricedNote(t.slice(0, 8) + "01", t);
+    note.innerHTML = getRosterStatusAlerts().join("") + (pre ? `<div class="alert-banner alert-warning" data-preprice-alert>\u26A0 ${pre}</div>` : "");
+  }
   const date = getState().today;
   const dayWage = dayWages(date);
   const prod = getProdDay(date);
@@ -2087,12 +2395,12 @@ function renderFinance() {
   getActiveCW().forEach((w) => {
     const k = getAttKey("cw", w.id, date);
     const rec = cwAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+    if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
   });
-  getActivePermProd().forEach((w) => {
+  [...getActivePermProd(), ...getGuards()].forEach((w) => {
     const k = getAttKey("perm", w.id, date);
     const rec = peAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier));
+    if (rec?.otHours) otCost += sepRound(rec.otHours * monthlyOtRate(cfg, w, date));
   });
   document.getElementById("finOT").textContent = formatCurrency(otCost);
   renderCWPayCard();
@@ -2233,7 +2541,7 @@ function recordAdvance() {
   const today = getState().today;
   if (requireUnlocked(monthOf(today), "Perm advance")) return;
   const perm = getActivePermProd();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const all = [...perm, ...guard];
   const names = all.map((w, i) => `${i + 1}. ${w.name}`).join("\n");
   const choice = prompt("Select worker number:\n" + names);
@@ -2323,9 +2631,9 @@ function lockMonth(month) {
     const ds = `${y}-${String(m).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
     allProd.forEach((w) => {
       const type = getPermWorkers().find((p) => p.id === w.id) ? "perm" : "cw";
-      const store = type === "perm" ? peAtt : cwAtt;
+      const store2 = type === "perm" ? peAtt : cwAtt;
       const k = getAttKey(type, w.id, ds);
-      if (store[k] && (store[k].status === "P" || store[k].status === "OT")) presentDays++;
+      if (store2[k] && (store2[k].status === "P" || store2[k].status === "OT")) presentDays++;
       else absentDays++;
     });
   }
@@ -2599,13 +2907,13 @@ Type:
       return;
     }
     const unit = prompt("Unit (kg or pc):", "kg") || "kg";
-    const rate = parseFloat(prompt("Rate per " + unit + " (\u20B9):", "10"));
-    if (isNaN(rate) || rate <= 0) {
+    const rate2 = parseFloat(prompt("Rate per " + unit + " (\u20B9):", "10"));
+    if (isNaN(rate2) || rate2 <= 0) {
       alert("Invalid rate.");
       return;
     }
     const rateId = `${clientId}_${Date.now().toString(36).slice(-4)}`;
-    rates.push({ id: rateId, clientId, material: material.trim(), unit, rate, effectiveFrom: getState().today });
+    rates.push({ id: rateId, clientId, material: material.trim(), unit, rate: rate2, effectiveFrom: getState().today });
     saveJSON(K.rates, rates);
   } else if (action.trim().toLowerCase().startsWith("del")) {
     const idx = parseInt(action.trim().slice(3)) - 1;
@@ -2703,9 +3011,9 @@ function renderStock() {
     detailEl.textContent = `${stock.length} items tracked`;
   }
   listEl.innerHTML = stock.map((item) => {
-    const pct = item.threshold > 0 ? item.qty / item.threshold : 1;
+    const pct2 = item.threshold > 0 ? item.qty / item.threshold : 1;
     const isOverLimit = item.maxQty && item.qty > item.maxQty;
-    const color = isOverLimit ? "text-danger" : item.qty <= 0 ? "text-danger" : pct <= 1 ? "text-warn" : "text-attend";
+    const color = isOverLimit ? "text-danger" : item.qty <= 0 ? "text-danger" : pct2 <= 1 ? "text-warn" : "text-attend";
     const limitInfo = item.maxQty ? ` | Max: ${item.maxQty} ${item.unit}` : "";
     return `<div class="card-base">
       <div class="flex-between">
@@ -2772,6 +3080,8 @@ function editStockQty(itemId) {
 
 // src/dashboard/tabs/history.js
 function renderHistory() {
+  const rateNote = document.getElementById("histRateNote");
+  if (rateNote) rateNote.innerHTML = getRosterStatusAlerts().join("");
   const date = getState().histDate;
   const histMonth = monthOf(date);
   const histMonthLocked = isMonthLocked(histMonth);
@@ -2828,7 +3138,7 @@ function renderHistory() {
     <div class="card-title">Attendance</div>
     <div class="mt-8 stat-grid">
       <div class="stat-pill"><span class="stat-pill-value text-attend">${present}</span><span class="stat-pill-label">Present</span></div>
-      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost</span></div>
+      <div class="stat-pill"><span class="stat-pill-value text-cost">${formatCurrency(dayWage)}</span><span class="stat-pill-label">Wage Cost (at today's rates)</span></div>
     </div>
   </div>`;
   if (prod) {
@@ -2916,7 +3226,7 @@ function renderLive() {
 }
 async function boot() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-XN3KAJKZ.js");
     session = await bootFirebaseSession();
     if (!session) {
       bootState = "no-config";
@@ -3244,6 +3554,344 @@ function fmtVal(v) {
   return String(v);
 }
 
+// src/dashboard/adoption-model.js
+var ADOPTION_FORMS = [
+  { id: "production", label: "Production", coll: "production_entries" },
+  { id: "job_receipt", label: "Job receipt", coll: "jobs" },
+  { id: "dft", label: "DFT", coll: "dft_measurements" },
+  { id: "dispatch", label: "Dispatch", coll: "dispatch_events" },
+  { id: "stock_refill", label: "Stock refill", coll: "receipts", group: true },
+  { id: "stock_deplete", label: "Stock used", coll: "depletions", group: true },
+  { id: "machine_state", label: "Machine state", coll: "state_transitions", group: true },
+  { id: "check_in", label: "Check in/out", coll: "shifts", group: true },
+  { id: "note", label: "Note", coll: "notes" }
+];
+var DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+var STEADY_TARGET = 0.95;
+function isoWeekStart(d = /* @__PURE__ */ new Date()) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const shift = (x.getDay() + 6) % 7;
+  x.setDate(x.getDate() - shift);
+  return x;
+}
+function addWeeks(weekStart2, n) {
+  const x = new Date(weekStart2);
+  x.setDate(x.getDate() + n * 7);
+  return x;
+}
+function weekEnd(weekStart2) {
+  return addWeeks(weekStart2, 1);
+}
+function isoWeekKey(weekStart2) {
+  const thu = new Date(weekStart2);
+  thu.setDate(thu.getDate() + 3);
+  const jan1 = new Date(thu.getFullYear(), 0, 1);
+  const week = Math.floor((thu - jan1) / 864e5 / 7) + 1;
+  return `${thu.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+function dayIndex(ms, weekStart2) {
+  const start = weekStart2.getTime();
+  if (!(ms >= start)) return -1;
+  const end = weekEnd(weekStart2).getTime();
+  if (ms >= end) return -1;
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((d - weekStart2) / 864e5);
+}
+function isPersonAuthored(doc) {
+  const a = doc?.author_user_id;
+  return typeof a === "string" && a.length > 0 && !a.startsWith("system");
+}
+function countByFormDay(docsByForm2, weekStart2, tsOf) {
+  const out = {};
+  for (const f of ADOPTION_FORMS) {
+    const days = [0, 0, 0, 0, 0, 0, 0];
+    for (const doc of docsByForm2[f.id] || []) {
+      if (!isPersonAuthored(doc)) continue;
+      const i = dayIndex(tsOf(doc), weekStart2);
+      if (i >= 0) days[i] += 1;
+    }
+    out[f.id] = days;
+  }
+  return out;
+}
+var sum = (arr) => (arr || []).reduce((a, b) => a + (Number(b) || 0), 0);
+function rate(digital, expected) {
+  const e = Number(expected);
+  if (!Number.isFinite(e) || e <= 0) return null;
+  return digital / e;
+}
+function statusFor(r, target = STEADY_TARGET) {
+  if (r === null) return "unmeasured";
+  if (r > 1.02) return "over";
+  if (r >= target) return "ok";
+  if (r >= target - 0.15) return "near";
+  return "below";
+}
+function summarizeWeek(counts, paper, target = STEADY_TARGET) {
+  const rows = ADOPTION_FORMS.map((f) => {
+    const digital = counts[f.id] || [0, 0, 0, 0, 0, 0, 0];
+    const expected = paper[f.id] || [];
+    const dTotal = sum(digital);
+    const eTotal = sum(expected);
+    const r = rate(dTotal, eTotal);
+    return {
+      id: f.id,
+      label: f.label,
+      digital,
+      expected,
+      digitalTotal: dTotal,
+      expectedTotal: eTotal,
+      rate: r,
+      status: statusFor(r, target)
+    };
+  });
+  const dAll = rows.reduce((s, r) => s + r.digitalTotal, 0);
+  const eAll = rows.reduce((s, r) => s + r.expectedTotal, 0);
+  const overall = rate(dAll, eAll);
+  return {
+    rows,
+    digitalTotal: dAll,
+    expectedTotal: eAll,
+    rate: overall,
+    status: statusFor(overall, target),
+    // How much of the picture is actually measured. A 98% rate drawn from one
+    // form out of nine is not the same number as one drawn from all nine, and
+    // the view says so rather than letting it pass as complete.
+    formsMeasured: rows.filter((r) => r.expectedTotal > 0).length,
+    formsTotal: rows.length
+  };
+}
+var PAPER_STORE_KEY = "sep_adoption_paper";
+function readPaperStore(raw) {
+  let parsed;
+  try {
+    parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    return {};
+  }
+  if (!parsed || typeof parsed !== "object") return {};
+  const out = {};
+  for (const [wk, forms] of Object.entries(parsed)) {
+    if (!forms || typeof forms !== "object") continue;
+    const clean = {};
+    for (const f of ADOPTION_FORMS) {
+      const arr = forms[f.id];
+      if (!Array.isArray(arr)) continue;
+      clean[f.id] = Array.from({ length: 7 }, (_, i) => {
+        const n = Number(arr[i]);
+        return Number.isFinite(n) && n >= 0 ? n : "";
+      });
+    }
+    out[wk] = clean;
+  }
+  return out;
+}
+function setPaperCount(store2, weekKey, formId, dayIdx, value) {
+  if (!ADOPTION_FORMS.some((f) => f.id === formId)) return store2;
+  if (!(dayIdx >= 0 && dayIdx < 7)) return store2;
+  const trimmed = String(value ?? "").trim();
+  const n = trimmed === "" ? "" : Number(trimmed);
+  if (n !== "" && (!Number.isFinite(n) || n < 0)) return store2;
+  const week = { ...store2[weekKey] || {} };
+  const row = Array.isArray(week[formId]) ? [...week[formId]] : ["", "", "", "", "", "", ""];
+  row[dayIdx] = n;
+  week[formId] = row;
+  return { ...store2, [weekKey]: week };
+}
+function paperForWeek(store2, weekKey) {
+  return store2[weekKey] || {};
+}
+
+// src/dashboard/adoption-view.js
+var RANGE_LIMIT = 2e3;
+var GROUP_LIMIT = 3e3;
+var weekStart = isoWeekStart();
+var docsByForm = {};
+var loadState = "idle";
+var loadErr = "";
+var capped = [];
+var denied = [];
+var store = {};
+var repaint = () => {
+};
+var getSession = () => null;
+function initAdoption(paintFn, sessionGetter) {
+  repaint = paintFn;
+  getSession = sessionGetter;
+  store = loadStore();
+  docsByForm = {};
+  loadState = "idle";
+  capped = [];
+  denied = [];
+  loadErr = "";
+}
+function loadStore() {
+  try {
+    return readPaperStore(globalThis.localStorage?.getItem(PAPER_STORE_KEY));
+  } catch {
+    return {};
+  }
+}
+function saveStore() {
+  try {
+    globalThis.localStorage?.setItem(PAPER_STORE_KEY, JSON.stringify(store));
+  } catch {
+  }
+}
+async function loadAdoption() {
+  const session3 = getSession();
+  if (!session3) {
+    docsByForm = {};
+    loadState = "idle";
+    repaint();
+    return;
+  }
+  loadState = "loading";
+  loadErr = "";
+  capped = [];
+  denied = [];
+  repaint();
+  const { db, fs } = session3;
+  const start = fs.Timestamp.fromMillis(weekStart.getTime());
+  const end = fs.Timestamp.fromMillis(weekEnd(weekStart).getTime());
+  const next = {};
+  await Promise.all(ADOPTION_FORMS.map(async (f) => {
+    try {
+      const q = f.group ? fs.query(fs.collectionGroup(db, f.coll), fs.limit(GROUP_LIMIT)) : fs.query(
+        fs.collection(db, f.coll),
+        fs.where("created_at", ">=", start),
+        fs.where("created_at", "<", end),
+        fs.limit(RANGE_LIMIT)
+      );
+      const snap = await fs.getDocs(q);
+      next[f.id] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      if (snap.docs.length >= (f.group ? GROUP_LIMIT : RANGE_LIMIT)) capped.push(f.id);
+    } catch (e) {
+      next[f.id] = [];
+      if (e?.code === "permission-denied") denied.push(f.id);
+      else loadErr = e?.code || e?.message || "read failed";
+    }
+  }));
+  docsByForm = next;
+  loadState = "ready";
+  repaint();
+}
+function adShiftWeek(n) {
+  weekStart = addWeeks(weekStart, n);
+  loadAdoption();
+}
+function adThisWeek() {
+  weekStart = isoWeekStart();
+  loadAdoption();
+}
+function adRefresh() {
+  loadAdoption();
+}
+function adSetPaper(el) {
+  const formId = el?.dataset?.form;
+  const day = Number(el?.dataset?.day);
+  store = setPaperCount(store, isoWeekKey(weekStart), formId, day, el?.value);
+  saveStore();
+  repaint();
+}
+function adoptionNeedsLoad() {
+  return loadState === "idle";
+}
+function renderAdoption(claims2) {
+  if (!(claims2?.is_admin || claims2?.is_steward)) {
+    return `<div class="lv-state"><b>Steward-exclusive.</b>
+      <p>The adoption KPI is the handler-steward's surface (ADOPTION_PLAN Week 0).
+      This session has neither <code>is_steward</code> nor <code>is_admin</code>.</p></div>`;
+  }
+  const wk = isoWeekKey(weekStart);
+  const paper = paperForWeek(store, wk);
+  const counted = loadState === "ready";
+  const counts = countByFormDay(docsByForm, weekStart, eventMillis);
+  const s = summarizeWeek(counts, paper, STEADY_TARGET);
+  const isThisWeek = weekStart.getTime() === isoWeekStart().getTime();
+  return `
+    <div class="ad-bar">
+      <div class="ad-week">
+        <button class="ed-act" onclick="adShiftWeek(-1)" title="Previous week">\u25C0</button>
+        <span class="ad-week-k">${esc(wk)}</span>
+        <button class="ed-act" onclick="adShiftWeek(1)" ${isThisWeek ? "disabled" : ""} title="Next week">\u25B6</button>
+        <span class="ad-week-d">${esc(fmtRange(weekStart))}</span>
+      </div>
+      <div>
+        ${isThisWeek ? "" : `<button class="ed-act" onclick="adThisWeek()">This week</button>`}
+        <button class="ed-act" onclick="adRefresh()">${loadState === "loading" ? "Loading\u2026" : "Refresh"}</button>
+      </div>
+    </div>
+
+    ${headline(s, counted)}
+    ${table(s, counted)}
+    ${notices(s, counted)}`;
+}
+function fmtRange(ws) {
+  const end = new Date(weekEnd(ws).getTime() - 1);
+  const f = (d) => d.toLocaleDateString(void 0, { day: "numeric", month: "short" });
+  return `${f(ws)} \u2013 ${f(end)}`;
+}
+var pct = (r) => r === null ? "\u2014" : `${Math.round(r * 100)}%`;
+function headline(s, counted) {
+  const cls = counted ? { ok: "ad-ok", near: "ad-near", below: "ad-below", over: "ad-over", unmeasured: "" }[s.status] : "";
+  return `
+    <div class="ad-head ${cls}">
+      <div class="ad-head-v">${counted ? pct(s.rate) : "\u2014"}</div>
+      <div class="ad-head-l">
+        <b>Adoption rate</b> \xB7 ${counted ? `${s.digitalTotal} digital` : "not counted yet"} / ${s.expectedTotal || "\u2014"} on paper
+        <span class="ad-cov">${counted ? `measured on ${s.formsMeasured} of ${s.formsTotal} forms \xB7 target ${Math.round(STEADY_TARGET * 100)}%` : "press Refresh to count this week from Firestore"}</span>
+      </div>
+    </div>`;
+}
+function table(s, counted) {
+  const head = `<tr><th class="ad-f">Form</th><th class="ad-r">Week</th>${DAY_LABELS.map((d) => `<th>${d}</th>`).join("")}</tr>`;
+  const rows = s.rows.map((r) => {
+    const cells = DAY_LABELS.map((_, i) => {
+      const d = r.digital[i] || 0;
+      const p = r.expected[i];
+      return `<td>
+        <span class="ad-dig ${counted && d ? "" : "ad-zero"}">${counted ? d : "\u2014"}</span>
+        <input class="ad-paper" type="number" min="0" inputmode="numeric"
+               data-form="${escAttr(r.id)}" data-day="${i}"
+               value="${p === "" || p == null ? "" : escAttr(String(p))}"
+               placeholder="paper" onchange="adSetPaper(this)">
+      </td>`;
+    }).join("");
+    const cls = counted ? { ok: "ad-ok", near: "ad-near", below: "ad-below", over: "ad-over", unmeasured: "" }[r.status] : "";
+    const flag = denied.includes(r.id) ? ' <span class="ed-tag">denied</span>' : capped.includes(r.id) ? ' <span class="ed-tag">capped</span>' : "";
+    return `<tr>
+      <th class="ad-f">${esc(r.label)}${flag}</th>
+      <td class="ad-r ${cls}"><b>${counted ? pct(r.rate) : "\u2014"}</b><span class="ad-sub">${counted ? r.digitalTotal : "\u2014"}/${r.expectedTotal || "\u2014"}</span></td>
+      ${cells}
+    </tr>`;
+  }).join("");
+  return `<div class="ad-wrap"><table class="ad-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+}
+function notices(s, counted) {
+  const out = [];
+  if (!counted) {
+    out.push(["", loadState === "loading" ? "Counting this week from Firestore\u2026" : "Not counted yet. Press Refresh \u2014 the digital column is UNKNOWN until then, which is why it reads \u2014 and not 0."]);
+  }
+  if (loadErr) out.push(["lv-warn-red", `Firestore read failed: ${loadErr}`]);
+  if (denied.length) {
+    out.push(["", `Rules refused ${denied.length} collection${denied.length > 1 ? "s" : ""} (${denied.join(", ")}) \u2014 the 12 Jun collection-group read rules are still IAM-gated. Those rows read 0 digital, which is a MISSING measurement, not a zero.`]);
+  }
+  if (capped.length) {
+    out.push(["lv-warn-amber", `Capped at ${GROUP_LIMIT} docs: ${capped.join(", ")}. Collection-group reads cannot be week-filtered server-side without a CG index, so these counts may be under-reported. Add the index before the corpus outgrows the cap.`]);
+  }
+  if (counted && s.expectedTotal === 0) {
+    out.push(["", "No paper counts entered yet. Count the \u2713 In app ticks on each paper sheet at end of shift and type them into the day columns \u2014 the rate is blank until then, deliberately: a denominator of zero is not 100%."]);
+  }
+  if (counted && s.status === "over") {
+    out.push(["lv-warn-amber", "More digital entries than paper. Either a paper sheet went uncounted or an entry was submitted twice \u2014 reconcile before recording the week."]);
+  }
+  out.push(["", "Paper counts are stored on THIS device only (localStorage). Enter them on the machine the steward reconciles from."]);
+  return `<div class="lv-warnings">${out.map(([c, t]) => `<div class="lv-warn ${c}">${esc(t)}</div>`).join("")}</div>`;
+}
+
 // src/dashboard/tabs/edit.js
 var STREAM_LIMIT2 = 50;
 var tsMs2 = eventMillis;
@@ -3272,8 +3920,13 @@ var modal = null;
 var formErr = "";
 var $root2 = () => document.getElementById("editRoot");
 var custName2 = (id) => customerNames2[id] || id || "?";
+var adoptionReady = false;
 function renderEdit() {
   if (!$root2()) return;
+  if (!adoptionReady) {
+    adoptionReady = true;
+    initAdoption(paint2, () => session2);
+  }
   if (bootState2 === "idle" || bootState2 === "error") {
     bootState2 = "booting";
     boot2();
@@ -3282,7 +3935,7 @@ function renderEdit() {
 }
 async function boot2() {
   try {
-    const { bootFirebaseSession } = await import("./chunks/firebase-session-RUYLSC76.js");
+    const { bootFirebaseSession } = await import("./chunks/firebase-session-XN3KAJKZ.js");
     session2 = await bootFirebaseSession();
     if (!session2) {
       bootState2 = "no-config";
@@ -3447,6 +4100,7 @@ async function saveEdit() {
 }
 function edSetView(v) {
   view = v;
+  if (v === "adoption" && adoptionNeedsLoad()) loadAdoption();
   paint2();
 }
 function edSelectCat(id) {
@@ -3514,8 +4168,9 @@ function paint2() {
       <button class="ed-viewbtn ${view === "inboxes" ? "active" : ""}" onclick="edSetView('inboxes')">
         Inboxes${conflictCount ? ` <span class="ed-badge">${conflictCount}</span>` : ""}
       </button>
+      <button class="ed-viewbtn ${view === "adoption" ? "active" : ""}" onclick="edSetView('adoption')">Adoption</button>
     </div>
-    ${view === "records" ? renderRecords() : renderInboxes()}
+    ${view === "records" ? renderRecords() : view === "adoption" ? renderAdoption(claims) : renderInboxes()}
     ${modal ? renderModal() : ""}`;
 }
 function renderRecords() {
@@ -3659,6 +4314,10 @@ function panel(title, inner) {
 }
 
 // src/dashboard/tabs/finance-export.js
+function withRateNote(rows) {
+  const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  return note ? [...rows, [`NOTE: ${note}`]] : rows;
+}
 function exportAttendanceCSV() {
   const month = monthOf(getState().today);
   const dates = monthDates(month);
@@ -3666,7 +4325,7 @@ function exportAttendanceCSV() {
   const peAtt = loadJSON(K.peAtt, {});
   const cw = getActiveCW();
   const perm = getActivePermProd();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const all = [
     ...perm.map((w) => ({ ...w, type: "perm" })),
     ...guard.map((w) => ({ ...w, type: "perm" })),
@@ -3675,10 +4334,10 @@ function exportAttendanceCSV() {
   const rows = [["Worker ID", "Worker Name", "Type", "Date", "Status", "OT Hours"]];
   let dataRowCount = 0;
   for (const w of all) {
-    const store = w.type === "perm" ? peAtt : cwAtt;
+    const store2 = w.type === "perm" ? peAtt : cwAtt;
     for (const ds of dates) {
       const k = getAttKey(w.type, w.id, ds);
-      const rec = store[k];
+      const rec = store2[k];
       if (!rec) continue;
       rows.push([w.id, w.name, w.type === "perm" ? "Perm" : "CW", ds, rec.status || "", rec.otHours || 0]);
       dataRowCount++;
@@ -3746,12 +4405,12 @@ function exportPayrollCSV() {
     alert(`No payroll data for ${month}.`);
     return;
   }
-  csvDownload(`SEP_payroll_${month}.csv`, rows);
+  csvDownload(`SEP_payroll_${month}.csv`, withRateNote(rows));
 }
 function exportCostsCSV() {
   const month = monthOf(getState().today);
   const dates = monthDates(month);
-  const rows = [["Date", "Day Wages", "Extra Cost", "Snack Cost", "OT Cost", "Total"]];
+  const rows = [["Date", "Day Wages (incl. OT)", "Extra Cost", "Snack Cost", "of which OT", "Total"]];
   let nonzeroCount = 0;
   for (const ds of dates) {
     const dayWage = calcDayWages({
@@ -3773,14 +4432,14 @@ function exportCostsCSV() {
     for (const w of getActiveCW()) {
       const k = getAttKey("cw", w.id, ds);
       const rec = cwAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+      if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
     }
-    for (const w of getActivePermProd()) {
+    for (const w of [...getActivePermProd(), ...getGuards()]) {
       const k = getAttKey("perm", w.id, ds);
       const rec = peAtt[k];
-      if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound(cfg.permOtBaseRate / 8 * cfg.permOtMultiplier));
+      if (rec?.otHours) otCost += sepRound(rec.otHours * monthlyOtRate(cfg, w, ds));
     }
-    const total = dayWage + extra + snack + otCost;
+    const total = dayWage + extra + snack;
     if (total === 0) continue;
     rows.push([ds, dayWage, extra, snack, otCost, total]);
     nonzeroCount++;
@@ -3789,7 +4448,8 @@ function exportCostsCSV() {
     alert(`No cost data for ${month}.`);
     return;
   }
-  csvDownload(`SEP_costs_${month}.csv`, rows);
+  const prePriced = getPrePricedNote(dates[0], dates[dates.length - 1]);
+  csvDownload(`SEP_costs_${month}.csv`, withRateNote(prePriced ? [...rows, [`NOTE: ${prePriced}`]] : rows));
 }
 
 // src/dashboard/main.js
@@ -3857,10 +4517,22 @@ function initTabRouting() {
   }, { passive: true });
 }
 function initData() {
-  if (!localStorage.getItem(K.peEmp)) saveJSON(K.peEmp, DEF_PERM);
-  if (!localStorage.getItem(K.cwEmp)) saveJSON(K.cwEmp, DEF_CW);
-  if (!localStorage.getItem(K.prodAreas)) saveJSON(K.prodAreas, DEF_AREAS);
-  if (!localStorage.getItem(K.prodCfg)) saveJSON(K.prodCfg, DEF_CFG);
+  const next = reconcileSeed({
+    savedPerm: loadJSON(K.peEmp, []),
+    savedCW: loadJSON(K.cwEmp, []),
+    savedCfg: loadJSON(K.prodCfg, {}),
+    defPerm: DEF_PERM,
+    defCW: DEF_CW,
+    defCfg: DEF_CFG,
+    defAreas: DEF_AREAS
+  });
+  const writeIfChanged = (key, val) => {
+    if (localStorage.getItem(key) !== JSON.stringify(val)) saveJSON(key, val);
+  };
+  writeIfChanged(K.peEmp, next.perm);
+  writeIfChanged(K.cwEmp, next.cw);
+  writeIfChanged(K.prodAreas, next.areas);
+  writeIfChanged(K.prodCfg, next.cfg);
   if (!localStorage.getItem(K.stock)) saveJSON(K.stock, DEF_STOCK);
   if (!localStorage.getItem(K.invCfg)) saveJSON(K.invCfg, DEF_INV_CFG);
 }
@@ -3882,6 +4554,8 @@ function exposeWindowSurface() {
     APP_VERSION,
     switchTab,
     renderTab,
+    // Re-render whatever tab is showing — used after a roster import changes rates.
+    renderActiveTab: () => renderTab(getState().currentTab || "home"),
     // Save indicator + dark mode
     toggleDarkMode,
     // Storage helpers used by some inline handlers
@@ -3902,6 +4576,7 @@ function exposeWindowSurface() {
     getStorageUsed,
     exportData,
     importData,
+    importRoster,
     // Print
     printCWPay,
     printPermPay,
@@ -3967,7 +4642,12 @@ function exposeWindowSurface() {
     edOpenHistory,
     edCloseModal,
     edReasonChange,
-    edSaveEdit
+    edSaveEdit,
+    // Adoption view (rollout KPI, steward-exclusive)
+    adShiftWeek,
+    adThisWeek,
+    adRefresh,
+    adSetPaper
   });
 }
 function boot3() {

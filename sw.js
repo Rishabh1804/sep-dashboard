@@ -2,17 +2,50 @@
 // Bumped CACHE_NAME forces re-cache when v2.1 single-file users
 // receive the update.
 
+// Version notes, in order:
 // alpha.2: dist/dashboard.js + shared chunk hashes changed (Track 2 Firebase
-// wiring). Without this bump, installed clients keep the cached old
-// dashboard.js whose imports point at chunk hashes that no longer exist.
+//   wiring). Without this bump, installed clients keep the cached old
+//   dashboard.js whose imports point at chunk hashes that no longer exist.
+// alpha.5: Edit tab added + shared firebase-session.js memoised → dashboard.js
+//   + shared chunk hashes changed again.
 // alpha.6: handler form hardening (Zod write-boundary + σ sanity net) → app.js
 //   (APP_VERSION/BUILD) changed, so both bundles' bytes shift.
 // alpha.7: rule-bounds single-sourcing + zod/mini (firebase-boot chunk
 //   553->8.9 kB; zod/mini+schemas in a 36 kB chunk shared by both bundles)
 //   + unit-keyed sigma baselines + edit gate -> both bundles shift.
-// alpha.5: Edit tab added + shared firebase-session.js memoised → dashboard.js
-// + shared chunk hashes changed again.
-const CACHE_NAME = 'sep-v2.1.0-alpha.7';
+// alpha.8: Adoption view (Week-0 rollout KPI) added to the Edit tab →
+//   dashboard.js + components.css changed; app.js (BUILD 5) shifts both
+//   bundles. dist/paper-forms.html is deliberately NOT cached — it is a
+//   print artifact opened once on a desktop, not a PWA asset.
+// alpha.9: worker/area/wage config reconciled against the soma-internal codex
+//   (roster, rate card) → app.js BUILD 6 and
+//   the shared config chunk both shift, so both bundles' bytes move.
+// alpha.10: two BM rulings (21 Sep) — one worker's rate, one tier move; config + app.js (BUILD 7) shift.
+// alpha.11: perm OT = min(daily, cap) ÷ 8 × 1.1 (BM, 23 Sep),
+//   and the rate is no longer floored to whole rupees before multiplying.
+// alpha.12: the seeded roster/config is now RECONCILED against the shipped
+//   config on every boot (seed-sync.js) — before this, alpha.9–11's rates only
+//   reached fresh installs. Also: guards refused in permOtRate, Costs CSV no
+//   longer counts OT twice, History wage pill labelled as a recompute.
+// alpha.13: two BM rulings (23 Sep) — perm OT totalled per month and floored
+//   once; hours recorded as OT on a guard are paid directed work.
+// alpha.14: guard pay follows the month (BM, 23 Sep) — day rate = monthly wage
+//   ÷ days in the month, hours beyond the shift at day rate ÷ shift hours.
+// alpha.15: ÷12 confirmed; the plain monthly model becomes an option for any
+//   non-floor staff (payModel 'monthly-plain'), selectable in Settings.
+// alpha.16: pay data leaves the public repo — rates arrive through Settings →
+//   Import roster (Director's sensitive-data rule, 24 Sep); seed-sync never
+//   overwrites them, so an updated device keeps the rates it holds.
+// alpha.17: Governor chain on the move — the import stamps the rate card, and
+//   rates a device holds but never imported are flagged on Home, Finance,
+//   Settings, the pay prints and the pay CSVs; days recorded before the import
+//   are repriced; a full month pays in full.
+// alpha.18: Censor pass — Production and History carry the banner too; pay
+//   prints and CSVs always name the card's date; the import counts days priced
+//   at an older rate.
+// alpha.19: Governor re-check — days priced before the import are dated, split by
+//   cause, and named on the CW weekly print, the costs CSV and Finance.
+const CACHE_NAME = 'sep-v2.1.0-alpha.19';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

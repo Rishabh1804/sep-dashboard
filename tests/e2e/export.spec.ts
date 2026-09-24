@@ -106,6 +106,9 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
     const today = new Date().toISOString().slice(0, 10);
     const todayKeyDate = today.replace(/-/g, '_');
     await page.evaluate(({ todayKeyDate }) => {
+      // Invented rate card: this repo ships no pay data, and a fresh install
+      // prices at zero until Settings → Import roster supplies one.
+      localStorage.setItem('sep_prod_cfg_v1', JSON.stringify({ hourRate: 50, permOtBaseRate: 484, snackRate: 25, rosterAsOf: '2026-09-24' }));
       localStorage.setItem('sep_cw_emp_v2', JSON.stringify([
         { id: 'cw_beta', name: 'Beta CW', inactive: false },
       ]));
@@ -135,12 +138,24 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
     const today = new Date().toISOString().slice(0, 10);
     const todayKeyDate = today.replace(/-/g, '_');
     await page.evaluate(({ today, todayKeyDate }) => {
+      // Invented rate card: this repo ships no pay data, and a fresh install
+      // prices at zero until Settings → Import roster supplies one.
+      localStorage.setItem('sep_prod_cfg_v1', JSON.stringify({ hourRate: 50, permOtBaseRate: 484, snackRate: 25, rosterAsOf: '2026-09-24' }));
+      // The guard's monthly wage, also invented; reconcile keeps a saved rate.
+      localStorage.setItem('sep_pe_emp_v1', JSON.stringify([
+        { id: 'uday', name: 'Uday', monthlyWage: 7200, shiftHours: 12, payModel: 'monthly-plain', inactive: false },
+      ]));
       // Seed CW attendance so calcDayWages has data to roll up.
       localStorage.setItem('sep_cw_emp_v2', JSON.stringify([
         { id: 'cw_gamma', name: 'Gamma CW', inactive: false },
       ]));
       localStorage.setItem('sep_cw_att_v2', JSON.stringify({
-        [`cw_gamma_${todayKeyDate}`]: { status: 'P', time: '09:00:00', otHours: 0 },
+        [`cw_gamma_${todayKeyDate}`]: { status: 'P', time: '09:00:00', otHours: 2 },
+      }));
+      // The guard, 2 hr beyond his 12-hour shift: priced at his plain hourly
+      // rate, monthly wage ÷ days in the month ÷ 12, no 1.1× (Janus M-2).
+      localStorage.setItem('sep_pe_att_v1', JSON.stringify({
+        [`uday_${todayKeyDate}`]: { status: 'P', time: '07:00:00', otHours: 2 },
       }));
       // Seed prod day with extra + snack costs so the costs CSV captures them.
       localStorage.setItem('sep_prod_log_v1', JSON.stringify({
@@ -161,16 +176,24 @@ test.describe('dash-3-3 monthly CSV export @smoke', () => {
     const { filename, rows } = await captureDownload(page, '[data-export-costs]');
 
     expect(filename).toBe(`SEP_costs_${CURRENT_MONTH}.csv`);
-    expect(rows[0]).toEqual(['Date', 'Day Wages', 'Extra Cost', 'Snack Cost', 'OT Cost', 'Total']);
+    expect(rows[0]).toEqual(['Date', 'Day Wages (incl. OT)', 'Extra Cost', 'Snack Cost', 'of which OT', 'Total']);
     const todayRow = rows.find((r) => r[0] === today);
     expect(todayRow, `cost row for ${today} must exist; saw: ${JSON.stringify(rows)}`).toBeTruthy();
     expect(parseInt(todayRow![1])).toBeGreaterThan(0); // day wages > 0
     expect(todayRow![2]).toBe('200');
     expect(todayRow![3]).toBe('100');
-    expect(todayRow![4]).toBe('0');
-    // total = wages + extra + snack + ot
+    // OT column = the contract hand's 2 hr at 50 + the guard's 2 hr at his
+    // plain hourly rate (no 1.1×), each floored per day. A breakdown of Day
+    // Wages, not an addend. Reverting either OT loop to permOtRate zeroes the
+    // guard's share and fails this.
+    const [y, m] = today.split('-').map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    const guardOt = Math.floor(2 * (7200 / dim / 12));
+    expect(parseInt(todayRow![4])).toBe(100 + guardOt);
+    // total = wages (which already include OT) + extra + snack — OT counted ONCE
+    // (Janus H-2: the old Total added the OT column on top again).
     const total = parseInt(todayRow![5]);
-    const sum = parseInt(todayRow![1]) + 200 + 100 + 0;
+    const sum = parseInt(todayRow![1]) + 200 + 100;
     expect(total).toBe(sum);
   });
 

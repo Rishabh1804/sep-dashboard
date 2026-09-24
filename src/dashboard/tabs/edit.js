@@ -32,6 +32,9 @@ import { makeStreamFormatters, fmtTime } from '../stream-format.js';
 import {
   buildEditPayload, editableFields, docTypeFromPath, REASON_ENUM, summarizeRevision,
 } from '../edit-model.js';
+import {
+  initAdoption, renderAdoption, loadAdoption, adoptionNeedsLoad,
+} from '../adoption-view.js';
 
 const STREAM_LIMIT = 50;
 const tsMs = eventMillis;
@@ -58,7 +61,7 @@ let customerNames = {};
 let rejectedWrites = [];
 let kpiSnapshot = null;
 
-let view = 'records';       // records | inboxes
+let view = 'records';       // records | inboxes | adoption
 let activeCat = 'production';
 let modal = null;           // { path, type } when an edit modal is open
 let formErr = '';
@@ -66,8 +69,11 @@ let formErr = '';
 const $root = () => document.getElementById('editRoot');
 const custName = (id) => customerNames[id] || id || '?';
 
+let adoptionReady = false;
+
 export function renderEdit() {
   if (!$root()) return;
+  if (!adoptionReady) { adoptionReady = true; initAdoption(paint, () => session); }
   // Retry from 'error' too (not just first 'idle'): a transient boot failure
   // (firebase/* import blip) clears the memoised session promise, so re-opening
   // the tab can genuinely recover — which is what the error card promises.
@@ -205,7 +211,14 @@ async function saveEdit() {
 
 // ---- window-exposed interaction handlers (template-onclick convention) ----
 
-export function edSetView(v) { view = v; paint(); }
+export function edSetView(v) {
+  view = v;
+  // Count on first open rather than rendering an empty grid: a zero the user
+  // did not ask for reads as "nobody entered anything", which is the one
+  // conclusion an un-run adoption view must never suggest.
+  if (v === 'adoption' && adoptionNeedsLoad()) loadAdoption();
+  paint();
+}
 export function edSelectCat(id) { activeCat = id; paint(); }
 export function edOpenEdit(encPath) {
   const path = decodeURIComponent(encPath);
@@ -261,8 +274,9 @@ function paint() {
       <button class="ed-viewbtn ${view === 'inboxes' ? 'active' : ''}" onclick="edSetView('inboxes')">
         Inboxes${conflictCount ? ` <span class="ed-badge">${conflictCount}</span>` : ''}
       </button>
+      <button class="ed-viewbtn ${view === 'adoption' ? 'active' : ''}" onclick="edSetView('adoption')">Adoption</button>
     </div>
-    ${view === 'records' ? renderRecords() : renderInboxes()}
+    ${view === 'records' ? renderRecords() : view === 'adoption' ? renderAdoption(claims) : renderInboxes()}
     ${modal ? renderModal() : ''}`;
 }
 

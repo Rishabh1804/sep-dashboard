@@ -13,6 +13,14 @@ import { K } from '../shared/storage/keys.js';
 import { DEF_CFG } from '../shared/config/wage.js';
 import { getActiveCW, getActivePermProd, getGuards, getPermWorkers } from '../shared/storage/workers.js';
 import { getCfg, getProdLogs } from '../shared/storage/production.js';
+import { rosterStatusNote } from '../shared/storage/seed-sync.js';
+import { getPrePricedNote } from './alerts.js';
+
+function rateWarning() {
+  const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  if (note.startsWith('Rates as of')) return `<p style="font-size:9pt">${esc(note)}</p>`;
+  return `<p style="border:1px solid #000;padding:4pt;font-weight:bold">⚠ ${esc(note)}</p>`;
+}
 
 function cwWeekly(satDate) {
   return calcCWWeeklyPay({
@@ -47,7 +55,7 @@ export function printCWPay() {
   const cfg = getInvCfg();
 
   let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
-    <p>CW Weekly Pay — ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>`;
+    <p>CW Weekly Pay — ${formatDateShort(data.monDate)} to ${formatDateShort(data.satDate)}</p></div>${rateWarning()}`;
   html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
   html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Days</th><th>OT Hrs</th><th>Gross</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
   data.workers.filter((w) => w.days > 0).forEach((w) => {
@@ -57,6 +65,8 @@ export function printCWPay() {
   html += `<tr style="border-top:2px solid #000;font-weight:700"><td colspan="3" style="padding:4pt">Total</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.cwWageTotal)}</td><td style="text-align:right;font-family:monospace">${formatCurrency(advTotal)}</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.grandTotal)}</td></tr>`;
   html += '</table>';
   if (data.extraTotal) html += `<p style="font-size:9pt;margin-top:8pt">Extra (shortfall): ${formatCurrency(data.extraTotal)} | Snack: ${formatCurrency(data.snackTotal + data.permSnackTotal)}</p>`;
+  const prePriced = getPrePricedNote(data.monDate, data.satDate);
+  if (prePriced) html += `<p style="border:1px solid #000;padding:4pt;font-size:9pt">⚠ ${esc(prePriced)}</p>`;
   html += `<div class="print-footer"><div class="print-sig"><div>Prepared By</div><div>Verified By</div><div>Approved By</div></div></div>`;
 
   const w = window.open('', '_blank', 'width=800,height=600');
@@ -72,7 +82,7 @@ export function printPermPay() {
   const monthLabel = new Date(data.month + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   let html = `<div class="print-header"><h2>${esc(cfg.companyName)}</h2>
-    <p>Permanent Staff Monthly Pay — ${monthLabel}</p></div>`;
+    <p>Permanent Staff Monthly Pay — ${monthLabel}</p></div>${rateWarning()}`;
   html += '<table style="width:100%;border-collapse:collapse;font-size:10pt;margin-top:12pt">';
   html += '<tr style="border-bottom:2px solid #000"><th style="text-align:left;padding:4pt">Name</th><th>Role</th><th>Days</th><th>OT Hrs</th><th>Base</th><th>OT Pay</th><th>Advance</th><th style="text-align:right">Net</th></tr>';
   data.workers.filter((w) => w.days > 0).forEach((w) => {

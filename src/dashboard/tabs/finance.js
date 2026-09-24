@@ -2,13 +2,14 @@
 // pay cards, advance recording, month-close lock UI.
 
 import { loadJSON, saveJSON } from '../../shared/storage/storage.js';
+import { getRosterStatusAlerts, getPrePricedNote } from '../../components/alerts.js';
 import { K } from '../../shared/storage/keys.js';
 import { getState } from '../../shared/storage/state.js';
 import { sepRound, formatCurrency } from '../../shared/utils/currency.js';
 import { getWeekEnd, formatDateShort } from '../../shared/utils/date.js';
 import { monthOf } from '../../shared/utils/month.js';
 import { isMonthLocked, requireUnlocked, getMonthLocks } from '../../shared/storage/lock.js';
-import { getAttKey, calcDayWages, calcMonthWages, calcCWWeeklyPay, calcPermMonthlyPay } from '../../shared/utils/payroll.js';
+import { getAttKey, calcDayWages, calcMonthWages, calcCWWeeklyPay, calcPermMonthlyPay, monthlyOtRate, cwHourRate } from '../../shared/utils/payroll.js';
 import { getActiveCW, getActivePermProd, getGuards, getPermWorkers, getAllProdWorkers } from '../../shared/storage/workers.js';
 import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production.js';
 import { getInvoices } from '../../shared/storage/invoice.js';
@@ -67,6 +68,13 @@ function monthWages(date) {
 export { dayWages as calcDayWages, cwWeekly, permMonthly };
 
 export function renderFinance() {
+  const note = document.getElementById('finRateNote');
+  if (note) {
+    const t = getState().today;
+    const pre = getPrePricedNote(t.slice(0, 8) + '01', t);
+    note.innerHTML = getRosterStatusAlerts().join('')
+      + (pre ? `<div class="alert-banner alert-warning" data-preprice-alert>⚠ ${pre}</div>` : '');
+  }
   const date = getState().today;
   const dayWage = dayWages(date);
   const prod = getProdDay(date);
@@ -88,12 +96,14 @@ export function renderFinance() {
   getActiveCW().forEach((w) => {
     const k = getAttKey('cw', w.id, date);
     const rec = cwAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * cfg.hourRate);
+    if (rec?.otHours) otCost += sepRound(rec.otHours * cwHourRate(cfg, w.id));
   });
-  getActivePermProd().forEach((w) => {
+  // Guards included: hours beyond a guard's 12-hour shift are paid at his plain
+  // hourly rate (BM, 23 Sep) — monthlyOtRate routes him there.
+  [...getActivePermProd(), ...getGuards()].forEach((w) => {
     const k = getAttKey('perm', w.id, date);
     const rec = peAtt[k];
-    if (rec?.otHours) otCost += sepRound(rec.otHours * sepRound((cfg.permOtBaseRate / 8) * cfg.permOtMultiplier));
+    if (rec?.otHours) otCost += sepRound(rec.otHours * monthlyOtRate(cfg, w, date));
   });
   document.getElementById('finOT').textContent = formatCurrency(otCost);
 
@@ -255,7 +265,7 @@ export function recordAdvance() {
   const today = getState().today;
   if (requireUnlocked(monthOf(today), 'Perm advance')) return;
   const perm = getActivePermProd();
-  const guard = getPermWorkers().filter((w) => DEF_CFG.guardIds.includes(w.id) && !w.inactive);
+  const guard = getGuards();
   const all = [...perm, ...guard];
   const names = all.map((w, i) => `${i + 1}. ${w.name}`).join('\n');
   const choice = prompt('Select worker number:\n' + names);

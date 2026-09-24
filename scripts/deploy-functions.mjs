@@ -54,18 +54,20 @@
 // CONFLICT_RESOLUTION.md (always-warm aggregators).
 // ════════════════════════════════════════════════════════════════════════════
 //
-// Usage: node scripts/deploy-functions.mjs [--project sep-dashboard-staging]
+// Usage: node scripts/deploy-functions.mjs [--env staging|prod] [--project <id>]
+//   --env picks the credential secret AND the default project id; --project
+//   still overrides the id explicitly. Defaults to staging.
 
 
 import { spawnSync } from 'node:child_process';
-import { argv, env, exit } from 'node:process';
+import { env, exit } from 'node:process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { withCredentialFile } from './lib/admin.mjs';
+import { withCredentialFile, resolveEnv, projectFor } from './lib/admin.mjs';
 
 const FIREBASE_TOOLS = 'firebase-tools@15.19.1'; // keep in lockstep with CI
-const i = argv.indexOf('--project');
-const project = i > -1 ? argv[i + 1] : 'sep-dashboard-staging';
+const fbEnv = resolveEnv();
+const project = projectFor(fbEnv);
 
 // firebase-tools introspects functions/src in-process to enumerate the triggers
 // it must deploy, so functions/ deps have to be installed locally FIRST. The
@@ -81,5 +83,5 @@ const status = withCredentialFile((credPath) => {
     ['-y', FIREBASE_TOOLS, 'deploy', '--only', 'functions', '--project', project, '--non-interactive', '--force'],
     { stdio: 'inherit', env: { ...env, GOOGLE_APPLICATION_CREDENTIALS: credPath } });
   return r.status ?? 1;
-});
+}, fbEnv);
 exit(status);

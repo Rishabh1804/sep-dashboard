@@ -1220,3 +1220,259 @@ padded picker-id trim-vs-drop nuance.
 
 *Session 19 documented 20 July 2026 by Aurelius (Claude Code); review pass
 folded same day.*
+
+---
+
+## Session 19a: Week-0 Rollout Pack — Paper Forms, Adoption KPI, Prod Plumbing (24 August 2026)
+
+### What Shipped
+
+The **Week-0 rollout pack** — execution of `ADOPTION_PLAN.md`'s Week 0, which
+has been the un-started precondition for Week 1 since Phase 7 locked it in May.
+Three deliverables plus the prod-project plumbing:
+
+1. **Paper backup forms, generated from the live registry.** Escape hatch #1
+   in the adoption plan and the denominator source for the whole parallel-paper
+   run. `src/handler/paper-forms.js` derives a printable A4 spec from `FORMS`
+   + `DICT`; `pnpm paper:forms` writes `dist/paper-forms.html` (9 sheets,
+   committed so it prints from the repo without Node). **Derived, not drawn** —
+   a paper form that drifts from the app is worse than none, because every
+   reconciliation after that measures the drift instead of the adoption.
+2. **Adoption view** — a third view on the Edit tab (steward-exclusive, per the
+   plan's own wording). `adoption-model.js` (pure) + `adoption-view.js` (render
+   + one-shot Firestore counts). Rows = the 9 forms, columns = Week rate then
+   Mon–Sun, each day carrying the digital count over a paper-count input.
+3. **`WEEK_0_RUNBOOK.md`** — the executable checklist: print/laminate/distribute,
+   provision by QR, the huddle, the end-of-shift reconciliation ritual, and
+   Week-0 acceptance.
+4. **Prod plumbing + `PROD_STANDUP.md`** — the admin plane is now env-switched
+   (`--env staging|prod` → `FIREBASE_SERVICE_ACCOUNT_<ENV>` + project id), and
+   the stand-up runbook states the fork that has to be settled *before* Week 1.
+
+### The load-bearing design decision
+
+**The numerator is measured; the denominator is typed.** Digital entries come
+from Firestore; expected entries come from counting the `☐ In app` ticks on
+paper. The view must never blur which is which, so:
+
+- **An un-run week renders `—`, never `0%`.** Before a fetch, digital is
+  *unknown*, not zero — and `rate(0, 206)` is a legitimate 0 that would paint a
+  red 0% against a week nobody counted. Caught in the first visual pass; the
+  regression test was verified to fail with the fix reverted.
+- **A missing paper count renders `—`, never `100%`.** A denominator of zero is
+  not success.
+- **Rates above 100% are surfaced, not clamped** — more digital than paper means
+  an uncounted sheet or a double entry. Clamping would hide the finding.
+- **`denied` on a row is a missing measurement, not a zero** (the CG-read rules
+  are still IAM-gated), and the card states how many of the 9 forms are actually
+  measured. Same discipline as the Stats coverage banner in sep-invoicing.
+- **Paper counts live in this device's localStorage** — there is no Firestore
+  write rule for an adoption count and inventing one needs the IAM-gated deploy.
+  Stated on the card rather than hidden.
+
+### Coupling tests (what stops the pack rotting)
+
+- Paper sheets vs registry: field **order** matches the PWA's, every label
+  resolves in **both** languages, every function-`required` field has a human
+  sentence for paper (and no stale ones), every select carries its tick options.
+  Adding a field to the app without a paper equivalent fails CI.
+- `ADOPTION_FORMS` vs `transport.js`: every form has a row; every subcollection
+  write is marked as a collection-group read.
+- Admin env: staging and prod can never resolve to the same credential var or
+  project id. A prod run holding only the staging secret **fails the credential
+  check** — verified; it does not fall back.
+
+### Self-review findings folded
+
+- **`esc()` inside quoted attributes** → `escAttr()`. Values were constants and
+  validated numbers, so no live hole — but this is the exact sink class the
+  12-Jun picker review and the 13-Jun edit-modal review each caught, and the
+  convention is `escAttr` in attributes.
+- **Week rate column was scrolling off-screen.** Nine forms × seven days cannot
+  fit a phone, so the table scrolls — and what scrolled away was the number the
+  view exists to show. Week now sits immediately after Form.
+- **Stale-week trap**: with the session gone, a week change left the previous
+  week's docs behind a `ready` flag to be re-bucketed as a measurement.
+  `loadAdoption` and `initAdoption` now reset the measurement state.
+- **Print layout measured, not guessed**: grid rows were sized against the
+  printable A4 height in a real browser (production 15→24 rows, check-in
+  20→24); the e2e asserts every sheet fits one page in width *and* height, so a
+  future field addition cannot silently spill a form onto a second sheet.
+
+### Test Results
+
+- **Unit (Jest):** 279 → **341** (paper-forms 13 · adoption-model 26 ·
+  adoption-view 18 · admin-env 5)
+- **E2E (Playwright):** 41 → **43** (paper-forms render + one-page fit)
+- **Build:** clean · `BUILD 4→5`, `APP_VERSION 2.1.0-alpha.8`, both SW caches
+  bumped (`dist/paper-forms.html` deliberately NOT cached — a print artifact,
+  not a PWA asset)
+- `playwright.config.ts` gained the `PW_CHROMIUM_PATH` escape hatch
+  sep-invoicing already carries, for sandboxes whose Chromium build the pinned
+  Playwright does not expect. Unset in CI.
+
+### Known limits (stated, not hidden)
+
+- **Collection-group counts are capped** at 3,000 docs and filtered
+  client-side: a range filter on a collection *group* needs an explicit CG
+  index, which needs the IAM-gated deploy. Flagged inline as `capped` when hit.
+  Add the index before the corpus outgrows the cap.
+- **The prod path is unexercised** — backward-compatible by construction
+  (staging is the default and byte-identical), but there is no prod project to
+  run it against. Expect the first prod run to surface something.
+- **No replay/rebuild CLI exists**, despite the adoption plan listing it as an
+  escape hatch. The aggregators are idempotent; recovery today is a corrected
+  redeploy plus manual edits. Stated in the runbook.
+- Week-1 targets (60/80/95) live in `WEEK1_TARGETS` but the view measures
+  against the 95% steady-state bar; reading the ramp is still by eye.
+
+### Next
+
+Settle the staging-vs-prod fork (`PROD_STANDUP.md` §1) · grant the two IAM
+roles so `deploy-rules` goes green and the CG-read rows stop reading `denied` ·
+provision the first handler and dry-run the reconciliation ritual once before
+Week 1 · then the standing queue: CF cross-doc validation, the Session-17
+audit-noise + `functions lint` fast-follows, shared `firestore-store`
+extraction.
+
+*Session 19a (written as "Session 20") documented 24 August 2026 by Aurelius (Claude Code).*
+
+---
+
+## Session 19b: Payroll Config Reconciled, Then Moved Out (21–24 September 2026)
+
+> **Numbering.** This section and the one above were written as "Session 21" and "Session 20".
+> Main's `SESSION_20_KICKOFF.md` (the direction change, 24 Sep) claims Session 20 for the next
+> build, so these two are renumbered **19a** (Week-0 pack) and **19b** (this) to keep the
+> sequence the kickoff starts from. The work is unchanged; only the labels moved.
+
+> **No pay figure appears here.** Under the Director's sensitive-data rule (24 Sep 2026;
+> soma-internal `docs/CROSS_REPO_SESSIONS.md` rule 3) this public repo carries no pay data. The
+> full record of this session and its six amendments — every rate, the per-worker tables, the
+> rulings and the Governor findings — was **copied** to soma-internal
+> `analysis/sep-dashboard-payroll-record-2026-09.md` before being summarised here.
+
+### What changed, in the order it happened
+
+1. **Roster reconciled against the codex (alpha.9–10).** `config/{workers,areas}.js` had drifted
+   from soma-internal, which owns the roster. Canonical names (Lakhi / Sambhu / Montu /
+   Budheswer), Rakesh and Vijay added, Kusu and Tuklu marked inactive (never deleted), the
+   job-work tier taken off the pickling rosters, and Sambhu moved to the monthly tier from
+   September 2026. **Roster: 20 active, 10 monthly-tier + 10 daily hands.** Worker **ids never
+   change** — an id is a Firestore path segment and the prefix of every attendance key — so where
+   canon differs, the display name moved. `tests/unit/roster-codex.test.js` pins all of this.
+2. **Permanent OT is a rule, not a flat rate (alpha.11, 13).** `permOtRate(cfg, worker)` =
+   `min(dailyRate, permOtBaseRate) ÷ 8 × permOtMultiplier`, the rate exact and unfloored; the
+   paid amount is floored **once per month** in `calcPermMonthlyPay` and per day in the cost views
+   (estimates, not pay). All four compute sites route through it.
+3. **Seed reconciliation (alpha.12, Janus B-1 / Castor C-H6).** `initData()` used to seed only
+   when absent, so every correction reached fresh installs only. `storage/seed-sync.js`
+   reconciles on every boot; operator-added workers and stamped deactivations survive; a worker
+   who changed tier is removed from the old one, so no one is paid twice.
+4. **The plain monthly model (alpha.13–15).** Guards — and, on the BM's 24 Sep answer, **any
+   non-floor worker carrying `payModel: 'monthly-plain'`** — are paid monthly wage ÷ days in the
+   month, with hours at that ÷ `shiftHours`, no multiplier. `usesPlainRate` is the one test;
+   `permOtRate` returns 0 for them and `monthlyOtRate` routes them. `isNonFloor` takes them off the
+   production roster and into `getGuards()`. The BM confirmed **÷ 12 for the guard** (24 Sep);
+   dividing other option-carriers by *their* `shiftHours` is part of the reading, not the ruling
+   *(Castor C-M2)*. ⚠ *"An option for non-floor staff" is a reading of a five-word answer.* ⚠ The
+   gate's CA-approved hours exemption does **not** cover other staff, so a second worker on the
+   option needs the CA's answer first (soma-internal T-HU (2); Castor C-M3).
+5. **Pay data moved out (alpha.16).** See below.
+
+### alpha.16 — the import door
+
+**Structure ships; pay data is imported.** `config/workers.js` carries ids, names, roles, tier,
+pay model and shift length — and no `dailyRate` or `monthlyWage`. `config/wage.js` carries the
+rules (`permOtMultiplier`, shifts, `guardIds`) and ships the three rate-card fields
+(`RATE_CFG_FIELDS`: `hourRate`, `permOtBaseRate`, `snackRate`) as **null**.
+
+- **Settings → Import roster** loads a `sep-dashboard-roster` v1 file that soma-internal generates
+  (`scripts/build-dashboard-roster.py` → `analysis/sep-dashboard-roster-YYYY-MM-DD.json`).
+  `applyRosterImport` matches workers **by id** across both tiers, applies only rate fields,
+  **skips and counts** an unknown id (never creates a worker), and **rejects and names** a junk
+  figure. A name, role or tier in the file is ignored — structure stays the app's.
+- **A transfer is a COPY — and a copy can be stale, so it is FLAGGED, never wiped.** `seed-sync`
+  never touches a rate: a device keeps the rates it holds until an import replaces them. 🔴 **The
+  realistic upgrade is `main` → this build, not alpha.15 → this build** *(Castor C-B1 / Janus J-B1)*:
+  `main` ships alpha.7, whose seed carries a contract rate about 13% under the card, six men on a
+  flat placeholder day rate, the guard on a flat day rate with no monthly wage, and Sambhu with no
+  permanent rate. Kept silently, those would price as if current. So **`applyRosterImport` stamps
+  `cfg.rosterAsOf`**, and `rosterStatus(cfg, workers)` reads **imported / held / none**. Until the
+  stamp exists, **Home, Finance, Production and History carry a banner, Settings marks each figure
+  "held, not imported", and both pay prints and the payroll and costs CSVs carry the warning
+  themselves** (`rosterStatusNote`). ⚠ **What this does not catch** *(Cipher H-1)*: a stamp does not
+  expire, so a device stamped with an older card reads "imported" — which is why every pay print and
+  pay CSV names the card's date (*Rates as of …*) even when imported; and production days confirmed
+  at a held rate keep that extra cost after the import (only ₹0 figures are repriced). **alpha.19**
+  *(Janus J-H1, J-M1)*: the import alert **lists those dates**, split by cause (same extra hours at a
+  different cost = an older rate; different hours = area settings or a hand edit), keeps them in
+  `cfg.rosterPrePricedDates`, and the CW weekly print, the costs CSV and the Finance tab **name any
+  such day they cover** until it is re-opened and saved, which reprices it. ⚠ The stamp is set even
+  when the alert reports rejected or unpriced workers.
+  **Importing the roster is a required step on each device's first boot of this build.**
+- **A fresh install prices at zero, and says so on every surface that shows pay** — Home, Finance, Production and History, Settings, both pay prints and the payroll and costs CSVs (instrument: every file under `src/dashboard/tabs` and `src/components` that reads a wage, rate, extra or snack cost) —
+  not only in Settings *(Janus J-H1; Production and History added at Cipher M-1)*. `dayRateOf`, `cwHourRate` and `permOtRate` turn a missing rate into 0, never NaN.
+- **Days recorded before the import are repriced at import** *(Janus J-H2)*: `repriceUnpriced`
+  prices extra and snack costs that were saved at ₹0 — unlocked months only, unpriced figures only,
+  so priced (and possibly paid) history is never rewritten.
+- **The import checks what it is given** *(Janus J-M2)*: a figure in the field a worker is not paid
+  by (a monthly wage on a floor hand, a day rate on a plain-model worker, anything on a contract
+  hand) is rejected and named, and active monthly-tier workers the file left unpriced are listed.
+  It cannot clear a field: a device upgraded from `main` keeps the guard's old `dailyRate` beside
+  the imported `monthlyWage`, which is harmless because `monthlyWage` wins.
+- **Tests carry no per-worker card figure** — off-card values, after the chain found three that
+  coincided with real card figures *(Janus J-M3 / Castor L2)*. Two bare numbers still coincide with
+  card values and name nobody (a `sepRound(496)` case that predates this work, and an anonymous
+  `dailyRate: 500`) *(Cipher L-3)*. The rule tests
+  (`payroll.test.js`, `seed-sync.test.js`) use a synthetic rate card; `tests/unit/fixtures/main-era-seed.js` keeps main's pre-alpha.9
+  structure with invented rates. The per-worker rate pins moved to the generator's self-checks
+  in soma-internal, beside the data they check.
+- **`handler-demo.html` was regenerated** from source (`pnpm build:demo`): the committed copy
+  embedded the old seed with real day rates *(Castor C-H3 / Janus J-H4)*. **`bm-role.html`** — the BM role and KPI page uploaded in May, carrying business figures (bank
+  balance, receivables, the bonus trigger and accrual) and named debtors; soma-internal
+  `decisions/2026-05-11-bm-role-and-comp.md` records it as a live page, so whether its figures were
+  real is **not established** — **was moved to soma-internal on the Director's word** (24 Sep: "move
+  bm-role as well"), byte-identical, as `analysis/sep-dashboard-bm-role-2026-05.html`. Nothing in this
+  repo linked to it; the codex's May record links its Pages URL, which stops resolving once this
+  deploys. ⚠ It was **served publicly on Pages from May** until then, which is exposure beyond git
+  history *(Cipher M-2)*.
+- ⚠ **Public history is not rewritten.** Earlier commits on the PR branch, and main's own history
+  before this merge, still contain the figures. A squash merge keeps the branch commits out of
+  main; purging history needs a force-push and is the Director's call.
+
+### Known limits (stated, not hidden)
+
+- **No effective-dated rates.** Any month is computed with the rules held now, so a recompute of a
+  pre-September month does not reproduce what was paid. Past months come from the codex's payout
+  files. The History wage pill says it is a recompute.
+- **No screen records a guard's extra hours.** `otHours` is written only for the production
+  roster; the plain-model rates price imported or hand-entered data correctly, but the hours
+  cannot be captured here.
+- **This app is not the permanent slip instrument.** It has no rest-day credit, no attendance
+  gate, no EXTRA-day exclusion and no worked-Sunday rule.
+- **A recompute of a pre-September week reads zero for a worker who changed tier**, because his
+  earlier attendance is keyed under the other tier's map.
+- **A non-floor worker cannot be put on a floor crew** *(Vulcanus V-L1)*: the plain model takes him
+  off the production roster, so directed floor work (the W24 class) leaves that area a head short
+  in the shortfall arithmetic.
+- **Area rosters predate this work and are unconfirmed** *(Vulcanus V-L2)*: some leads and hands sit
+  on no roster, one lead sits on two, and the pickling split is still marked for confirmation. They
+  need the BM and a relay check; `roster-codex.test.js` now at least pins that no rostered hand is on
+  the plain model (V-M1), which would silently drop him from his crew.
+
+### Test Results
+
+Unit **341 → 420** across alpha.9–15, **400** at alpha.16 (the per-worker rate pins left for
+soma-internal; the import-door and copy-semantics tests added), **411** at alpha.17 after the
+Governor chain (import stamp and status, pay-model and coverage checks, repricing, a full month
+paying the whole wage — Janus J-H3's float-residue rupee — the override map, rostered hands off
+the plain model) · E2E **43 → 46** (`roster_status.spec.ts`: none / held / imported) ·
+`BUILD 12 → 13 → 14`, `APP_VERSION 2.1.0-alpha.17`, both SW caches bumped. **alpha.18** (Censor
+pass): banners on Production and History, pay prints and pay CSVs always dated, older-rate days
+counted at import · unit **412** · e2e **46** · `BUILD 15`. **alpha.19** (Governor re-check): the
+pre-priced days are dated, split by cause and named on the pay documents covering them · unit
+**414** · e2e **46** · `BUILD 16`.
+
+*Session 19b documented 21–24 September 2026 by Aurelius (Claude Code); figures transferred to
+soma-internal 24 September 2026.*
