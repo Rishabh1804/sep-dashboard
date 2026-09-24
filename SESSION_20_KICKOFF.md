@@ -96,6 +96,6 @@ Session D checks these against the other repos' descriptions. **If one changes, 
 
 | Flow | This repo's side |
 |---|---|
-| **Consumes** the WhatsApp group | **Planned.** Route to be settled (⚠ B). ⚠ `soma-internal` reads the same group by hand today. **Two readers of one source need one system of record, and Session D rules which.** |
+| **Consumes** the WhatsApp group | **Planned.** Route to be settled (⚠ B). `soma-internal` reads the same group by hand today and is the system of record until a merge PR says otherwise. ⚖ **The owner's rule, 24 Sep: the latest merge survives, with its reason stated in its PR, unless a repo's merge PR says otherwise.** For this backend to become the system of record, its PR must say so and give the reason. |
 | **Consumes** the private seed ← `soma-internal` | Live for the old Firestore architecture through `soma-internal`'s `seed-staging` workflow. **Under review** with ⚠ A. |
-| **Stock** | v2.1 had a stock tab (`src/dashboard/tabs/stock.js`). The new scope is attendance and production only, and `sep-invoicing` is planning a stock tab. **Session D rules which app owns stock.** |
+| **Stock** | v2.1 had a stock tab (`src/dashboard/tabs/stock.js`). The new scope is attendance and production only, and `sep-invoicing` is planning a stock tab. **Ownership follows the same rule: the latest merge PR that claims it with a reason.** A PR that retires this tab should say so, so the record stays clear. |
