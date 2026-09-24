@@ -99,6 +99,8 @@ export function importRoster() {
       const logs = getProdLogs(); const snacks = loadJSON(K.permSnack, []);
       const rp = repriceUnpriced({ logs, snacks, areas: getAreas(), cfg: getCfg(), isLocked: isMonthLocked });
       if (rp.days) saveJSON(K.prodLog, logs);
+      // Keep the dates so every pay document covering them says so (Janus J-H1).
+      saveJSON(K.prodCfg, { ...loadJSON(K.prodCfg, {}), rosterPrePricedDates: [...rp.olderRateDates, ...rp.otherMismatchDates].sort() });
       if (rp.snackEntries) saveJSON(K.permSnack, snacks);
       const { stats } = res;
       alert(`Roster imported${doc.asOf ? ` (as of ${doc.asOf})` : ''}: ${stats.workers} workers, ${stats.cfg} rate-card values.`
@@ -106,7 +108,8 @@ export function importRoster() {
         + (stats.rejected.length ? `\nRejected: ${stats.rejected.join(', ')}` : '')
         + (stats.unpriced.length ? `\nStill unpriced — not in the file: ${stats.unpriced.join(', ')}` : '')
         + (rp.days || rp.snackEntries ? `\nRepriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : '')
-        + (rp.otherRateDays ? `\n${rp.otherRateDays} production day(s) in unlocked months carry extra costs priced at an older rate; kept as recorded.` : ''));
+        + (rp.olderRateDates.length ? `\nExtra cost priced at an older rate, kept as recorded: ${rp.olderRateDates.join(', ')}. Re-open and save a day to reprice it.` : '')
+        + (rp.otherMismatchDates.length ? `\nExtra cost differs from today's card and areas (area settings or a hand edit): ${rp.otherMismatchDates.join(', ')}.` : ''));
       closeSettings();
       if (typeof window.renderActiveTab === 'function') window.renderActiveTab();
       openSettings();

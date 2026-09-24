@@ -10,7 +10,7 @@ import {
   eventMillis,
   validateEditField,
   validateEditedDoc
-} from "./chunks/chunk-YETNL5RW.js";
+} from "./chunks/chunk-L4IIXOVF.js";
 import {
   APP_VERSION,
   CHECK_DIRECTIONS,
@@ -22,7 +22,7 @@ import {
   JOB_ROUTES,
   NOTE_PRIORITIES,
   NOTE_STATUSES
-} from "./chunks/chunk-URXBRKJD.js";
+} from "./chunks/chunk-HEIKWH22.js";
 
 // src/shared/pubsub.js
 var listeners = /* @__PURE__ */ new Map();
@@ -763,14 +763,17 @@ function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
   const snackRate = Number(cfg.snackRate) || 0;
   let days = 0;
   let snackEntries = 0;
-  let otherRateDays = 0;
+  const olderRateDates = [];
+  const otherMismatchDates = [];
   for (const [date, prod] of Object.entries(logs || {})) {
     if (!prod || !prod.periods || isLocked(date.slice(0, 7))) continue;
     const t = prod.totals || {};
     if (t.extraCost && rate2 > 0) {
       const probe = JSON.parse(JSON.stringify(prod));
       recalcExtra(probe, areas, cfg);
-      if (probe.totals.extraCost !== t.extraCost) otherRateDays++;
+      if (probe.totals.extraCost !== t.extraCost) {
+        (probe.totals.extraHours === t.extraHours ? olderRateDates : otherMismatchDates).push(date);
+      }
     }
     const extraUnpriced = (t.extraHours || 0) > 0 && !t.extraCost && rate2 > 0;
     const snackUnpriced = prod.periods.eveningOT?.active && (prod.periods.eveningOT.workers?.length || 0) > 0 && !t.snackCost && snackRate > 0;
@@ -786,7 +789,17 @@ function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
     s.snack = snackRate;
     snackEntries++;
   }
-  return { days, snackEntries, otherRateDays };
+  return { days, snackEntries, olderRateDates, otherMismatchDates };
+}
+function stillPrePriced({ logs, areas, cfg, dates, from, to }) {
+  return (dates || []).filter((d) => {
+    if (d < from || d > to) return false;
+    const prod = logs && logs[d];
+    if (!prod || !prod.periods || !prod.totals?.extraCost) return false;
+    const probe = JSON.parse(JSON.stringify(prod));
+    recalcExtra(probe, areas, cfg);
+    return probe.totals.extraCost !== prod.totals.extraCost;
+  });
 }
 
 // src/components/worker-picker.js
@@ -963,14 +976,16 @@ function importRoster() {
       const snacks = loadJSON(K.permSnack, []);
       const rp = repriceUnpriced({ logs, snacks, areas: getAreas(), cfg: getCfg(), isLocked: isMonthLocked });
       if (rp.days) saveJSON(K.prodLog, logs);
+      saveJSON(K.prodCfg, { ...loadJSON(K.prodCfg, {}), rosterPrePricedDates: [...rp.olderRateDates, ...rp.otherMismatchDates].sort() });
       if (rp.snackEntries) saveJSON(K.permSnack, snacks);
       const { stats } = res;
       alert(`Roster imported${doc.asOf ? ` (as of ${doc.asOf})` : ""}: ${stats.workers} workers, ${stats.cfg} rate-card values.` + (stats.unknown.length ? `
 Skipped \u2014 not on this device: ${stats.unknown.join(", ")}` : "") + (stats.rejected.length ? `
 Rejected: ${stats.rejected.join(", ")}` : "") + (stats.unpriced.length ? `
 Still unpriced \u2014 not in the file: ${stats.unpriced.join(", ")}` : "") + (rp.days || rp.snackEntries ? `
-Repriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : "") + (rp.otherRateDays ? `
-${rp.otherRateDays} production day(s) in unlocked months carry extra costs priced at an older rate; kept as recorded.` : ""));
+Repriced ${rp.days} production day(s) and ${rp.snackEntries} snack entr(ies) recorded before any rate was loaded.` : "") + (rp.olderRateDates.length ? `
+Extra cost priced at an older rate, kept as recorded: ${rp.olderRateDates.join(", ")}. Re-open and save a day to reprice it.` : "") + (rp.otherMismatchDates.length ? `
+Extra cost differs from today's card and areas (area settings or a hand edit): ${rp.otherMismatchDates.join(", ")}.` : ""));
       closeSettings();
       if (typeof window.renderActiveTab === "function") window.renderActiveTab();
       openSettings();
@@ -1135,6 +1150,80 @@ function initSettingsBackHandler() {
   });
 }
 
+// src/components/alerts.js
+function getPrePricedNote(from, to) {
+  const cfg = getCfg();
+  const dates = stillPrePriced({
+    logs: getProdLogs(),
+    areas: getAreas(),
+    cfg,
+    dates: cfg.rosterPrePricedDates,
+    from,
+    to
+  });
+  return dates.length ? `Extra cost on ${dates.join(", ")} was priced before the rate card was imported and is kept as recorded.` : "";
+}
+function getRosterStatusAlerts() {
+  const status = rosterStatus(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
+  if (status === "held") return ['<div class="alert-banner alert-warning" data-roster-alert="held">\u26A0 Pay rates on this device were never imported and may be out of date. Settings \u2192 Import roster.</div>'];
+  if (status === "none") return ['<div class="alert-banner alert-warning" data-roster-alert="none">\u26A0 No pay rates loaded \u2014 wages read \u20B90. Settings \u2192 Import roster.</div>'];
+  return [];
+}
+function getCWPayDueAlerts() {
+  const alerts = [];
+  const today = getState().today;
+  const d = /* @__PURE__ */ new Date(today + "T00:00:00");
+  const dow = d.getDay();
+  const satDate = getWeekEnd(today);
+  const paid = loadJSON(K.cwPay, {});
+  const isPaid = paid[satDate]?.paid || false;
+  if (!isPaid) {
+    if (dow === 4 || dow === 5) {
+      alerts.push(`<div class="alert-banner alert-warning">\u{1F4B0} CW pay due Saturday (${formatDateShort(satDate)})</div>`);
+    } else if (dow === 6) {
+      alerts.push(`<div class="alert-banner alert-danger">\u26A0 CW pay overdue \u2014 not yet marked paid for week ending ${formatDateShort(satDate)}</div>`);
+    }
+  }
+  return alerts;
+}
+function getAttendancePatternAlerts() {
+  const alerts = [];
+  const allWorkers = getAllProdWorkers();
+  const cwAtt = loadJSON(K.cwAtt, {});
+  const peAtt = loadJSON(K.peAtt, {});
+  const today = /* @__PURE__ */ new Date(getState().today + "T00:00:00");
+  const permIds = new Set(getPermWorkers().map((p) => p.id));
+  allWorkers.forEach((w) => {
+    const isPerm = permIds.has(w.id);
+    const store2 = isPerm ? peAtt : cwAtt;
+    const type = isPerm ? "perm" : "cw";
+    let absentLast7 = 0;
+    let consecutiveAbsent = 0;
+    let maxConsecutive = 0;
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const ds = localDateStr(d);
+      const k = getAttKey(type, w.id, ds);
+      const rec = store2[k];
+      const isAbsent = !rec || rec.status === "A";
+      if (isAbsent) {
+        absentLast7++;
+        consecutiveAbsent++;
+        if (consecutiveAbsent > maxConsecutive) maxConsecutive = consecutiveAbsent;
+      } else {
+        consecutiveAbsent = 0;
+      }
+    }
+    if (maxConsecutive >= 3) {
+      alerts.push(`<div class="alert-banner alert-danger">\u{1F6A8} ${esc(w.name)} absent ${maxConsecutive} consecutive days</div>`);
+    } else if (absentLast7 >= 3) {
+      alerts.push(`<div class="alert-banner alert-warning">\u26A0 ${esc(w.name)} absent ${absentLast7} of last 7 days</div>`);
+    }
+  });
+  return alerts;
+}
+
 // src/components/print-pay.js
 function rateWarning() {
   const note = rosterStatusNote(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
@@ -1180,6 +1269,8 @@ function printCWPay() {
   html += `<tr style="border-top:2px solid #000;font-weight:700"><td colspan="3" style="padding:4pt">Total</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.cwWageTotal)}</td><td style="text-align:right;font-family:monospace">${formatCurrency(advTotal)}</td><td style="text-align:right;font-family:monospace">${formatCurrency(data.grandTotal)}</td></tr>`;
   html += "</table>";
   if (data.extraTotal) html += `<p style="font-size:9pt;margin-top:8pt">Extra (shortfall): ${formatCurrency(data.extraTotal)} | Snack: ${formatCurrency(data.snackTotal + data.permSnackTotal)}</p>`;
+  const prePriced = getPrePricedNote(data.monDate, data.satDate);
+  if (prePriced) html += `<p style="border:1px solid #000;padding:4pt;font-size:9pt">\u26A0 ${esc(prePriced)}</p>`;
   html += `<div class="print-footer"><div class="print-sig"><div>Prepared By</div><div>Verified By</div><div>Approved By</div></div></div>`;
   const w = window.open("", "_blank", "width=800,height=600");
   if (!w) {
@@ -1549,68 +1640,6 @@ function getStock() {
 }
 function getStockLog() {
   return loadJSON(K.stockLog, []);
-}
-
-// src/components/alerts.js
-function getRosterStatusAlerts() {
-  const status = rosterStatus(getCfg(), [...getPermWorkers(), ...loadJSON(K.cwEmp, [])]);
-  if (status === "held") return ['<div class="alert-banner alert-warning" data-roster-alert="held">\u26A0 Pay rates on this device were never imported and may be out of date. Settings \u2192 Import roster.</div>'];
-  if (status === "none") return ['<div class="alert-banner alert-warning" data-roster-alert="none">\u26A0 No pay rates loaded \u2014 wages read \u20B90. Settings \u2192 Import roster.</div>'];
-  return [];
-}
-function getCWPayDueAlerts() {
-  const alerts = [];
-  const today = getState().today;
-  const d = /* @__PURE__ */ new Date(today + "T00:00:00");
-  const dow = d.getDay();
-  const satDate = getWeekEnd(today);
-  const paid = loadJSON(K.cwPay, {});
-  const isPaid = paid[satDate]?.paid || false;
-  if (!isPaid) {
-    if (dow === 4 || dow === 5) {
-      alerts.push(`<div class="alert-banner alert-warning">\u{1F4B0} CW pay due Saturday (${formatDateShort(satDate)})</div>`);
-    } else if (dow === 6) {
-      alerts.push(`<div class="alert-banner alert-danger">\u26A0 CW pay overdue \u2014 not yet marked paid for week ending ${formatDateShort(satDate)}</div>`);
-    }
-  }
-  return alerts;
-}
-function getAttendancePatternAlerts() {
-  const alerts = [];
-  const allWorkers = getAllProdWorkers();
-  const cwAtt = loadJSON(K.cwAtt, {});
-  const peAtt = loadJSON(K.peAtt, {});
-  const today = /* @__PURE__ */ new Date(getState().today + "T00:00:00");
-  const permIds = new Set(getPermWorkers().map((p) => p.id));
-  allWorkers.forEach((w) => {
-    const isPerm = permIds.has(w.id);
-    const store2 = isPerm ? peAtt : cwAtt;
-    const type = isPerm ? "perm" : "cw";
-    let absentLast7 = 0;
-    let consecutiveAbsent = 0;
-    let maxConsecutive = 0;
-    for (let i = 1; i <= 7; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const ds = localDateStr(d);
-      const k = getAttKey(type, w.id, ds);
-      const rec = store2[k];
-      const isAbsent = !rec || rec.status === "A";
-      if (isAbsent) {
-        absentLast7++;
-        consecutiveAbsent++;
-        if (consecutiveAbsent > maxConsecutive) maxConsecutive = consecutiveAbsent;
-      } else {
-        consecutiveAbsent = 0;
-      }
-    }
-    if (maxConsecutive >= 3) {
-      alerts.push(`<div class="alert-banner alert-danger">\u{1F6A8} ${esc(w.name)} absent ${maxConsecutive} consecutive days</div>`);
-    } else if (absentLast7 >= 3) {
-      alerts.push(`<div class="alert-banner alert-warning">\u26A0 ${esc(w.name)} absent ${absentLast7} of last 7 days</div>`);
-    }
-  });
-  return alerts;
 }
 
 // src/dashboard/tabs/home.js
@@ -2344,7 +2373,11 @@ function monthWages(date) {
 }
 function renderFinance() {
   const note = document.getElementById("finRateNote");
-  if (note) note.innerHTML = getRosterStatusAlerts().join("");
+  if (note) {
+    const t = getState().today;
+    const pre = getPrePricedNote(t.slice(0, 8) + "01", t);
+    note.innerHTML = getRosterStatusAlerts().join("") + (pre ? `<div class="alert-banner alert-warning" data-preprice-alert>\u26A0 ${pre}</div>` : "");
+  }
   const date = getState().today;
   const dayWage = dayWages(date);
   const prod = getProdDay(date);
@@ -4415,7 +4448,8 @@ function exportCostsCSV() {
     alert(`No cost data for ${month}.`);
     return;
   }
-  csvDownload(`SEP_costs_${month}.csv`, withRateNote(rows));
+  const prePriced = getPrePricedNote(dates[0], dates[dates.length - 1]);
+  csvDownload(`SEP_costs_${month}.csv`, withRateNote(prePriced ? [...rows, [`NOTE: ${prePriced}`]] : rows));
 }
 
 // src/dashboard/main.js

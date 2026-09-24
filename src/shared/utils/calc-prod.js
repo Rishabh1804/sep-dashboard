@@ -91,22 +91,28 @@ export function recalcExtra(prod, areas, cfg) {
 // touched — a day whose extra or snack already carries a cost keeps it, so priced
 // (and possibly paid) history is never rewritten — and nothing in a locked month
 // moves. `isLocked(month)` takes 'YYYY-MM'. Mutates the logs and snack entries it
-// is given; returns how many of each it repriced, and how many priced days carry
-// an extra cost that the new rate would not give.
+// is given; returns how many of each it repriced, and the dates of priced days
+// whose extra cost today's card would not give.
 export function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => false }) {
   const rate = Number(cfg.hourRate) || 0;
   const snackRate = Number(cfg.snackRate) || 0;
-  let days = 0; let snackEntries = 0; let otherRateDays = 0;
+  let days = 0; let snackEntries = 0;
+  const olderRateDates = []; const otherMismatchDates = [];
   for (const [date, prod] of Object.entries(logs || {})) {
     if (!prod || !prod.periods || isLocked(date.slice(0, 7))) continue;
     const t = prod.totals || {};
-    // A day already PRICED is kept as recorded — but if its extra cost does not
-    // match the new rate it was priced at an older one (a device upgraded from
-    // an older build). Counted and reported, never silently mixed (Cipher H-1).
+    // A day already PRICED is kept as recorded. If its cost differs from what
+    // today's card gives for the SAME extra hours, it was priced at an older
+    // rate; if the hours differ too, something else changed (area settings, a
+    // legacy or hand-edited log) and it is reported separately, not blamed on
+    // the rate (Janus J-M1 / Cipher L-A). Dates are returned so the pay
+    // documents covering them can say so (Janus J-H1).
     if (t.extraCost && rate > 0) {
       const probe = JSON.parse(JSON.stringify(prod));
       recalcExtra(probe, areas, cfg);
-      if (probe.totals.extraCost !== t.extraCost) otherRateDays++;
+      if (probe.totals.extraCost !== t.extraCost) {
+        (probe.totals.extraHours === t.extraHours ? olderRateDates : otherMismatchDates).push(date);
+      }
     }
     const extraUnpriced = (t.extraHours || 0) > 0 && !t.extraCost && rate > 0;
     const snackUnpriced = prod.periods.eveningOT?.active
@@ -123,5 +129,19 @@ export function repriceUnpriced({ logs, snacks, areas, cfg, isLocked = () => fal
     s.snack = snackRate;
     snackEntries++;
   }
-  return { days, snackEntries, otherRateDays };
+  return { days, snackEntries, olderRateDates, otherMismatchDates };
+}
+
+// Of `dates`, those in [from, to] whose stored extra cost STILL differs from what
+// the current card and areas give — so a day re-touched after the import (which
+// reprices it) drops out on its own.
+export function stillPrePriced({ logs, areas, cfg, dates, from, to }) {
+  return (dates || []).filter((d) => {
+    if (d < from || d > to) return false;
+    const prod = logs && logs[d];
+    if (!prod || !prod.periods || !prod.totals?.extraCost) return false;
+    const probe = JSON.parse(JSON.stringify(prod));
+    recalcExtra(probe, areas, cfg);
+    return probe.totals.extraCost !== prod.totals.extraCost;
+  });
 }

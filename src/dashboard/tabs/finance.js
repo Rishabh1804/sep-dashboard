@@ -2,7 +2,7 @@
 // pay cards, advance recording, month-close lock UI.
 
 import { loadJSON, saveJSON } from '../../shared/storage/storage.js';
-import { getRosterStatusAlerts } from '../../components/alerts.js';
+import { getRosterStatusAlerts, getPrePricedNote } from '../../components/alerts.js';
 import { K } from '../../shared/storage/keys.js';
 import { getState } from '../../shared/storage/state.js';
 import { sepRound, formatCurrency } from '../../shared/utils/currency.js';
@@ -69,7 +69,12 @@ export { dayWages as calcDayWages, cwWeekly, permMonthly };
 
 export function renderFinance() {
   const note = document.getElementById('finRateNote');
-  if (note) note.innerHTML = getRosterStatusAlerts().join('');
+  if (note) {
+    const t = getState().today;
+    const pre = getPrePricedNote(t.slice(0, 8) + '01', t);
+    note.innerHTML = getRosterStatusAlerts().join('')
+      + (pre ? `<div class="alert-banner alert-warning" data-preprice-alert>⚠ ${pre}</div>` : '');
+  }
   const date = getState().today;
   const dayWage = dayWages(date);
   const prod = getProdDay(date);

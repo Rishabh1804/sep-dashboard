@@ -71,7 +71,7 @@ describe('recalcExtra', () => {
 });
 
 // ── Repricing on roster import (Janus J-H2) ──────────────────────────────────
-import { repriceUnpriced } from '../../src/shared/utils/calc-prod.js';
+import { repriceUnpriced, stillPrePriced } from '../../src/shared/utils/calc-prod.js';
 
 describe('repriceUnpriced', () => {
   const areas = [{ id: 'a1', roster: [], caps: [] }];
@@ -93,25 +93,40 @@ describe('repriceUnpriced', () => {
     const logs = { '2026-08-10': day(0, 0, 0) };
     const snacks = [{ date: '2026-09-10', snack: 0 }, { date: '2026-09-11', snack: 20 }, { date: '2026-08-10', snack: 0 }];
     const r = repriceUnpriced({ logs, snacks, areas, cfg, isLocked: (m) => m === '2026-08' });
-    expect(r).toEqual({ days: 0, snackEntries: 1, otherRateDays: 0 });
+    expect(r).toEqual({ days: 0, snackEntries: 1, olderRateDates: [], otherMismatchDates: [] });
     expect(snacks.map((x) => x.snack)).toEqual([25, 20, 0]);
   });
 
   test('with no rate loaded there is nothing to price', () => {
     const logs = { '2026-09-10': day(0, 0, 0) };
-    expect(repriceUnpriced({ logs, snacks: [{ date: '2026-09-10', snack: 0 }], areas, cfg: {} })).toEqual({ days: 0, snackEntries: 0, otherRateDays: 0 });
+    expect(repriceUnpriced({ logs, snacks: [{ date: '2026-09-10', snack: 0 }], areas, cfg: {} })).toEqual({ days: 0, snackEntries: 0, olderRateDates: [], otherMismatchDates: [] });
   });
 
-  test('a day priced at an older rate is counted, not repriced', () => {
-    const areasX = [{ id: 'a1', roster: [], caps: [] }];
-    const prod = {
-      periods: { standard: { active: true, hours: 8, areas: {} }, eveningOT: { active: false } },
-      totals: { extraHours: 8, extraCost: 88, snackCost: 0 },
-    };
-    // recalcExtra with no area shortfall yields 0 extra, which differs from the 88 recorded.
-    const logs = { '2026-09-12': prod };
-    const r = repriceUnpriced({ logs, snacks: [], areas: areasX, cfg });
-    expect(r.otherRateDays).toBe(1);
-    expect(logs['2026-09-12'].totals.extraCost).toBe(88);
+  // An area whose requirement is 2 at cap 100, with nobody assigned: 2 short × 8 h = 16 extra hours.
+  const shortArea = [{ id: 'a1', dep: false, caps: [{ l: 100, r: 2 }], roster: [] }];
+  const shortDay = (extraHours, extraCost) => ({
+    periods: { standard: { active: true, hours: 8, areas: { a1: { cap: 100, assigned: [] } } }, eveningOT: { active: false } },
+    totals: { extraHours, extraCost, snackCost: 0 },
+  });
+
+  test('same extra hours at a different cost → an OLDER RATE; kept as recorded, date returned', () => {
+    const logs = { '2026-09-12': shortDay(16, 660) };      // 16 h at 41.25, today's card gives 16 × 50 = 800
+    const r = repriceUnpriced({ logs, snacks: [], areas: shortArea, cfg });
+    expect(r.olderRateDates).toEqual(['2026-09-12']);
+    expect(r.otherMismatchDates).toEqual([]);
+    expect(logs['2026-09-12'].totals.extraCost).toBe(660);
+  });
+
+  test('different extra hours → reported separately, never blamed on the rate (Janus J-M1)', () => {
+    const logs = { '2026-09-12': shortDay(8, 88) };
+    const r = repriceUnpriced({ logs, snacks: [], areas: shortArea, cfg });
+    expect(r.olderRateDates).toEqual([]);
+    expect(r.otherMismatchDates).toEqual(['2026-09-12']);
+  });
+
+  test('stillPrePriced: in range and still differing; a day repriced since drops out', () => {
+    const logs = { '2026-09-12': shortDay(16, 660), '2026-09-13': shortDay(16, 800), '2026-10-01': shortDay(16, 660) };
+    const dates = ['2026-09-12', '2026-09-13', '2026-10-01'];
+    expect(stillPrePriced({ logs, areas: shortArea, cfg, dates, from: '2026-09-01', to: '2026-09-30' })).toEqual(['2026-09-12']);
   });
 });

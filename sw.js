@@ -43,7 +43,9 @@
 // alpha.18: Censor pass — Production and History carry the banner too; pay
 //   prints and CSVs always name the card's date; the import counts days priced
 //   at an older rate.
-const CACHE_NAME = 'sep-v2.1.0-alpha.18';
+// alpha.19: Governor re-check — days priced before the import are dated, split by
+//   cause, and named on the CW weekly print, the costs CSV and Finance.
+const CACHE_NAME = 'sep-v2.1.0-alpha.19';
 const ASSETS = [
   '/sep-dashboard/',
   '/sep-dashboard/index.html',

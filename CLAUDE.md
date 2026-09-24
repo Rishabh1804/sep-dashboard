@@ -1404,8 +1404,12 @@ rules (`permOtMultiplier`, shifts, `guardIds`) and ships the three rate-card fie
   themselves** (`rosterStatusNote`). ⚠ **What this does not catch** *(Cipher H-1)*: a stamp does not
   expire, so a device stamped with an older card reads "imported" — which is why every pay print and
   pay CSV names the card's date (*Rates as of …*) even when imported; and production days confirmed
-  at a held rate keep that extra cost after the import (only ₹0 figures are repriced) — the import
-  alert counts them.
+  at a held rate keep that extra cost after the import (only ₹0 figures are repriced). **alpha.19**
+  *(Janus J-H1, J-M1)*: the import alert **lists those dates**, split by cause (same extra hours at a
+  different cost = an older rate; different hours = area settings or a hand edit), keeps them in
+  `cfg.rosterPrePricedDates`, and the CW weekly print, the costs CSV and the Finance tab **name any
+  such day they cover** until it is re-opened and saved, which reprices it. ⚠ The stamp is set even
+  when the alert reports rejected or unpriced workers.
   **Importing the roster is a required step on each device's first boot of this build.**
 - **A fresh install prices at zero, and says so on every surface that shows pay** — Home, Finance, Production and History, Settings, both pay prints and the payroll and costs CSVs (instrument: every file under `src/dashboard/tabs` and `src/components` that reads a wage, rate, extra or snack cost) —
   not only in Settings *(Janus J-H1; Production and History added at Cipher M-1)*. `dayRateOf`, `cwHourRate` and `permOtRate` turn a missing rate into 0, never NaN.
@@ -1466,7 +1470,9 @@ paying the whole wage — Janus J-H3's float-residue rupee — the override map,
 the plain model) · E2E **43 → 46** (`roster_status.spec.ts`: none / held / imported) ·
 `BUILD 12 → 13 → 14`, `APP_VERSION 2.1.0-alpha.17`, both SW caches bumped. **alpha.18** (Censor
 pass): banners on Production and History, pay prints and pay CSVs always dated, older-rate days
-counted at import · unit **412** · e2e **46** · `BUILD 15`.
+counted at import · unit **412** · e2e **46** · `BUILD 15`. **alpha.19** (Governor re-check): the
+pre-priced days are dated, split by cause and named on the pay documents covering them · unit
+**414** · e2e **46** · `BUILD 16`.
 
 *Session 19b documented 21–24 September 2026 by Aurelius (Claude Code); figures transferred to
 soma-internal 24 September 2026.*

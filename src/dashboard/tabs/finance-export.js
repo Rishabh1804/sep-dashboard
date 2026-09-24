@@ -12,6 +12,7 @@ import { getActiveCW, getActivePermProd, getGuards, getPermWorkers } from '../..
 import { getCfg, getProdDay, getProdLogs } from '../../shared/storage/production.js';
 import { DEF_CFG } from '../../shared/config/wage.js';
 import { rosterStatusNote } from '../../shared/storage/seed-sync.js';
+import { getPrePricedNote } from '../../components/alerts.js';
 
 // A pay export names the rates behind it in its last row — the imported card's
 // date, or a warning when none was imported — so the file carries it wherever it
@@ -150,5 +151,6 @@ export function exportCostsCSV() {
   }
 
   if (nonzeroCount === 0) { alert(`No cost data for ${month}.`); return; }
-  csvDownload(`SEP_costs_${month}.csv`, withRateNote(rows));
+  const prePriced = getPrePricedNote(dates[0], dates[dates.length - 1]);
+  csvDownload(`SEP_costs_${month}.csv`, withRateNote(prePriced ? [...rows, [`NOTE: ${prePriced}`]] : rows));
 }
